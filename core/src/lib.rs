@@ -6,3 +6,4 @@ pub mod titulo;
 pub mod midia;
 pub mod biblioteca;
 pub mod api;
+pub mod emuladores;
