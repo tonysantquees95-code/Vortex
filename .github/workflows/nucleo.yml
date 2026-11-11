@@ -1,0 +1,19 @@
+name: Núcleo (testes Rust)
+
+# Roda os testes do motor do Vortex no Windows (as máquinas Linux do GitHub andaram instáveis).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test -p vortex-core --all-targets
