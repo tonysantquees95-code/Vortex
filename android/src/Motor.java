@@ -470,6 +470,7 @@ public class Motor {
         n = n.replaceAll("\\s+", " ").trim();
         java.util.regex.Matcher c = java.util.regex.Pattern.compile("^(0\\d{3,4})\\s*(?:- |\\. |-)\\s*(.+)$").matcher(n);
         if (c.matches()) n = c.group(2).trim();
+        else { java.util.regex.Matcher c2 = java.util.regex.Pattern.compile("^(\\d{4,5}) - (.+)$").matcher(n); if (c2.matches()) n = c2.group(2).trim(); } // "3298 - Pro Evolution Soccer 2014": número do site de ROMs
         while (true) {
             java.util.regex.Matcher k = java.util.regex.Pattern.compile("(?i)^(.{2,}?)(?: - copy| - c[oó]pia| copy| c[oó]pia)$").matcher(n);
             if (!k.matches()) break;

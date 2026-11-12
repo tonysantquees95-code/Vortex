@@ -80,6 +80,8 @@ public class MotorTeste {
         confere(cfg.getBoolean("ligado"), "modo jogo padrão ligado");
         confere(Motor.titulo("Sonic_the_Hedgehog_2_(World).md").equals("Sonic the Hedgehog 2"), "título de nome com sublinhado");
         confere(Motor.titulo("SuperMarioWorld.sfc").equals("Super Mario World"), "título de nome colado");
+        confere(Motor.titulo("3298 - Pro Evolution Soccer 2014 (Europe) (Es,Pt).iso").equals("Pro Evolution Soccer 2014"), "tira o número de site de ROMs (3298 - …)");
+        confere(Motor.titulo("1942 (USA).nes").equals("1942"), "título só com número fica");
         confere(Motor.titulo("0123 - Metroid Fusion (USA).gba").equals("Metroid Fusion"), "tira número de catálogo");
         confere(Motor.titulo("www.romsite.com - Tetris (World).gb").equals("Tetris"), "tira endereço de site");
         confere(Motor.titulo("Pac-Man - Copy.nes").equals("Pac-Man"), "tira sufixo de cópia");

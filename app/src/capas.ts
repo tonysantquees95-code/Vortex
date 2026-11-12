@@ -30,7 +30,9 @@ export function candidatosDeCapa(j: DadosDaCapa): string[] {
   const urls: string[] = [];
   if (j.capa_online) urls.push(j.capa_online);
   if (!sistema) return urls;
-  const nomes: string[] = [nomeDoArquivo(j.caminho)];
+  const arquivo = nomeDoArquivo(j.caminho);
+  // sites de ROMs põem um número na frente ("3298 - Pro Evolution Soccer 2014 (Europe)"); no repositório de capas o nome não tem
+  const nomes: string[] = [arquivo, arquivo.replace(/^\d{4,5} - /, "")];
   const base = artigoNoFim(j.titulo);
   const regioes = [...(j.regioes ?? []).map((r) => REGIAO_EN[r]).filter(Boolean), "USA", "Europe", "World", "Japan", "Brazil"];
   for (const r of regioes) nomes.push(`${base} (${r})`);
@@ -40,7 +42,7 @@ export function candidatosDeCapa(j: DadosDaCapa): string[] {
     const u = `${BASE}/${encodeURIComponent(sistema)}/Named_Boxarts/${encodeURIComponent(nomeSeguro(n))}.png`;
     if (!vistos.has(u)) { vistos.add(u); urls.push(u); }
   }
-  return urls.slice(0, 7);
+  return urls.slice(0, 8);
 }
 
 // ---- resolução no navegador (com cache e poucas conexões ao mesmo tempo)
