@@ -23,7 +23,6 @@ function ContaVetorial({ motor, avisar }: { motor: Motor; avisar: (t: string) =>
     return (
       <div className="vidro grid gap-3 p-4">
         <p className="text-sm text-slate-300">Entre com a sua conta Vetorial ID (a mesma da Vênus) para liberar o Vortex e guardar os saves na nuvem. Até 3 aparelhos vinculados, 2 ao mesmo tempo.</p>
-        {estado.mensagem && <p className="text-sm text-amber-300">{estado.mensagem}</p>}
         <input className="campo" type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} />
         <input className="campo" type="password" placeholder="Senha" value={senha} onChange={(e) => setSenha(e.target.value)} />
         <div><button data-foco className="botao primario" disabled={ocupado || !email || !senha} onClick={() => tente(async () => { setEstado(await conta.entrar(email, senha)); setSenha(""); })}>{ocupado ? "Entrando…" : "Entrar"}</button></div>
@@ -32,8 +31,7 @@ function ContaVetorial({ motor, avisar }: { motor: Motor; avisar: (t: string) =>
   }
   return (
     <div className="vidro grid gap-3 p-4">
-      <p><span className="font-semibold">{estado.email}</span> <span className="text-sm text-slate-400">· {estado.vortex ? "Vortex liberado" : "Vortex não liberado nesta conta"}{estado.offline ? " (sem internet agora)" : ""}</span></p>
-      {estado.mensagem && !estado.vortex && <p className="text-sm text-amber-300">{estado.mensagem}</p>}
+      <p><span className="font-semibold">{estado.email}</span>{estado.offline && <span className="text-sm text-slate-400"> · sem internet agora</span>}</p>
       <div className="flex flex-wrap gap-3">
         <button data-foco className="botao primario" disabled={ocupado || !estado.vortex} onClick={() => sincronizar()}>{ocupado ? "Sincronizando…" : "☁ Sincronizar saves agora"}</button>
         <button data-foco className="botao" disabled={ocupado} onClick={() => tente(async () => { await conta.sair(); setEstado({ logado: false, vortex: false }); })}>Sair da conta</button>
@@ -157,6 +155,9 @@ export function Ajustes({ motor, aoMudarBiblioteca, avisar }: { motor: Motor; ao
         <div className="vidro grid gap-2 p-4">
           {emu?.instalados.length ? emu.instalados.map((e) => <div key={e.id}><span className="font-semibold">{e.nome}</span> <span className="text-sm text-slate-400">· {e.plataformas.length} plataformas</span></div>) : <p className="text-slate-400">Nenhum emulador encontrado ainda. Instale o RetroArch e o Vortex acha sozinho.</p>}
         </div>
+      </section>
+      <section>
+        <button data-foco className="botao" onClick={() => window.dispatchEvent(new CustomEvent("vortex:termos"))}>Ler os termos de uso</button>
       </section>
       <section className="text-sm text-slate-500">Controle: direcional ou analógico move · A confirma · B volta · Y favorita · LB/RB trocam de aba. Teclado: setas ou WASD · Enter · Esc · F · Q/E.</section>
     </div>

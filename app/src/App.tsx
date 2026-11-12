@@ -7,6 +7,8 @@ import { tempoJogado } from "./navegacao";
 import { Ajustes } from "./telas/Ajustes";
 import { Loja } from "./telas/Loja";
 import { Controles } from "./telas/Controles";
+import { Termos } from "./telas/Termos";
+import { aceitarTermos, termosAceitos } from "./termos";
 import { Detalhe } from "./telas/Detalhe";
 import { Capa, Carrossel, Carta } from "./telas/pecas";
 
@@ -85,6 +87,10 @@ export function App() {
     } catch (e) { avisar(String(e)); }
   }, [motor, avisar]);
 
+  const [aceitou, setAceitou] = useState(termosAceitos);
+  const [lendoTermos, setLendoTermos] = useState(false);
+  useEffect(() => { const f = () => setLendoTermos(true); window.addEventListener("vortex:termos", f); return () => window.removeEventListener("vortex:termos", f); }, []);
+
   // ponte de voz: a Vênus pede ("abra o jogo X", "otimize o Vortex") e este aparelho executa
   const jogosRef = useRef<Jogo[]>([]);
   const jogarRef = useRef<(j: Jogo) => Promise<void>>(async () => {});
@@ -92,7 +98,7 @@ export function App() {
   useEffect(() => { jogosRef.current = jogos; }, [jogos]);
   useEffect(() => {
     const conta = motor.conta;
-    if (!conta) return;
+    if (!conta || !aceitou) return;
     let ocupado = false;
     const sem = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
     const achar = (pedido: string) => {
@@ -124,12 +130,12 @@ export function App() {
     };
     const id = window.setInterval(volta, 5000);
     return () => window.clearInterval(id);
-  }, [motor]);
+  }, [motor, aceitou]);
 
   // saves na nuvem: confere ao abrir e sempre que a janela volta ao foco (por exemplo, ao fechar um jogo)
   useEffect(() => {
     const conta = motor.conta;
-    if (!conta) return;
+    if (!conta || !aceitou) return;
     let ultimo = 0;
     const sinc = async () => {
       if (Date.now() - ultimo < 60_000) return;
@@ -139,7 +145,7 @@ export function App() {
     void sinc();
     window.addEventListener("focus", sinc);
     return () => window.removeEventListener("focus", sinc);
-  }, [motor]);
+  }, [motor, aceitou]);
 
   const jogar = useCallback(async (j: Jogo) => {
     setAberto(null); setLancando(j); setEtapa("Preparando o jogo…");
@@ -167,6 +173,7 @@ export function App() {
   }, [jogos, favoritos, aba, busca, plat, ordem]);
 
   const vazio = carregado && !jogos.length;
+  if (!aceitou) return <Termos aoAceitar={() => { aceitarTermos(); setAceitou(true); }} />;
   return (
     <>
       <div className="fundo-tela" />
@@ -245,6 +252,7 @@ export function App() {
       </div>
 
       {aberto && <Detalhe jogo={aberto} aoJogar={jogar} aoFavoritar={favoritar} aoFechar={() => setAberto(null)} />}
+      {lendoTermos && <Termos aoFechar={() => setLendoTermos(false)} />}
       {lancando && (
         <div data-camada className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-[#05060df2] backdrop-blur-xl">
           <div className="relative h-24 w-24">
