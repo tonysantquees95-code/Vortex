@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Motor } from "../ponte";
 import type { Tema } from "../tema";
 import { ContaVetorial, TelaAparencia, TelaJogos } from "./Ajustes";
+import { FundoDaTela } from "./FundoDaTela";
 import { Permissoes } from "./Permissoes";
 
 type Passo = { id: string; titulo: string; texto: string };
@@ -20,15 +21,15 @@ export function Configuracao({ motor, tema, aoMudarTema, avisar, aoMudarBibliote
   const ultimo = i === passos.length - 1;
   return (
     <div data-camada className="fixed inset-0 z-[150] flex flex-col bg-[#04040a]">
-      <div className="fundo-tela"><div className="espiral" /><div className="espiral b" /></div>
-      <div className="relative mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-5 px-6 py-8">
-        <div className="text-center"><span className="marca"><span className="nome text-2xl">VORTEX</span></span></div>
+      <FundoDaTela tema={tema} />
+      <div className="relative mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-4 px-6 py-4 sm:py-8">
+        <div className="so-alto text-center"><span className="marca"><span className="nome text-2xl">VORTEX</span></span></div>
         <div className="flex items-center justify-center gap-2" aria-label={`Passo ${i + 1} de ${passos.length}`}>
           {passos.map((x, k) => <span key={x.id} className="h-1.5 w-10 rounded-full" style={{ background: k <= i ? "var(--neon)" : "rgba(255,255,255,.15)", boxShadow: k === i ? "0 0 12px var(--neon)" : "none" }} />)}
         </div>
         <div>
           <h2 className="text-3xl font-black">{p.titulo}</h2>
-          <p className="mt-1 text-slate-300">{p.texto}</p>
+          <p className="so-alto mt-1 text-slate-300">{p.texto}</p>
         </div>
         <div className="rolagem min-h-0 flex-1 pr-1">
           {p.id === "permissoes" && <Permissoes motor={motor} avisar={avisar} />}

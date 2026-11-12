@@ -2,7 +2,7 @@
 
 :root {
   --neon: #ff2a3d; --neon2: #b0001a; --neon-rgb: 255, 42, 61; --neon2-rgb: 176, 0, 26; --sobre-neon: #ffffff; --brilho: .7; --carta-min: 160px;
-  --rosa: #ff3da6; --fundo: #04040a; --painel: rgba(20, 12, 18, .72); --borda: rgba(var(--neon-rgb), .22);
+  --rosa: #ff3da6; --fundo: #04040a; --painel: rgba(20, 12, 18, .88); --borda: rgba(var(--neon-rgb), .22);
   /* o app usa as cores ciano/violeta do Tailwind: aqui elas passam a seguir o tema escolhido */
   --color-cyan-100: color-mix(in srgb, var(--neon) 18%, white);
   --color-cyan-200: color-mix(in srgb, var(--neon) 40%, white);
@@ -14,17 +14,10 @@ html, body, #raiz { height: 100%; }
 body { margin: 0; background: var(--fundo); color: #e8ecff; font-family: "Segoe UI", system-ui, sans-serif; overflow: hidden; user-select: none; -webkit-tap-highlight-color: transparent; }
 
 .fundo-tela { position: fixed; inset: 0; overflow: hidden; background: radial-gradient(1200px 700px at 15% -10%, rgba(var(--neon2-rgb), .35), transparent 60%), radial-gradient(900px 600px at 95% 10%, rgba(var(--neon-rgb), .18), transparent 55%), radial-gradient(900px 700px at 50% 120%, rgba(var(--neon-rgb), .16), transparent 60%), var(--fundo); }
-.fundo-tela::after { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(var(--neon-rgb),.06) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--neon-rgb),.06) 1px, transparent 1px); background-size: 56px 56px; mask-image: radial-gradient(ellipse at center, #000 30%, transparent 80%); animation: grade 18s linear infinite; }
-@keyframes grade { to { background-position: 56px 56px; } }
-/* fundo "vórtex": espirais lentas girando atrás de tudo */
-.fundo-tela .espiral { display: none; }
-html[data-fundo="vortex"] .fundo-tela .espiral { display: block; position: absolute; left: 50%; top: 42%; width: 150vmax; height: 150vmax; margin: -75vmax 0 0 -75vmax; border-radius: 50%; opacity: calc(.25 + var(--brilho) * .35);
-  background: conic-gradient(from 0deg, transparent 0deg, rgba(var(--neon-rgb), .55) 40deg, transparent 90deg, transparent 180deg, rgba(var(--neon2-rgb), .6) 230deg, transparent 280deg);
-  -webkit-mask-image: radial-gradient(circle, transparent 6%, #000 22%, transparent 62%); mask-image: radial-gradient(circle, transparent 6%, #000 22%, transparent 62%); animation: girar 60s linear infinite; }
-html[data-fundo="vortex"] .fundo-tela .espiral.b { animation-duration: 90s; animation-direction: reverse; opacity: calc(.15 + var(--brilho) * .25); transform: scale(.7); }
+html[data-fundo="grade"] .fundo-tela::after { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(var(--neon-rgb),.07) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--neon-rgb),.07) 1px, transparent 1px); background-size: 56px 56px; mask-image: radial-gradient(ellipse at center, #000 30%, transparent 80%); }
+.vortice { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+html[data-fundo="grade"] .fundo-tela .vortice, html[data-fundo="liso"] .fundo-tela .vortice { display: none; }
 html[data-fundo="liso"] .fundo-tela { background: var(--fundo); }
-html[data-fundo="liso"] .fundo-tela::after { display: none; }
-html[data-fundo="grade"] .fundo-tela .espiral { display: none; }
 
 .rolagem { overflow: auto; scrollbar-width: none; }
 .rolagem::-webkit-scrollbar { display: none; }
@@ -55,7 +48,7 @@ html[data-fundo="grade"] .fundo-tela .espiral { display: none; }
 @keyframes girar { to { transform: rotate(360deg); } }
 .titulo-neon { background: linear-gradient(90deg, #fff, var(--neon)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .cores-neon { color: var(--neon); }
-.vidro { background: var(--painel); border: 1px solid var(--borda); backdrop-filter: blur(14px); border-radius: 18px; }
+.vidro { background: var(--painel); border: 1px solid var(--borda); border-radius: 18px; }
 .interruptor { width: 3rem; height: 1.7rem; border-radius: 999px; background: #232a45; position: relative; flex: none; transition: background .2s; }
 .interruptor::after { content: ""; position: absolute; top: .2rem; left: .2rem; width: 1.3rem; height: 1.3rem; border-radius: 50%; background: #fff; transition: transform .2s; }
 .interruptor[data-lig="true"] { background: linear-gradient(90deg, var(--neon2), var(--neon)); }
@@ -75,31 +68,24 @@ html[data-formato="futurista"] .vidro, html[data-formato="futurista"] .carta { b
 
 /* marca VORTEX no topo, com luz neon pulsando por trás */
 .marca { position: relative; display: inline-block; padding: .2rem 1.6rem; isolation: isolate; }
-.marca::before { content: ""; position: absolute; left: 50%; top: 50%; width: 130%; height: 260%; transform: translate(-50%, -50%); z-index: -1; border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(var(--neon-rgb), calc(.35 + .5 * var(--brilho))), rgba(var(--neon-rgb), .12) 55%, transparent 75%); filter: blur(10px); animation: respiro 4.8s ease-in-out infinite; }
-.marca .nome { font-weight: 900; letter-spacing: .32em; text-indent: .32em; color: #fff; text-shadow: 0 0 calc(6px + 18px * var(--brilho)) rgba(var(--neon-rgb), .95), 0 0 calc(18px + 46px * var(--brilho)) rgba(var(--neon-rgb), .6); animation: respiro-texto 4.8s ease-in-out infinite; }
+.marca::before { content: ""; position: absolute; left: 50%; top: 50%; width: 130%; height: 260%; transform: translate(-50%, -50%); z-index: -1; border-radius: 50%; will-change: transform, opacity;
+  background: radial-gradient(closest-side, rgba(var(--neon-rgb), calc(.35 + .5 * var(--brilho))), rgba(var(--neon-rgb), .12) 55%, transparent 75%); animation: respiro 4.8s ease-in-out infinite; }
+.marca .nome { font-weight: 900; letter-spacing: .32em; text-indent: .32em; color: #fff; text-shadow: 0 0 calc(6px + 18px * var(--brilho)) rgba(var(--neon-rgb), .95), 0 0 calc(18px + 46px * var(--brilho)) rgba(var(--neon-rgb), .6); }
 @keyframes respiro { 0%, 100% { opacity: .55; transform: translate(-50%, -50%) scale(.92); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); } }
 @keyframes respiro-texto { 0%, 100% { filter: brightness(.9); } 50% { filter: brightness(1.25); } }
 
-/* abertura: túnel de anéis que puxa para dentro do vórtex */
-.abertura { position: fixed; inset: 0; z-index: 200; overflow: hidden; background: #000; display: grid; place-items: center; transition: opacity .6s ease, transform .6s ease; }
-.abertura[data-saindo="true"] { opacity: 0; transform: scale(1.15); pointer-events: none; }
-.abertura .tunel { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
-.abertura .anel { position: absolute; left: 50%; top: 50%; width: 120vmax; height: 120vmax; margin: -60vmax 0 0 -60vmax; border-radius: 50%; border: 3px solid rgba(var(--neon-rgb), .9);
-  box-shadow: 0 0 40px rgba(var(--neon-rgb), .8), inset 0 0 60px rgba(var(--neon-rgb), .5); opacity: 0; animation: entrar-no-vortex 2.4s cubic-bezier(.55,0,.8,.4) infinite; }
-.abertura .anel:nth-child(2n) { border-color: rgba(var(--neon2-rgb), .95); box-shadow: 0 0 40px rgba(var(--neon2-rgb), .8), inset 0 0 60px rgba(var(--neon2-rgb), .5); }
-@keyframes entrar-no-vortex { 0% { transform: scale(1) rotate(0deg); opacity: 0; } 12% { opacity: 1; } 100% { transform: scale(0) rotate(200deg); opacity: .15; } }
-.abertura .redemoinho { position: absolute; left: 50%; top: 50%; width: 160vmax; height: 160vmax; margin: -80vmax 0 0 -80vmax; border-radius: 50%;
-  background: conic-gradient(from 0deg, #000, rgba(var(--neon-rgb), .75), #000 70deg, rgba(var(--neon2-rgb), .8) 150deg, #000 220deg, rgba(var(--neon-rgb), .7) 290deg, #000);
-  -webkit-mask-image: radial-gradient(circle, transparent 3%, #000 12%, transparent 55%); mask-image: radial-gradient(circle, transparent 3%, #000 12%, transparent 55%); animation: redemoinho 2.8s cubic-bezier(.4,0,.9,.6) forwards; }
-@keyframes redemoinho { 0% { transform: rotate(0) scale(1.6); opacity: .2; } 60% { opacity: 1; } 100% { transform: rotate(540deg) scale(.15); opacity: .9; } }
-.abertura .letreiro { position: relative; z-index: 2; font-weight: 900; font-size: clamp(2.6rem, 11vw, 6rem); letter-spacing: .34em; text-indent: .34em; color: #fff; opacity: 0;
-  text-shadow: 0 0 20px rgba(var(--neon-rgb), 1), 0 0 70px rgba(var(--neon-rgb), .9), 0 0 140px rgba(var(--neon-rgb), .6); animation: letreiro 1.5s .9s cubic-bezier(.2,.9,.2,1) forwards; }
-@keyframes letreiro { 0% { opacity: 0; transform: scale(5); filter: blur(24px); } 70% { opacity: 1; transform: scale(.96); filter: blur(0); } 100% { opacity: 1; transform: scale(1); } }
-.abertura .toque { position: absolute; bottom: 8vh; z-index: 2; font-size: .8rem; letter-spacing: .3em; color: rgba(255,255,255,.45); text-transform: uppercase; }
+/* abertura: o vórtice 3D (canvas WebGL) enche a tela e o nome surge no fim, com um clarão */
+.abertura { position: fixed; inset: 0; z-index: 200; overflow: hidden; background: #000; display: grid; place-items: center; transition: opacity .5s ease; }
+.abertura[data-saindo="true"] { opacity: 0; pointer-events: none; }
+.abertura .letreiro { position: relative; z-index: 2; font-weight: 900; font-size: clamp(2.4rem, 10vw, 5.5rem); letter-spacing: .34em; text-indent: .34em; color: #fff; opacity: 0; will-change: transform, opacity;
+  text-shadow: 0 0 18px rgba(var(--neon-rgb), 1), 0 0 60px rgba(var(--neon-rgb), .85); animation: letreiro 1.3s 1.2s cubic-bezier(.2,.9,.2,1) forwards; }
+@keyframes letreiro { 0% { opacity: 0; transform: scale(3.2); } 65% { opacity: 1; } 100% { opacity: 1; transform: scale(1); } }
+.abertura .toque { position: absolute; bottom: 6vh; z-index: 2; font-size: .75rem; letter-spacing: .3em; color: rgba(255,255,255,.45); text-transform: uppercase; }
 
 /* cartas de seleção de cor e telas de configuração */
 .amostra { width: 3.2rem; height: 3.2rem; border-radius: 50%; border: 2px solid rgba(255,255,255,.25); flex: none; }
 .amostra:focus, .amostra[data-ativa="true"] { border-color: #fff; box-shadow: 0 0 20px rgba(var(--neon-rgb), .8); }
 input[type="range"].barra { width: 100%; accent-color: var(--neon); }
 
+
+@media (max-height: 520px) { .so-alto { display: none !important; } }

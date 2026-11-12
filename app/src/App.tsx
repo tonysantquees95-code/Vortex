@@ -5,6 +5,7 @@ import type { Estatisticas, Jogo, Ordem, ResumoPlataforma } from "./ponte";
 import { configurado, marcarConfigurado, organizarAutomatico } from "./config";
 import { aplicarTema, guardarTema, lerTema, type Tema } from "./tema";
 import { Abertura } from "./telas/Abertura";
+import { FundoDaTela } from "./telas/FundoDaTela";
 import { Configuracao } from "./telas/Configuracao";
 import { tempoJogado } from "./navegacao";
 import { Ajustes } from "./telas/Ajustes";
@@ -185,11 +186,11 @@ export function App() {
 
   const vazio = carregado && !jogos.length;
   const intro = abertura ? <Abertura aoTerminar={() => setAbertura(false)} /> : null;
-  if (!aceitou) return <>{intro}<div className="fundo-tela"><div className="espiral" /><div className="espiral b" /></div><Termos aoAceitar={() => { aceitarTermos(); setAceitou(true); }} /></>;
+  if (!aceitou) return <>{intro}<FundoDaTela tema={abertura ? { ...tema, fundo: "liso" } : tema} /><Termos aoAceitar={() => { aceitarTermos(); setAceitou(true); }} /></>;
   return (
     <>
       {intro}
-      <div className="fundo-tela"><div className="espiral" /><div className="espiral b" /></div>
+      <FundoDaTela tema={abertura ? { ...tema, fundo: "liso" } : tema} />
       <div className="relative flex h-full flex-col">
         <header className="grid gap-2 px-6 pb-1 pt-4 sm:px-10">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
