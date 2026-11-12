@@ -45,13 +45,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: npm install --no-audit --no-fund
         working-directory: app
-      - name: Testar o app e o motor
-        run: cargo test --workspace --all-targets
       - name: Instalar o Tauri e gerar os ícones
         run: |
           npm install -g @tauri-apps/cli@2
           cd desktop/src-tauri
           tauri icon ../app-icon.png
+      - name: Testar o app e o motor
+        run: cargo test --workspace --all-targets
       - name: Gerar o instalador
         working-directory: desktop/src-tauri
         run: tauri build
