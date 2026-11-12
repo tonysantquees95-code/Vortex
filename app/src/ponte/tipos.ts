@@ -6,6 +6,8 @@ export interface Jogo {
   descricao: string | null; desenvolvedor: string | null; editora: string | null; ano: number | null; genero: string | null; jogadores: string | null;
   adicionado: number; favorito: boolean; ultimo_jogo: number; tempo_total_s: number; sessoes: number; disponivel: boolean;
 }
+/** Faxina: cópias repetidas vão para a pasta "Duplicados" e arquivos quebrados para "Corrompidos" (nada é apagado). */
+export interface RelatorioLimpeza { duplicados: string[]; corrompidos: string[]; falhas: string[]; simulacao: boolean }
 export interface ResumoPlataforma { id: string; nome: string; tipo: string; total: number }
 export interface Estatisticas { jogos: number; plataformas: number; favoritos: number; tempo_total_s: number; sessoes: number }
 export interface ResumoEscaneamento { encontrados: number; novos: number; atualizados: number; removidos: number; ignorados: number; pastas_ausentes: string[] }
@@ -93,6 +95,8 @@ export interface Motor {
   modoJogo(nova?: ModoJogoConfig): Promise<ModoJogoConfig>;
   recuperarModoJogo(): Promise<void>;
   /** Procura jogos soltos no aparelho, identifica o console, descompacta e guarda na pasta do Vortex (uma pasta por console). */
+  /** Deixa um jogo só por título e tira os arquivos quebrados da biblioteca. Com simulação só conta. */
+  limpar(simulacao?: boolean): Promise<RelatorioLimpeza>;
   organizar(simulacao?: boolean): Promise<RelatorioOrganizacao>;
   desfazerOrganizacao(): Promise<{ devolvidos: number; falhas: string[] }>;
 }

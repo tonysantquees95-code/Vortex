@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
-import type { EmuladoresInfo, EstadoConta, ModoJogoConfig, Motor } from "../ponte";
-import { atualizarSozinho, definirAtualizarSozinho, definirOrganizarAutomatico, organizarAutomatico } from "../config";
+import { useEffect, useMemo, useState } from "react";
+import type { EmuladoresInfo, EstadoConta, Jogo, ModoJogoConfig, Motor, RelatorioLimpeza } from "../ponte";
+import { atualizarSozinho, definirAtualizarSozinho, definirLimparSozinho, definirOrganizarAutomatico, limparSozinho, organizarAutomatico } from "../config";
+import { faxinaAutomatica, resumoDaFaxina } from "../faxina";
+import { capaConhecida } from "../capas";
 import { BUILD } from "../atualizacao";
 import type { Atualizacao } from "../useAtualizacao";
-import { CORES, TEMA_PADRAO, hexValido, type Tema } from "../tema";
+import { CORES, TEMA_PADRAO, hexValido, type Fundo, type Tema } from "../tema";
 import { Interruptor } from "./pecas";
+import { Dock } from "./Dock";
+import { Icone3D } from "./Icones";
 import { Permissoes } from "./Permissoes";
 
 export function ContaVetorial({ motor, avisar }: { motor: Motor; avisar: (t: string) => void }) {
@@ -97,6 +101,8 @@ export function TelaJogos({ motor, avisar, aoMudarBiblioteca }: { motor: Motor; 
   const [ocupado, setOcupado] = useState(false);
   const [auto, setAuto] = useState(organizarAutomatico);
   const [resultado, setResultado] = useState<string[] | null>(null);
+  const [limpezaAuto, setLimpezaAuto] = useState(limparSozinho);
+  const [previa, setPrevia] = useState<RelatorioLimpeza | null>(null);
   useEffect(() => { motor.pastas().then(setPastas).catch(() => {}); }, [motor]);
 
   const escanear = async () => {
@@ -104,6 +110,22 @@ export function TelaJogos({ motor, avisar, aoMudarBiblioteca }: { motor: Motor; 
     try {
       const r = await motor.escanear();
       setResultado([`${r.encontrados} jogos na biblioteca · ${r.novos} novos${r.removidos ? ` · ${r.removidos} removidos` : ""}.`, ...(r.pastas_ausentes.length ? [`Pastas que não existem mais: ${r.pastas_ausentes.join(", ")}`] : [])]);
+      const f = await faxinaAutomatica(motor);
+      if (f) avisar(`Faxina: ${resumoDaFaxina(f)}`);
+      aoMudarBiblioteca();
+    } catch (e) { avisar(String(e instanceof Error ? e.message : e)); } finally { setOcupado(false); }
+  };
+  const verFaxina = async () => {
+    setOcupado(true);
+    try { const r = await motor.limpar(true); if (r.duplicados.length || r.corrompidos.length) setPrevia(r); else { setPrevia(null); avisar("Tudo em ordem: nenhum jogo repetido nem arquivo quebrado."); } }
+    catch (e) { avisar(String(e instanceof Error ? e.message : e)); } finally { setOcupado(false); }
+  };
+  const fazerFaxina = async () => {
+    setOcupado(true);
+    try {
+      const r = await motor.limpar();
+      setPrevia(null);
+      avisar(`Pronto: ${resumoDaFaxina(r) || "nada para mover"}${r.falhas.length ? ` · ${r.falhas.length} com problema` : ""}`);
       aoMudarBiblioteca();
     } catch (e) { avisar(String(e instanceof Error ? e.message : e)); } finally { setOcupado(false); }
   };
@@ -151,6 +173,18 @@ export function TelaJogos({ motor, avisar, aoMudarBiblioteca }: { motor: Motor; 
         {resultado && <div className="vidro grid gap-1 p-4 text-sm text-slate-200">{resultado.map((l, i) => <p key={i}>{l}</p>)}</div>}
       </section>
       <section className="grid gap-3">
+        <h3 className="text-lg font-bold text-cyan-100/90">Jogos repetidos e arquivos quebrados</h3>
+        <Interruptor ligado={limpezaAuto} rotulo="Deixar um jogo só por título" detalhe="Depois de buscar, fica a melhor versão de cada jogo (Brasil, EUA, sem beta). As cópias vão para a pasta Duplicados e os arquivos quebrados para a pasta Corrompidos, dentro da sua pasta de jogos. Nada é apagado." aoMudar={(v) => { setLimpezaAuto(v); definirLimparSozinho(v); }} />
+        <div className="flex flex-wrap gap-3"><button data-foco className="botao" disabled={ocupado} onClick={verFaxina}>🧹 Ver o que dá para limpar</button></div>
+        {previa && (
+          <div className="vidro grid gap-3 p-4 text-sm text-slate-200">
+            <p>{previa.duplicados.length} repetido(s) e {previa.corrompidos.length} quebrado(s) seriam separados.</p>
+            {[...previa.corrompidos, ...previa.duplicados].slice(0, 4).map((c) => <p key={c} className="truncate text-slate-400">{c}</p>)}
+            <div className="flex flex-wrap gap-3"><button data-foco className="botao primario" disabled={ocupado} onClick={fazerFaxina}>Separar agora</button><button data-foco className="botao" onClick={() => setPrevia(null)}>Deixar como está</button></div>
+          </div>
+        )}
+      </section>
+      <section className="grid gap-3">
         <h3 className="text-lg font-bold text-cyan-100/90">Pastas de jogos</h3>
         {pastas.map((p) => (
           <button key={p} data-foco className="linha" onClick={() => remover(p)} title="Tirar esta pasta">
@@ -184,13 +218,36 @@ export function TelaAtualizacoes({ motor, avisar, atualizacao }: { motor: Motor;
   );
 }
 
-const FUNDOS: [Tema["fundo"], string][] = [["vortex", "Vórtex"], ["grade", "Grade"], ["liso", "Liso"]];
+const FUNDOS: [Fundo, string, string][] = [
+  ["console", "Segue o console", "O fundo troca para a capa do console ou jogo em foco."],
+  ["aurora", "Aurora", "Luzes suaves na cor do tema."], ["grade", "Grade", "Linhas de neon, estilo futurista."],
+  ["circuito", "Circuito", "Trilhas de placa de circuito."], ["pontos", "Pontos", "Pontinhos de luz."], ["liso", "Liso", "Só a cor, sem desenho."],
+];
+
+/** Reduz a foto escolhida (até 1280 px) para caber no armazenamento do aparelho. */
+async function reduzirFoto(arq: File): Promise<string> {
+  const url = URL.createObjectURL(arq);
+  try {
+    const img = await new Promise<HTMLImageElement>((ok, erro) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => erro(new Error("Não consegui abrir essa imagem.")); i.src = url; });
+    const e = Math.min(1, 1280 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(img.naturalWidth * e)); c.height = Math.max(1, Math.round(img.naturalHeight * e));
+    c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL("image/jpeg", 0.72);
+  } finally { URL.revokeObjectURL(url); }
+}
 const FORMATOS: [Tema["formato"], string][] = [["futurista", "Futurista"], ["redondo", "Arredondado"]];
 const CARTAS: [Tema["cartas"], string][] = [["pequeno", "Pequenas"], ["medio", "Médias"], ["grande", "Grandes"]];
 
 /** Personalização completa: cor, brilho, fundo, formato, tamanho das cartas, animações e a abertura. */
-export function TelaAparencia({ tema, aoMudar }: { tema: Tema; aoMudar: (t: Tema) => void }) {
+export function TelaAparencia({ tema, aoMudar, jogos = [], avisar }: { tema: Tema; aoMudar: (t: Tema) => void; jogos?: Jogo[]; avisar?: (t: string) => void }) {
   const m = (parte: Partial<Tema>) => aoMudar({ ...tema, ...parte });
+  const [escolhendoCapa, setEscolhendoCapa] = useState(false);
+  const capas = useMemo(() => jogos.map((j) => capaConhecida(j.id)).filter((u): u is string => Boolean(u)).slice(0, 36), [jogos, escolhendoCapa]); // eslint-disable-line react-hooks/exhaustive-deps
+  const escolherFoto = async (arq: File | undefined) => {
+    if (!arq) return;
+    try { m({ fundo: "foto", foto: await reduzirFoto(arq) }); } catch (e) { avisar?.(String(e instanceof Error ? e.message : e)); }
+  };
   const personalizada = hexValido(tema.cor);
   return (
     <div className="grid gap-6">
@@ -212,7 +269,17 @@ export function TelaAparencia({ tema, aoMudar }: { tema: Tema; aoMudar: (t: Tema
       </section>
       <section className="grid gap-2">
         <h3 className="text-lg font-bold text-cyan-100/90">Fundo</h3>
-        <div className="flex flex-wrap gap-2">{FUNDOS.map(([id, nome]) => <button key={id} data-foco className="chip" data-ativa={tema.fundo === id} onClick={() => m({ fundo: id })}>{nome}</button>)}</div>
+        <div className="flex flex-wrap gap-2">
+          {FUNDOS.map(([id, nome]) => <button key={id} data-foco className="chip" data-ativa={tema.fundo === id} onClick={() => m({ fundo: id })}>{nome}</button>)}
+          <label className="chip cursor-pointer" data-ativa={tema.fundo === "foto"} data-foco tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.click(); }}>📷 Minha foto
+            <input type="file" accept="image/*" className="hidden" onChange={(e) => { void escolherFoto(e.target.files?.[0]); e.target.value = ""; }} />
+          </label>
+          <button data-foco className="chip" data-ativa={tema.fundo === "capa"} onClick={() => setEscolhendoCapa((v) => !v)}>🖼 Capa de um jogo</button>
+        </div>
+        <p className="text-sm text-slate-400">{FUNDOS.find(([id]) => id === tema.fundo)?.[2] ?? (tema.fundo === "foto" ? "Sua foto de fundo." : "A capa de jogo que você escolheu.")}</p>
+        {escolhendoCapa && (capas.length ? (
+          <div className="rolagem flex max-h-56 flex-wrap gap-2">{capas.map((u) => <button key={u} data-foco className="mini-escolha" data-ativa={tema.capaFundo === u} onClick={() => m({ fundo: "capa", capaFundo: u })}><img src={u} alt="" loading="lazy" /></button>)}</div>
+        ) : <p className="text-sm text-slate-400">As capas aparecem aqui depois que o Vortex as encontrar (abra a Biblioteca e volte).</p>)}
       </section>
       <section className="grid gap-2">
         <h3 className="text-lg font-bold text-cyan-100/90">Formato dos painéis</h3>
@@ -234,62 +301,48 @@ export function TelaAparencia({ tema, aoMudar }: { tema: Tema; aoMudar: (t: Tema
   );
 }
 
-type Tela = "menu" | "conta" | "jogos" | "aparencia" | "modo" | "permissoes" | "atualizacoes" | "emuladores" | "sobre";
-interface Item { id: Exclude<Tela, "menu">; icone: string; titulo: string; detalhe: string }
+type Tela = "conta" | "jogos" | "aparencia" | "modo" | "permissoes" | "atualizacoes" | "emuladores" | "sobre";
+interface Item { id: Tela; icone: string; nome: string; titulo: string; detalhe: string }
 
-export function Ajustes({ motor, aoMudarBiblioteca, avisar, atualizacao, tema, aoMudarTema }: { motor: Motor; aoMudarBiblioteca: () => void; avisar: Avisar; atualizacao: Atualizacao; tema: Tema; aoMudarTema: (t: Tema) => void }) {
-  const [tela, setTela] = useState<Tela>("menu");
+/** Ajustes em seções: ícone grande + título no alto, dock para trocar de seção (o foco já troca) e o conteúdo logo abaixo. */
+export function Ajustes({ motor, aoMudarBiblioteca, avisar, atualizacao, tema, aoMudarTema, jogos }: { motor: Motor; aoMudarBiblioteca: () => void; avisar: Avisar; atualizacao: Atualizacao; tema: Tema; aoMudarTema: (t: Tema) => void; jogos: Jogo[] }) {
   const itens: Item[] = [
-    ...(motor.conta ? [{ id: "conta" as const, icone: "☁", titulo: "Conta e saves na nuvem", detalhe: "Vetorial ID, licença e sincronização dos saves." }] : []),
-    { id: "jogos", icone: "🎮", titulo: "Jogos e busca", detalhe: "Buscar jogos no aparelho, pastas e organização por console." },
-    { id: "aparencia", icone: "🎨", titulo: "Personalização", detalhe: "Cor, brilho neon, fundo, formato, capas e abertura." },
-    { id: "permissoes", icone: "🔐", titulo: "Permissões", detalhe: "O que o Vortex precisa liberar no aparelho e por quê." },
-    { id: "modo", icone: "⚡", titulo: "Modo Jogo", detalhe: "Desempenho máximo enquanto você joga." },
-    { id: "emuladores", icone: "🕹", titulo: "Emuladores", detalhe: "Motores de emulação encontrados." },
-    { id: "atualizacoes", icone: "⬆", titulo: "Atualizações", detalhe: atualizacao.nova ? `Versão nova disponível: 1.${atualizacao.nova.numero}` : "Versão instalada e atualização automática." },
-    { id: "sobre", icone: "ℹ", titulo: "Sobre e termos", detalhe: "Termos de uso e atalhos do controle." },
+    ...(motor.conta ? [{ id: "conta" as const, icone: "conta", nome: "Conta", titulo: "Conta e saves na nuvem", detalhe: "Vetorial ID, licença e sincronização dos saves." }] : []),
+    { id: "jogos", icone: "jogos", nome: "Jogos", titulo: "Jogos e busca", detalhe: "Buscar jogos no aparelho, pastas, organização por console e faxina de repetidos." },
+    { id: "aparencia", icone: "aparencia", nome: "Visual", titulo: "Personalização", detalhe: "Cor, brilho neon, fundo (foto, capa ou modelos), formato e abertura." },
+    { id: "permissoes", icone: "permissoes", nome: "Permissões", titulo: "Permissões", detalhe: "O que o Vortex precisa liberar no aparelho e por quê." },
+    { id: "modo", icone: "modo", nome: "Modo Jogo", titulo: "Modo Jogo", detalhe: "Desempenho máximo enquanto você joga." },
+    { id: "emuladores", icone: "emuladores", nome: "Emuladores", titulo: "Emuladores", detalhe: "Motores de emulação encontrados." },
+    { id: "atualizacoes", icone: "atualizacoes", nome: "Atualizar", titulo: "Atualizações", detalhe: atualizacao.nova ? `Versão nova disponível: 1.${atualizacao.nova.numero}` : "Versão instalada e atualização automática." },
+    { id: "sobre", icone: "sobre", nome: "Sobre", titulo: "Sobre e termos", detalhe: "Termos de uso e atalhos do controle." },
   ];
-  const voltar = useCallback(() => setTela("menu"), []);
-  useEffect(() => {
-    if (tela === "menu") return;
-    window.addEventListener("vortex:voltar", voltar);
-    return () => window.removeEventListener("vortex:voltar", voltar);
-  }, [tela, voltar]);
-  useEffect(() => { const el = document.querySelector<HTMLElement>("main [data-foco]"); el?.focus({ preventScroll: true }); }, [tela]);
-
-  if (tela === "menu") {
-    return (
-      <div className="entrar mx-auto grid max-w-4xl gap-3 px-6 pb-16 sm:px-10 sm:grid-cols-2">
-        {itens.map((i) => (
-          <button key={i.id} data-foco className="linha" onClick={() => setTela(i.id)}>
-            <span className="flex items-center gap-4"><span className="text-3xl" aria-hidden>{i.icone}</span><span><span className="block text-lg font-bold">{i.titulo}</span><span className="block text-sm text-slate-400">{i.detalhe}</span></span></span>
-            <span className="text-2xl cores-neon">›</span>
-          </button>
-        ))}
-      </div>
-    );
-  }
-  const atual = itens.find((i) => i.id === tela)!;
+  const [tela, setTela] = useState<Tela>(itens[0].id);
+  const atual = itens.find((i) => i.id === tela) ?? itens[0];
+  useEffect(() => { document.documentElement.dataset.secao = "aj-" + atual.id; }, [atual.id]);
   return (
-    <div className="entrar mx-auto grid max-w-4xl gap-6 px-6 pb-16 sm:px-10">
-      <div className="flex items-center gap-4">
-        <button data-foco className="botao" onClick={voltar}>‹ Ajustes</button>
-        <h2 className="text-2xl font-black">{atual.titulo}</h2>
+    <div className="mx-auto grid max-w-4xl grid-cols-[minmax(0,1fr)] gap-5 px-6 pb-16 sm:px-10">
+      <div key={atual.id} className="ajustes-cab entrar grid justify-items-center gap-2 text-center">
+        <Icone3D nome={atual.icone} tamanho={104} />
+        <h2 className="titulo-neon text-3xl font-black">{atual.titulo}</h2>
+        <p className="max-w-xl text-sm text-slate-300">{atual.detalhe}</p>
       </div>
-      {tela === "conta" && motor.conta && <ContaVetorial motor={motor} avisar={avisar} />}
-      {tela === "jogos" && <TelaJogos motor={motor} avisar={avisar} aoMudarBiblioteca={aoMudarBiblioteca} />}
-      {tela === "aparencia" && <TelaAparencia tema={tema} aoMudar={aoMudarTema} />}
-      {tela === "permissoes" && <Permissoes motor={motor} avisar={avisar} />}
-      {tela === "modo" && <TelaModoJogo motor={motor} avisar={avisar} />}
-      {tela === "emuladores" && <TelaEmuladores motor={motor} />}
-      {tela === "atualizacoes" && <TelaAtualizacoes motor={motor} avisar={avisar} atualizacao={atualizacao} />}
-      {tela === "sobre" && (
-        <div className="grid gap-4">
-          <div><button data-foco className="botao" onClick={() => window.dispatchEvent(new CustomEvent("vortex:termos"))}>Ler os termos de uso</button></div>
-          <p className="text-sm text-slate-400">Controle: direcional ou analógico move · A confirma · B volta · Y favorita · LB/RB trocam de aba. Teclado: setas ou WASD · Enter · Esc · F · Q/E.</p>
-          <p className="text-sm text-slate-500">Vortex · Vetorial Tech{BUILD > 0 ? ` · versão 1.${BUILD}` : ""}</p>
-        </div>
-      )}
+      <Dock rotulo="Seções dos ajustes" itens={itens.map((i) => ({ id: i.id, nome: i.nome, icone: i.icone }))} ativo={atual.id} aoEscolher={(id) => setTela(id as Tela)} selecionarAoFocar />
+      <div key={"c" + atual.id} className="entrar grid gap-6">
+        {atual.id === "conta" && motor.conta && <ContaVetorial motor={motor} avisar={avisar} />}
+        {atual.id === "jogos" && <TelaJogos motor={motor} avisar={avisar} aoMudarBiblioteca={aoMudarBiblioteca} />}
+        {atual.id === "aparencia" && <TelaAparencia tema={tema} aoMudar={aoMudarTema} jogos={jogos} avisar={avisar} />}
+        {atual.id === "permissoes" && <Permissoes motor={motor} avisar={avisar} />}
+        {atual.id === "modo" && <TelaModoJogo motor={motor} avisar={avisar} />}
+        {atual.id === "emuladores" && <TelaEmuladores motor={motor} />}
+        {atual.id === "atualizacoes" && <TelaAtualizacoes motor={motor} avisar={avisar} atualizacao={atualizacao} />}
+        {atual.id === "sobre" && (
+          <div className="grid gap-4">
+            <div><button data-foco className="botao" onClick={() => window.dispatchEvent(new CustomEvent("vortex:termos"))}>Ler os termos de uso</button></div>
+            <p className="text-sm text-slate-400">Controle: direcional ou analógico move · A confirma · B volta · Y favorita · LB/RB trocam de aba. Teclado: setas ou WASD · Enter · Esc · F · Q/E.</p>
+            <p className="text-sm text-slate-500">Vortex · Vetorial Tech{BUILD > 0 ? ` · versão 1.${BUILD}` : ""}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

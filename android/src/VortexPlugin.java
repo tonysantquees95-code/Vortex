@@ -69,7 +69,7 @@ public class VortexPlugin extends Plugin {
                     a.put("biblioteca", new File(getContext().getFilesDir(), "vortex/biblioteca.json").getAbsolutePath());
                     if (comando.startsWith("loja_")) a.put("catalogo_json", lerCatalogo());
                     // sem “Acesso a todos os arquivos” o Android mostra as pastas vazias e a busca não acha nada: avisa em vez de falhar calada
-                    if ((comando.equals("organizar") || comando.equals("organizar_candidatos") || comando.equals("escanear") || comando.equals("adicionar_pasta")) && !temAcessoATudo()) {
+                    if ((comando.equals("organizar") || comando.equals("organizar_candidatos") || comando.equals("escanear") || comando.equals("limpar") || comando.equals("adicionar_pasta")) && !temAcessoATudo()) {
                         pedirAcessoATudo();
                         call.reject("Para achar seus jogos o Vortex precisa de “Acesso a todos os arquivos”. Liberei a tela de permissão: ligue para o Vortex, volte e toque em procurar de novo.");
                         return;

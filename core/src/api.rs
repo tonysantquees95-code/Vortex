@@ -248,6 +248,11 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
             mudou = true;
             para(r)
         }
+        "limpar" => {
+            let r = crate::limpeza::limpar(&mut b, args.get("simulacao").and_then(|x| x.as_bool()).unwrap_or(false));
+            mudou = !r.simulacao;
+            para(r)
+        }
         "listar" => {
             let f: Filtro = serde_json::from_value(args.get("filtro").cloned().unwrap_or(json!({}))).map_err(|e| format!("Filtro inválido: {e}"))?;
             para(b.buscar(&f))

@@ -9,6 +9,7 @@ pub mod api;
 pub mod emuladores;
 pub mod modo_jogo;
 pub mod organizador;
+pub mod limpeza;
 pub mod nucleos;
 pub mod loja;
 pub mod nuvem;

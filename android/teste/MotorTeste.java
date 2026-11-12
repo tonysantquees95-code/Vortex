@@ -57,6 +57,35 @@ public class MotorTeste {
         JSONObject cfg = (JSONObject) run.apply("modo_jogo_config", new JSONObject());
         confere(cfg.getBoolean("ligado"), "modo jogo padrão ligado");
         confere(Motor.titulo("Sonic_the_Hedgehog_2_(World).md").equals("Sonic the Hedgehog 2"), "título de nome com sublinhado");
+        confere(Motor.titulo("SuperMarioWorld.sfc").equals("Super Mario World"), "título de nome colado");
+        confere(Motor.titulo("0123 - Metroid Fusion (USA).gba").equals("Metroid Fusion"), "tira número de catálogo");
+        confere(Motor.titulo("www.romsite.com - Tetris (World).gb").equals("Tetris"), "tira endereço de site");
+        confere(Motor.titulo("Pac-Man - Copy.nes").equals("Pac-Man"), "tira sufixo de cópia");
+        confere(Motor.titulo("007 - Nightfire (USA).iso").equals("007 - Nightfire"), "007 continua 007");
+        {
+            File lr = new File(t, "limpa/nes");
+            lr.mkdirs();
+            byte[] nes = new byte[40000]; nes[0] = 'N'; nes[1] = 'E'; nes[2] = 'S'; nes[3] = 0x1A; nes[100] = 1;
+            byte[] nes2 = nes.clone(); nes2[100] = 2;
+            Files.write(new File(lr, "Contra (USA).nes").toPath(), nes);
+            Files.write(new File(lr, "Contra (Japan).nes").toPath(), nes2);
+            Files.write(new File(lr, "Contra (USA) copia.nes").toPath(), nes);
+            Files.write(new File(lr, "Quebrado.nes").toPath(), "isto nao e um jogo de verdade".getBytes());
+            Files.write(new File(lr, "Vazio.nes").toPath(), new byte[0]);
+            byte[] nes3 = nes.clone(); nes3[100] = 3;
+            Files.write(new File(lr, "Mario (USA).nes").toPath(), nes3);
+            String bib2 = new File(t, "dados/limpa.json").getPath();
+            m.executar("adicionar_pasta", new JSONObject().put("biblioteca", bib2).put("pasta", new File(t, "limpa").getPath()));
+            m.executar("escanear", new JSONObject().put("biblioteca", bib2));
+            JSONObject sim = (JSONObject) m.executar("limpar", new JSONObject().put("biblioteca", bib2).put("simulacao", true));
+            confere(sim.getJSONArray("corrompidos").length() == 2 && sim.getJSONArray("duplicados").length() == 2 && new File(lr, "Quebrado.nes").exists(), "simulação conta e não mexe (" + sim + ")");
+            JSONObject rl = (JSONObject) m.executar("limpar", new JSONObject().put("biblioteca", bib2));
+            confere(rl.getJSONArray("falhas").length() == 0, "limpar sem falhas " + rl);
+            confere(new File(t, "limpa/Corrompidos/Quebrado.nes").isFile() && new File(t, "limpa/Corrompidos/Vazio.nes").isFile(), "corrompidos vão para a pasta Corrompidos");
+            confere(new File(t, "limpa/Duplicados").isDirectory() && new File(lr, "Contra (USA).nes").isFile() && new File(lr, "Mario (USA).nes").isFile(), "fica a versão preferida e os outros jogos");
+            JSONObject r3 = (JSONObject) m.executar("escanear", new JSONObject().put("biblioteca", bib2));
+            confere(r3.getInt("encontrados") == 2, "depois da limpeza a biblioteca tem 2 jogos (achou " + r3.getInt("encontrados") + ")");
+        }
         confere(Motor.caminhoDaArvore("primary:Roms/SNES").equals("/storage/emulated/0/Roms/SNES"), "pasta do armazenamento interno");
         confere(Motor.caminhoDaArvore("1A2B-3C4D:Jogos").equals("/storage/1A2B-3C4D/Jogos"), "pasta do cartão");
         // organizador automático

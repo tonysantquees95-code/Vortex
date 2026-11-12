@@ -18,7 +18,7 @@ const LIMITE_CRC: u64 = 64 * 1024 * 1024;
 /// Pastas que nunca contêm jogos (extras de frontends, saves, BIOS…), já normalizadas.
 const IGNORAR_PASTAS: &[&str] = &[
     "bios", "media", "images", "image", "covers", "cover", "boxart", "boxarts", "namedboxarts", "downloadedmedia", "downloadedimages", "manuals", "manual", "saves", "states", "savestates",
-    "screenshots", "snaps", "thumbnails", "cheats", "system", "vindexquarentena", "videos", "marquees", "fanart", "wheel", "backups",
+    "screenshots", "snaps", "thumbnails", "cheats", "system", "vindexquarentena", "videos", "marquees", "fanart", "wheel", "backups", "duplicados", "corrompidos",
 ];
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -152,7 +152,7 @@ fn segundos(m: &fs::Metadata) -> u64 {
 }
 
 /// Nomes de arquivo (minúsculos) citados por uma lista .m3u ou por uma ficha .cue ("FILE \"disco.bin\" BINARY").
-fn referencias(arquivo: &Path) -> Vec<String> {
+pub(crate) fn referencias(arquivo: &Path) -> Vec<String> {
     let Ok(meta) = fs::metadata(arquivo) else { return Vec::new() };
     if meta.len() > 1024 * 1024 {
         return Vec::new();
@@ -189,12 +189,13 @@ fn espiar_zip(caminho: &Path) -> Vec<String> {
     (0..z.len().min(50)).filter_map(|i| z.by_index(i).ok().map(|e| e.name().to_string())).collect()
 }
 
-fn melhor_do_grupo(a: &Jogo, b: &Jogo) -> std::cmp::Ordering {
+pub(crate) fn melhor_do_grupo(a: &Jogo, b: &Jogo) -> std::cmp::Ordering {
     let marca = |j: &Jogo| j.tags.iter().filter(|t| !t.starts_with("Rev") && !t.starts_with('v') && *t != "verificado").count();
     titulo::ordem_da_regiao(&a.regioes)
         .cmp(&titulo::ordem_da_regiao(&b.regioes))
         .then(marca(a).cmp(&marca(b)))
         .then(b.tags.iter().any(|t| t == "verificado").cmp(&a.tags.iter().any(|t| t == "verificado")))
+        .then(a.caminho.as_os_str().len().cmp(&b.caminho.as_os_str().len()))
         .then(b.modificado.cmp(&a.modificado))
         .then(a.caminho.cmp(&b.caminho))
 }
@@ -384,6 +385,10 @@ impl Biblioteca {
     }
 
     /// Entre versões do mesmo jogo (EUA/Japão/Beta…) deixa visível só a preferida.
+    pub fn marcar_duplicatas_publico(&mut self) {
+        self.marcar_duplicatas();
+    }
+
     fn marcar_duplicatas(&mut self) {
         let mut grupos: HashMap<(String, Option<u32>), Vec<String>> = HashMap::new();
         for j in self.jogos.values() {

@@ -34,3 +34,12 @@ export function configurado(): boolean {
 export function marcarConfigurado() {
   try { localStorage.setItem(CHAVE_CONFIGURADO, "1"); } catch { /* vale só nesta sessão */ }
 }
+
+const CHAVE_LIMPAR = "vortex:limpar-sozinho";
+/** Depois de buscar jogos, deixar um só por título e separar os arquivos quebrados (ligado por padrão). */
+export function limparSozinho(): boolean {
+  try { return localStorage.getItem(CHAVE_LIMPAR) !== "0"; } catch { return true; }
+}
+export function definirLimparSozinho(v: boolean) {
+  try { localStorage.setItem(CHAVE_LIMPAR, v ? "1" : "0"); } catch { /* vale só nesta sessão */ }
+}

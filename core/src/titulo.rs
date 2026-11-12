@@ -103,6 +103,62 @@ fn desinverter(nome: &str) -> String {
     nome.to_string()
 }
 
+/// Tira o lixo que sobra depois das marcas: "0123 - ", "www.site.com", pontos e sublinhados no lugar de espaço,
+/// "SuperMarioWorld" colado, "v1.2" no fim e sufixos de cópia ("- Copy", "copia").
+fn arrumar_nome(bruto: &str) -> String {
+    let mut n = bruto.trim().to_string();
+    // "www.algumsite.com - Jogo" / "[site.com] Jogo"
+    if let Some(i) = n.to_lowercase().find("www.") {
+        let fim = n[i..].find(' ').map(|f| i + f).unwrap_or(n.len());
+        n.replace_range(i..fim, " ");
+    }
+    // pontos e sublinhados como espaço (mas "Dr. Mario" e "Vol. 2" têm espaço e ficam como estão)
+    if !n.contains(' ') {
+        n = n.replace('_', " ");
+        if n.matches('.').count() >= 1 {
+            n = n.replace('.', " ");
+        }
+    } else {
+        n = n.replace('_', " ");
+    }
+    // CamelCase colado: "SuperMarioWorld" → "Super Mario World" (só quando não há nenhum espaço)
+    if !n.contains(' ') {
+        let cs: Vec<char> = n.chars().collect();
+        let corcovas = cs.windows(2).filter(|w| w[0].is_lowercase() && w[1].is_uppercase()).count();
+        if corcovas >= 2 {
+            let mut o = String::new();
+            for (i, c) in cs.iter().enumerate() {
+                if i > 0 && c.is_uppercase() && cs[i - 1].is_lowercase() {
+                    o.push(' ');
+                }
+                o.push(*c);
+            }
+            n = o;
+        }
+    }
+    let mut n = n.split_whitespace().collect::<Vec<_>>().join(" ");
+    // número de catálogo no começo: "0123 - Jogo", "123. Jogo" (mas não "1942" nem "007 Nightfire")
+    let dig = n.chars().take_while(|c| c.is_ascii_digit()).count();
+    if (4..=5).contains(&dig) {
+        let resto = n[dig..].trim_start();
+        if let Some(r) = resto.strip_prefix("- ").or_else(|| resto.strip_prefix(". ")).or_else(|| resto.strip_prefix("-")) {
+            if !r.trim().is_empty() && n[..dig].len() >= 3 && n[..dig].starts_with('0') {
+                n = r.trim().to_string();
+            }
+        }
+    }
+    // sufixo de versão e de cópia
+    loop {
+        let baixo = n.to_lowercase();
+        let corte = [" - copy", " - cópia", " - copia", " copy", " cópia", " copia", " - v1", " v1.", " ver."].iter().find_map(|s| baixo.rfind(s).filter(|i| *i > 0 && (s.contains("copy") || s.contains("cópia") || s.contains("copia") || baixo[*i + s.len()..].chars().all(|c| c.is_ascii_digit() || c == '.' || c == ' '))));
+        match corte {
+            Some(i) if i >= 2 => n = n[..i].trim().to_string(),
+            _ => break,
+        }
+    }
+    n.trim_matches(|c: char| c == '-' || c == ' ' || c == '.' || c == '_').to_string()
+}
+
 pub fn analisar(nome_do_arquivo: &str) -> Titulo {
     let stem = match nome_do_arquivo.rfind('.') {
         Some(i) if i > 0 && nome_do_arquivo.len() - i <= 6 => &nome_do_arquivo[..i],
@@ -139,9 +195,7 @@ pub fn analisar(nome_do_arquivo: &str) -> Titulo {
     if profundidade == 1 {
         limpo.push_str(&token); // parêntese sem fechar: mantém o texto
     }
-    let mut nome = if limpo.contains(' ') { limpo } else { limpo.replace('_', " ") };
-    nome = nome.split_whitespace().collect::<Vec<_>>().join(" ");
-    nome = nome.trim_matches(|c: char| c == '-' || c == ' ' || c == '.').to_string();
+    let mut nome = arrumar_nome(&limpo);
     if nome.is_empty() {
         nome = stem.to_string();
     }
@@ -207,6 +261,19 @@ mod testes {
     fn mesmo_jogo_em_regioes_diferentes_tem_a_mesma_chave() {
         assert_eq!(analisar("Contra (USA).nes").chave, analisar("Contra (Japan).nes").chave);
         assert_ne!(analisar("Contra (USA).nes").chave, analisar("Super Contra (USA).nes").chave);
+    }
+
+    #[test]
+    fn nomes_bagunçados_ficam_limpos() {
+        assert_eq!(analisar("SuperMarioWorld.sfc").nome, "Super Mario World");
+        assert_eq!(analisar("Sonic_The_Hedgehog_2.md").nome, "Sonic The Hedgehog 2");
+        assert_eq!(analisar("0123 - Metroid Fusion (USA).gba").nome, "Metroid Fusion");
+        assert_eq!(analisar("www.romsite.com - Tetris (World).gb").nome, "Tetris");
+        assert_eq!(analisar("Pac-Man - Copy.nes").nome, "Pac-Man");
+        assert_eq!(analisar("Contra (USA) (1).nes").chave, analisar("Contra (Japan).nes").chave);
+        assert_eq!(analisar("Mario.Kart.64.USA.z64").nome, "Mario Kart 64 USA");
+        assert_eq!(analisar("1942 (Japan).nes").nome, "1942");
+        assert_eq!(analisar("007 - Nightfire (USA).iso").nome, "007 - Nightfire");
     }
 
     #[test]

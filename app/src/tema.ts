@@ -12,7 +12,9 @@ export const CORES: Predefinida[] = [
   { id: "rosa", nome: "Rosa", principal: "#ff3da6", segunda: "#9b5cff" },
 ];
 
-export type Fundo = "vortex" | "grade" | "liso";
+/** console = o fundo acompanha a capa do console/jogo em foco; foto = imagem da própria pessoa; capa = capa de um jogo escolhida; o resto são modelos futuristas. */
+export type Fundo = "console" | "aurora" | "grade" | "circuito" | "pontos" | "liso" | "foto" | "capa";
+export const FUNDOS_VALIDOS: Fundo[] = ["console", "aurora", "grade", "circuito", "pontos", "liso", "foto", "capa"];
 export type Formato = "futurista" | "redondo";
 export type TamanhoCartas = "pequeno" | "medio" | "grande";
 
@@ -24,9 +26,11 @@ export interface Tema {
   cartas: TamanhoCartas;
   animacoes: boolean;
   abertura: boolean;      // animação de entrada no vórtex
+  foto: string | null;    // fundo "foto": imagem reduzida guardada no aparelho (data:image/...)
+  capaFundo: string | null; // fundo "capa": endereço da capa escolhida
 }
 
-export const TEMA_PADRAO: Tema = { cor: "vermelho", brilho: 70, fundo: "vortex", formato: "futurista", cartas: "medio", animacoes: true, abertura: true };
+export const TEMA_PADRAO: Tema = { cor: "vermelho", brilho: 70, fundo: "console", formato: "futurista", cartas: "medio", animacoes: true, abertura: true, foto: null, capaFundo: null };
 
 const CHAVE = "vortex:tema";
 
@@ -40,11 +44,13 @@ export function limparTema(bruto: unknown): Tema {
   return {
     cor,
     brilho: Number.isFinite(b) ? Math.max(0, Math.min(100, Math.round(b))) : TEMA_PADRAO.brilho,
-    fundo: o.fundo === "grade" || o.fundo === "liso" || o.fundo === "vortex" ? o.fundo : TEMA_PADRAO.fundo,
+    fundo: FUNDOS_VALIDOS.includes(o.fundo as Fundo) ? (o.fundo as Fundo) : TEMA_PADRAO.fundo, // "vortex" (antigo) cai no padrão
     formato: o.formato === "redondo" || o.formato === "futurista" ? o.formato : TEMA_PADRAO.formato,
     cartas: o.cartas === "pequeno" || o.cartas === "grande" || o.cartas === "medio" ? o.cartas : TEMA_PADRAO.cartas,
     animacoes: typeof o.animacoes === "boolean" ? o.animacoes : TEMA_PADRAO.animacoes,
     abertura: typeof o.abertura === "boolean" ? o.abertura : TEMA_PADRAO.abertura,
+    foto: typeof o.foto === "string" && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(o.foto) && o.foto.length < 2_500_000 ? o.foto : null,
+    capaFundo: typeof o.capaFundo === "string" && /^https:\/\/[^\s"'()<>]+$/.test(o.capaFundo) ? o.capaFundo : null,
   };
 }
 

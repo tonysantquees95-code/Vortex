@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMotor } from "./estado";
 import { focar, primeiroSemCampo, useNavegacao } from "./foco";
-import type { Estatisticas, Jogo, Ordem, ResumoPlataforma } from "./ponte";
+import type { Estatisticas, Jogo, ResumoPlataforma } from "./ponte";
 import { configurado, marcarConfigurado, organizarAutomatico } from "./config";
 import { aplicarTema, guardarTema, lerTema, type Tema } from "./tema";
 import { Abertura } from "./telas/Abertura";
@@ -15,10 +15,14 @@ import { Termos } from "./telas/Termos";
 import { aceitarTermos, termosAceitos } from "./termos";
 import { Detalhe } from "./telas/Detalhe";
 import { useAtualizacao } from "./useAtualizacao";
-import { Capa, Carrossel, Carta } from "./telas/pecas";
+import { Biblioteca } from "./telas/Biblioteca";
+import { Dock } from "./telas/Dock";
+import { Colecao, colecoesDe, Inicio } from "./telas/Inicio";
+import { capaConhecida, resolverCapa } from "./capas";
+import { faxinaAutomatica, resumoDaFaxina } from "./faxina";
 
 type Aba = "inicio" | "biblioteca" | "loja" | "controles" | "favoritos" | "ajustes";
-const ABAS: [Aba, string][] = [["inicio", "Início"], ["biblioteca", "Biblioteca"], ["loja", "Loja"], ["controles", "Controles"], ["favoritos", "Favoritos"], ["ajustes", "Ajustes"]];
+const ABAS: [Aba, string, string][] = [["inicio", "Início", "inicio"], ["biblioteca", "Biblioteca", "biblioteca"], ["loja", "Loja", "loja"], ["controles", "Controles", "controles"], ["favoritos", "Favoritos", "favoritos"], ["ajustes", "Ajustes", "ajustes"]];
 
 export function App() {
   const motor = useMotor();
@@ -34,9 +38,10 @@ export function App() {
   const [etapa, setEtapa] = useState("Preparando o jogo…");
   const [aviso, setAviso] = useState("");
   const [controle, setControle] = useState(false);
-  const [busca, setBusca] = useState("");
-  const [plat, setPlat] = useState<string | null>(null);
-  const [ordem, setOrdem] = useState<Ordem>("titulo");
+  const [colecaoAberta, setColecaoAberta] = useState<string | null>(null);
+  const [ultimaColecao, setUltimaColecao] = useState<string | null>(null);
+  const [focada, setFocada] = useState<Colecao | null>(null);
+  const [fundoImg, setFundoImg] = useState<string | null>(null);
   const [carregado, setCarregado] = useState(false);
   const [hora, setHora] = useState(() => new Date());
   const [tema, setTema] = useState<Tema>(lerTema);
@@ -65,8 +70,13 @@ export function App() {
     // organização automática: acha jogos soltos, guarda por console na pasta do Vortex e mostra tudo na biblioteca
     if (organizarAutomatico()) {
       // sem a permissão de arquivos a busca não acharia nada (e abriria a tela do sistema toda vez): a configuração e os Ajustes pedem
-      motor.permissoes().then((l) => (l.some((p) => p.id === "arquivos" && !p.concedida) ? null : motor.organizar())).then((r) => {
-        if (r && r.organizados.length) { avisar(`${r.organizados.length} jogos organizados por console`); recarregar(); }
+      motor.permissoes().then((l) => (l.some((p) => p.id === "arquivos" && !p.concedida) ? null : motor.organizar())).then(async (r) => {
+        if (!r) return;
+        if (r.organizados.length) avisar(`${r.organizados.length} jogos organizados por console`);
+        // um jogo só por título e nada de arquivo quebrado
+        const f = await faxinaAutomatica(motor);
+        if (f) avisar(`Faxina: ${resumoDaFaxina(f)}`);
+        if (r.organizados.length || f) recarregar();
       }).catch(() => {});
     }
   }, [motor, recarregar, avisar]);
@@ -84,9 +94,32 @@ export function App() {
   }, [aberto, lancando]);
   // ao trocar de aba, o foco vai para o primeiro item da tela
   useEffect(() => {
+    if (aba === "inicio") return; // o Início cuida do próprio foco (volta para o console em que estava)
     const t = window.setTimeout(() => { const el = primeiroSemCampo(Array.from(document.querySelectorAll<HTMLElement>("main [data-foco]"))); if (el && !aberto) focar(el); }, 120);
     return () => window.clearTimeout(t);
   }, [aba, carregado]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { if (aba !== "ajustes") document.documentElement.dataset.secao = aba; }, [aba]);
+  // B fecha o console aberto e volta para a cascata
+  useEffect(() => {
+    if (!colecaoAberta || aberto || lancando) return;
+    const voltar = () => setColecaoAberta(null);
+    window.addEventListener("vortex:voltar", voltar);
+    return () => window.removeEventListener("vortex:voltar", voltar);
+  }, [colecaoAberta, aberto, lancando]);
+  // o fundo acompanha a capa do console em foco (usa a primeira capa que existir entre os primeiros jogos dele)
+  useEffect(() => {
+    if (!focada || tema.fundo !== "console") return;
+    let vivo = true;
+    const candidatos = focada.jogos.slice(0, 6);
+    const pronta = candidatos.map((j) => capaConhecida(j.id)).find(Boolean);
+    if (pronta) { setFundoImg(pronta); return; }
+    const atraso = window.setTimeout(async () => {
+      for (const j of candidatos) { const u = await resolverCapa(j); if (!vivo) return; if (u) { setFundoImg(u); return; } }
+      if (vivo) setFundoImg(null);
+    }, 250);
+    return () => { vivo = false; window.clearTimeout(atraso); };
+  }, [focada, tema.fundo]);
 
   const favoritar = useCallback(async (j: Jogo) => {
     const novo = !j.favorito;
@@ -175,36 +208,28 @@ export function App() {
   }, [motor, avisar, recarregar]);
   useEffect(() => { jogarRef.current = jogar; recarregarRef.current = () => { void recarregar(); }; }, [jogar, recarregar]);
 
-  const recentes = useMemo(() => [...jogos].sort((a, b) => b.adicionado - a.adicionado).slice(0, 14), [jogos]);
   const favoritos = useMemo(() => jogos.filter((j) => j.favorito), [jogos]);
-  const destaque = continuar[0] ?? favoritos[0] ?? jogos[0] ?? null;
-  const filtrados = useMemo(() => {
-    const t = busca.trim().toLowerCase();
-    const l = (aba === "favoritos" ? favoritos : jogos).filter((j) => (!plat || j.plataforma === plat) && (!t || j.titulo.toLowerCase().includes(t)));
-    return [...l].sort((a, b) => ordem === "recentes" ? b.ultimo_jogo - a.ultimo_jogo : ordem === "mais_jogados" ? b.tempo_total_s - a.tempo_total_s : ordem === "adicionados" ? b.adicionado - a.adicionado : ordem === "ano" ? (b.ano ?? 0) - (a.ano ?? 0) : a.titulo.localeCompare(b.titulo));
-  }, [jogos, favoritos, aba, busca, plat, ordem]);
+  const colecoes = useMemo(() => colecoesDe(jogos, plats), [jogos, plats]);
+  const abertaCol = colecaoAberta ? colecoes.find((c) => c.id === colecaoAberta) ?? null : null;
 
   const vazio = carregado && !jogos.length;
   const intro = abertura ? <Abertura aoTerminar={() => setAbertura(false)} /> : null;
-  if (!aceitou) return <>{intro}<FundoDaTela tema={abertura ? { ...tema, fundo: "liso" } : tema} /><Termos aoAceitar={() => { aceitarTermos(); setAceitou(true); }} /></>;
+  if (!aceitou) return <>{intro}<FundoDaTela tema={abertura ? { ...tema, fundo: "liso" } : tema} imagem={fundoImg} /><Termos aoAceitar={() => { aceitarTermos(); setAceitou(true); }} /></>;
   return (
     <>
       {intro}
-      <FundoDaTela tema={abertura ? { ...tema, fundo: "liso" } : tema} />
+      <FundoDaTela tema={abertura ? { ...tema, fundo: "liso" } : tema} imagem={fundoImg} />
       <div className="relative flex h-full flex-col">
-        <header className="grid gap-2 px-6 pb-1 pt-4 sm:px-10">
+        <header className="grid gap-2 px-6 pb-1 pt-3 sm:px-10">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
             <div className="flex items-center gap-3 text-sm text-slate-300">
               <span title={controle ? "Controle conectado" : "Nenhum controle"} className={controle ? "text-cyan-300" : "text-slate-600"}>🎮</span>
               <span className="font-semibold tabular-nums">{hora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
-              {motor.plataforma === "demo" && <span className="chip">demonstração</span>}
+              {motor.plataforma === "demo" && <span className="chip max-sm:hidden">demonstração</span>}
             </div>
-            <div className="text-center"><span className="marca"><span className="nome text-3xl sm:text-4xl">VORTEX</span></span></div>
+            <div className="text-center"><span className="marca"><span className="nome text-2xl sm:text-4xl">VORTEX</span></span></div>
             <div className="flex justify-end text-sm text-slate-300">{stats && <span className="max-sm:hidden">{stats.jogos} jogos · {tempoJogado(stats.tempo_total_s)}</span>}</div>
           </div>
-          <nav className="rolagem flex justify-start gap-1 sm:justify-center" aria-label="Seções">
-            {ABAS.filter(([id]) => id !== "controles" || motor.controles).map(([id, nome]) => <button key={id} data-foco className="aba shrink-0" data-ativa={aba === id} onClick={() => setAba(id)}>{nome}</button>)}
-          </nav>
         </header>
 
         <main className="rolagem min-h-0 flex-1 pb-10">
@@ -215,54 +240,28 @@ export function App() {
               <button data-foco className="botao primario mt-8" onClick={() => setAba("ajustes")}>Ir para os Ajustes</button>
             </div>
           ) : aba === "inicio" ? (
-            <>
-              {destaque && (
-                <section className="entrar relative mx-10 mb-8 overflow-hidden rounded-3xl border border-white/10" style={{ height: "min(38vh, 340px)" }}>
-                  <Capa j={destaque} className="scale-110 blur-2xl opacity-60" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-[#05060d] via-[#05060dcc] to-transparent" />
-                  <div className="relative flex h-full max-w-2xl flex-col justify-end gap-3 p-8">
-                    <span className="text-xs uppercase tracking-[.3em] text-cyan-300">{continuar[0] ? "Continue de onde parou" : "Em destaque"}</span>
-                    <h2 className="text-4xl font-black leading-tight">{destaque.titulo}</h2>
-                    <p className="line-clamp-2 text-slate-300">{destaque.descricao ?? `${destaque.plataforma.toUpperCase()} · ${tempoJogado(destaque.tempo_total_s)} jogados`}</p>
-                    <div className="mt-2 flex gap-3">
-                      <button data-foco className="botao primario" onClick={() => jogar(destaque)}>▶ Jogar</button>
-                      <button data-foco className="botao" onClick={() => setAberto(destaque)}>Detalhes</button>
-                    </div>
-                  </div>
-                </section>
-              )}
-              <Carrossel titulo="Continuar jogando" jogos={continuar} aoAbrir={setAberto} />
-              <Carrossel titulo="Favoritos" jogos={favoritos.slice(0, 14)} aoAbrir={setAberto} />
-              <Carrossel titulo="Adicionados recentemente" jogos={recentes} aoAbrir={setAberto} />
-              {plats.slice(0, 4).map((p) => <Carrossel key={p.id} titulo={p.nome} jogos={jogos.filter((j) => j.plataforma === p.id).slice(0, 14)} aoAbrir={setAberto} />)}
-            </>
+            abertaCol ? (
+              <Biblioteca key={abertaCol.id} jogos={abertaCol.jogos} plats={plats} aoAbrir={setAberto} titulo={abertaCol.nome} consoleFixo={abertaCol.tipo === "console" ? abertaCol.id : null} aoVoltar={() => setColecaoAberta(null)} vazio="Nenhum jogo aqui." />
+            ) : (
+              <Inicio colecoes={colecoes} inicial={ultimaColecao} aoFocar={setFocada} aoAbrir={(c) => { setUltimaColecao(c.id); setColecaoAberta(c.id); }} jogoParaContinuar={continuar[0] ?? null} aoContinuar={jogar} />
+            )
           ) : aba === "loja" ? (
             <Loja motor={motor} aoInstalar={recarregar} avisar={avisar} aoJogar={(id) => { const j = jogos.find((x) => x.id === id); if (j) jogar(j); else avisar("O jogo ainda está aparecendo na biblioteca. Tente de novo em instantes."); }} />
           ) : aba === "controles" && motor.controles ? (
             <Controles controles={motor.controles} avisar={avisar} />
           ) : aba === "ajustes" ? (
-            <Ajustes motor={motor} aoMudarBiblioteca={recarregar} avisar={avisar} atualizacao={atualizacao} tema={tema} aoMudarTema={setTema} />
+            <Ajustes motor={motor} aoMudarBiblioteca={recarregar} avisar={avisar} atualizacao={atualizacao} tema={tema} aoMudarTema={setTema} jogos={jogos} />
+          ) : aba === "biblioteca" ? (
+            <Biblioteca jogos={jogos} plats={plats} aoAbrir={setAberto} vazio="Nenhum jogo encontrado." />
           ) : (
-            <div className="entrar px-10">
-              <div className="mb-5 flex flex-wrap items-center gap-3">
-                <input data-foco value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar jogo…" className="vidro min-w-56 flex-1 px-4 py-3 text-base outline-none placeholder:text-slate-500 focus:border-cyan-300" />
-                <select data-foco value={ordem} onChange={(e) => setOrdem(e.target.value as Ordem)} className="vidro bg-transparent px-3 py-3 text-sm outline-none" aria-label="Ordenar">
-                  <option value="titulo" className="bg-slate-900">A–Z</option><option value="recentes" className="bg-slate-900">Jogados agora</option>
-                  <option value="mais_jogados" className="bg-slate-900">Mais jogados</option><option value="adicionados" className="bg-slate-900">Novos</option><option value="ano" className="bg-slate-900">Ano</option>
-                </select>
-              </div>
-              <div className="rolagem mb-6 flex gap-2 py-2">
-                <button data-foco className="chip" data-ativa={!plat} onClick={() => setPlat(null)}>Todas</button>
-                {plats.map((p) => <button key={p.id} data-foco className="chip" data-ativa={plat === p.id} onClick={() => setPlat(plat === p.id ? null : p.id)}>{p.nome} · {p.total}</button>)}
-              </div>
-              {filtrados.length ? (
-                <div className="grid gap-6 py-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(var(--carta-min), 1fr))" }}>
-                  {filtrados.map((j) => <Carta key={j.id} j={j} aoAbrir={setAberto} tamanho={0} />)}
-                </div>
-              ) : <p className="py-16 text-center text-slate-400">{aba === "favoritos" ? "Nenhum favorito ainda. Abra um jogo e aperte Y (ou F) para favoritar." : "Nenhum jogo encontrado."}</p>}
-            </div>
+            <Biblioteca key="fav" jogos={favoritos} plats={plats} aoAbrir={setAberto} titulo="Favoritos" vazio="Nenhum favorito ainda. Abra um jogo e aperte Y (ou F) para favoritar." />
           )}
         </main>
+
+        <footer className="rodape-dock">
+          <Dock rotulo="Seções" itens={ABAS.filter(([id]) => id !== "controles" || motor.controles).map(([id, nome, icone]) => ({ id, nome, icone }))} ativo={aba} aoEscolher={(id) => setAba(id as Aba)} />
+          <div className="dicas max-md:hidden" aria-hidden><span><b>A</b> Abrir</span><span><b>B</b> Voltar</span><span><b>LB</b>/<b>RB</b> Abas</span></div>
+        </footer>
       </div>
 
       {aberto && <Detalhe jogo={aberto} aoJogar={jogar} aoFavoritar={favoritar} aoFechar={() => setAberto(null)} />}

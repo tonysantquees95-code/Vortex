@@ -88,6 +88,11 @@ public class Motor {
                 salvar(arquivo, bib);
                 return r;
             }
+            case "limpar": {
+                JSONObject r = Limpeza.limpar(jogos, args.optBoolean("simulacao", false));
+                if (!r.optBoolean("simulacao")) salvar(arquivo, bib);
+                return r;
+            }
             case "listar": return listar(jogos, args.optJSONObject("filtro"));
             case "continuar": {
                 JSONObject f = new JSONObject().put("ordem", "recentes");
@@ -328,13 +333,15 @@ public class Motor {
         return new JSONObject().put("encontrados", encontrados).put("novos", novos).put("atualizados", atualizados).put("removidos", removidos).put("ignorados", 0).put("pastas_ausentes", ausentes);
     }
 
+    private static final java.util.Set<String> PASTAS_IGNORADAS = new java.util.HashSet<String>(java.util.Arrays.asList("bios", "media", "images", "image", "covers", "cover", "boxart", "boxarts", "namedboxarts", "downloadedmedia", "downloadedimages", "manuals", "manual", "saves", "states", "savestates", "screenshots", "snaps", "thumbnails", "cheats", "system", "videos", "marquees", "fanart", "wheel", "backups", "duplicados", "corrompidos"));
+
     private void percorrer(File dir, List<File> saida, int nivel) {
         if (nivel > 8) return;
         File[] fs = dir.listFiles();
         if (fs == null) return;
         for (File f : fs) {
             if (f.getName().startsWith(".")) continue;
-            if (f.isDirectory()) percorrer(f, saida, nivel + 1); else saida.add(f);
+            if (f.isDirectory()) { if (!PASTAS_IGNORADAS.contains(normalizar(f.getName()))) percorrer(f, saida, nivel + 1); } else saida.add(f);
         }
     }
 
@@ -386,12 +393,36 @@ public class Motor {
 
     static String titulo(String arquivo) {
         int ponto = arquivo.lastIndexOf('.');
-        String s = ponto > 0 ? arquivo.substring(0, ponto) : arquivo;
-        s = s.replaceAll("\\([^)]*\\)|\\[[^\\]]*\\]", " ").replace('_', ' ').replaceAll("\\s+", " ").trim();
+        String s = ponto > 0 && arquivo.length() - ponto <= 6 ? arquivo.substring(0, ponto) : arquivo;
+        s = arrumar(s.replaceAll("\\([^)]*\\)|\\[[^\\]]*\\]", " "));
         // "Legend of Zelda, The" -> "The Legend of Zelda"
-        java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(.*), (The|A|An|O|Os|As)( - .*)?$").matcher(s);
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(.*), (The|A|An|O|Os|As|Le|La|Les|El|Los|Las|Der|Die|Das|Il)( - .*)?$").matcher(s);
         if (m.matches()) s = m.group(2) + " " + m.group(1) + (m.group(3) == null ? "" : m.group(3));
         return s.isEmpty() ? arquivo : s;
+    }
+
+    /** Lixo que sobra depois das marcas (mesmas regras do Rust): site, número de catálogo, CamelCase, pontos e sublinhados, "copy". */
+    static String arrumar(String bruto) {
+        String n = bruto.trim();
+        int w = n.toLowerCase(Locale.ROOT).indexOf("www.");
+        if (w >= 0) { int fim = n.indexOf(' ', w); n = n.substring(0, w) + " " + (fim < 0 ? "" : n.substring(fim)); n = n.trim(); }
+        if (!n.contains(" ")) { n = n.replace('_', ' ').replace('.', ' '); } else n = n.replace('_', ' ');
+        if (!n.contains(" ") && contaCorcovas(n) >= 2) n = n.replaceAll("(?<=\\p{Ll})(?=\\p{Lu})", " ");
+        n = n.replaceAll("\\s+", " ").trim();
+        java.util.regex.Matcher c = java.util.regex.Pattern.compile("^(0\\d{3,4})\\s*(?:- |\\. |-)\\s*(.+)$").matcher(n);
+        if (c.matches()) n = c.group(2).trim();
+        while (true) {
+            java.util.regex.Matcher k = java.util.regex.Pattern.compile("(?i)^(.{2,}?)(?: - copy| - c[oó]pia| copy| c[oó]pia)$").matcher(n);
+            if (!k.matches()) break;
+            n = k.group(1).trim();
+        }
+        return n.replaceAll("^[-\\s._]+|[-\\s._]+$", "");
+    }
+
+    private static int contaCorcovas(String n) {
+        int k = 0;
+        for (int i = 1; i < n.length(); i++) if (Character.isLowerCase(n.charAt(i - 1)) && Character.isUpperCase(n.charAt(i))) k++;
+        return k;
     }
 
     // ------------------------------------------------------------ consultas
@@ -454,6 +485,8 @@ public class Motor {
         for (int i = 0; i < a.length(); i++) if (a.optString(i).equals(s)) return true;
         return false;
     }
+
+    static List<String> chavesPublicas(JSONObject o) { return chaves(o); }
 
     private static List<String> chaves(JSONObject o) {
         List<String> l = new ArrayList<String>();

@@ -46,7 +46,7 @@ fn nome_de_pasta(p: &Plataforma) -> String {
     p.nome.chars().map(|c| if "<>:\"/\\|?*".contains(c) { '-' } else { c }).collect::<String>().trim().to_string()
 }
 
-fn livre(destino: PathBuf) -> PathBuf {
+pub(crate) fn livre(destino: PathBuf) -> PathBuf {
     if !destino.exists() {
         return destino;
     }
@@ -61,7 +61,7 @@ fn livre(destino: PathBuf) -> PathBuf {
     unreachable!()
 }
 
-fn mover_arquivo(de: &Path, para: &Path) -> Result<(), String> {
+pub(crate) fn mover_arquivo(de: &Path, para: &Path) -> Result<(), String> {
     if let Some(p) = para.parent() {
         fs::create_dir_all(p).map_err(|e| format!("{}: {e}", p.display()))?;
     }
@@ -73,7 +73,7 @@ fn mover_arquivo(de: &Path, para: &Path) -> Result<(), String> {
 }
 
 /// Arquivos que acompanham uma imagem de disco: .bin/.img de um .cue, e quem tem o mesmo nome-base.
-fn acompanhantes(arquivo: &Path) -> Vec<PathBuf> {
+pub(crate) fn acompanhantes(arquivo: &Path) -> Vec<PathBuf> {
     let ext = plataformas::extensao(arquivo);
     let Some(dir) = arquivo.parent() else { return vec![] };
     let mut v = Vec::new();
