@@ -144,7 +144,7 @@ public class Organizador {
                 ZipEntry e = en.nextElement();
                 if (e.isDirectory() || !e.getName().toLowerCase(Locale.ROOT).endsWith(".iso")) continue;
                 try (InputStream in = zf.getInputStream(e)) {
-                    byte[] b = new byte[64];
+                    byte[] b = new byte[Motor.BYTES_DO_DISCO];
                     int n = 0, r;
                     while (n < b.length && (r = in.read(b, n, b.length - n)) > 0) n += r;
                     Plataformas.P h = Motor.plataformaDoCabecalho(b, n);

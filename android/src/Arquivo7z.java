@@ -28,8 +28,9 @@ public final class Arquivo7z {
                 String ext = nome.substring(p + 1).toLowerCase(Locale.ROOT);
                 Plataformas.P x = Motor.unicaPelaExtensao(ext);
                 if (x != null) return x;
+                if (ext.equals("cso") || ext.equals("pbp")) return Plataformas.porId("psp");
                 if (ext.equals("iso")) {
-                    byte[] b = new byte[64];
+                    byte[] b = new byte[Motor.BYTES_DO_DISCO];
                     int n = 0, r;
                     while (n < b.length && (r = s.read(b, n, b.length - n)) > 0) n += r;
                     Plataformas.P h = Motor.plataformaDoCabecalho(b, n);

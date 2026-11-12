@@ -20,6 +20,23 @@ public class MotorTeste {
         confere(Motor.plataformaDoCabecalho(gc, 64) != null && Motor.plataformaDoCabecalho(gc, 64).id.equals("gamecube"), "disco com assinatura do GameCube é GameCube");
         confere(Motor.plataformaDoCabecalho(wii, 64) != null && Motor.plataformaDoCabecalho(wii, 64).id.equals("wii"), "disco com assinatura do Wii é Wii");
         confere(Motor.plataformaDoCabecalho(new byte[64], 64) == null, "disco sem assinatura continua ambíguo");
+        // disco ISO 9660 (PSP / PS2 / PS1) montado na mão: raiz no setor 20, com o nome certo dentro
+        for (String[] caso : new String[][]{{"PSP_GAME", "psp"}, {"SYSTEM.CNF;1", "ps2"}, {"SYSTEM.CNF;1", "ps1"}, {"README.TXT;1", ""}}) {
+            byte[] d = new byte[0x8000 + 2048 * 40];
+            byte[] pv = {1, 'C', 'D', '0', '0', '1'};
+            System.arraycopy(pv, 0, d, 0x8000, 6);
+            int raiz = 20 * 2048;
+            d[0x8000 + 158] = 20; d[0x8000 + 166] = 0; d[0x8000 + 167] = 8; // raiz no setor 20, 2048 bytes
+            byte[] nome = caso[0].getBytes();
+            d[raiz] = (byte) (33 + nome.length); d[raiz + 32] = (byte) nome.length;
+            System.arraycopy(nome, 0, d, raiz + 33, nome.length);
+            d[raiz + 2] = 30; // conteúdo do SYSTEM.CNF no setor 30
+            d[raiz + 10] = 20;
+            byte[] cnf = (caso[1].equals("ps1") ? "BOOT = cdrom:\\SLUS_000.01;1" : "BOOT2 = cdrom0:\\SLUS_200.01;1").getBytes();
+            System.arraycopy(cnf, 0, d, 30 * 2048, cnf.length);
+            Plataformas.P r = Motor.plataformaDoCabecalho(d, d.length);
+            confere(caso[1].isEmpty() ? r == null : (r != null && r.id.equals(caso[1])), "disco ISO " + caso[0] + " / " + caso[1] + " => " + (r == null ? "nada" : r.id));
+        }
         File t = Files.createTempDirectory("vortex").toFile();
         new File(t, "roms/snes").mkdirs();
         new File(t, "roms/psx").mkdirs();

@@ -379,17 +379,49 @@ public class Motor {
         return null;
     }
 
-    /** GameCube e Wii (.iso) têm uma assinatura no começo do disco: é a única forma de separar de PlayStation, Saturn etc. */
+    /** Quantos bytes do começo do disco bastam para reconhecer o console (assinatura + pasta raiz do ISO). */
+    public static final int BYTES_DO_DISCO = 8 * 1024 * 1024;
+
+    private static int le32(byte[] c, int o) { return (c[o] & 0xff) | (c[o + 1] & 0xff) << 8 | (c[o + 2] & 0xff) << 16 | (c[o + 3] & 0xff) << 24; }
+
+    /** Console de um disco (.iso) pelo começo dele: GameCube/Wii pela assinatura; PSP, PS2 e PS1 pelo que há na pasta raiz do ISO 9660. */
     public static Plataformas.P plataformaDoCabecalho(byte[] c, int n) {
         if (c == null) return null;
         if (n >= 0x20 && (c[0x1C] & 0xff) == 0xC2 && (c[0x1D] & 0xff) == 0x33 && (c[0x1E] & 0xff) == 0x9F && (c[0x1F] & 0xff) == 0x3D) return Plataformas.porId("gamecube");
         if (n >= 0x1C && (c[0x18] & 0xff) == 0x5D && (c[0x19] & 0xff) == 0x1C && (c[0x1A] & 0xff) == 0x9E && (c[0x1B] & 0xff) == 0xA3) return Plataformas.porId("wii");
-        return null;
+        int pvd = 0x8000;
+        if (n < pvd + 170 || c[pvd + 1] != 'C' || c[pvd + 2] != 'D' || c[pvd + 3] != '0' || c[pvd + 4] != '0' || c[pvd + 5] != '1') return null;
+        long raizLba = le32(c, pvd + 158) & 0xffffffffL, raizTam = le32(c, pvd + 166) & 0xffffffffL;
+        long ini = raizLba * 2048L;
+        if (raizTam <= 0 || raizTam > 65536 || ini + raizTam > n) return null;
+        int o = (int) ini, fim = (int) (ini + raizTam);
+        boolean psp = false;
+        while (o < fim) {
+            int len = c[o] & 0xff;
+            if (len == 0) { o = (o / 2048 + 1) * 2048; continue; } // o fim de um setor: o próximo registro começa no setor seguinte
+            int nl = c[o + 32] & 0xff;
+            if (o + 33 + nl > n) break;
+            String nome = new String(c, o + 33, nl, java.nio.charset.StandardCharsets.ISO_8859_1).toUpperCase(Locale.ROOT);
+            int ponto = nome.indexOf(';');
+            if (ponto >= 0) nome = nome.substring(0, ponto);
+            if (nome.equals("PSP_GAME")) psp = true;
+            if (nome.equals("SYSTEM.CNF")) {
+                long lba = le32(c, o + 2) & 0xffffffffL, tam = le32(c, o + 10) & 0xffffffffL;
+                long de = lba * 2048L;
+                if (tam > 0 && tam < 4096 && de + tam <= n) {
+                    String t = new String(c, (int) de, (int) tam, java.nio.charset.StandardCharsets.ISO_8859_1).toUpperCase(Locale.ROOT);
+                    if (t.contains("BOOT2")) return Plataformas.porId("ps2");
+                    if (t.contains("BOOT")) return Plataformas.porId("ps1");
+                }
+            }
+            o += len;
+        }
+        return psp ? Plataformas.porId("psp") : null;
     }
 
     static Plataformas.P plataformaDoArquivo(File f) {
         try (java.io.FileInputStream in = new java.io.FileInputStream(f)) {
-            byte[] b = new byte[64];
+            byte[] b = new byte[BYTES_DO_DISCO];
             int n = 0, r;
             while (n < b.length && (r = in.read(b, n, b.length - n)) > 0) n += r;
             return plataformaDoCabecalho(b, n);
