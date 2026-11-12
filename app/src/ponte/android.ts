@@ -23,7 +23,7 @@ export function motorAndroid(): Motor {
     estatisticas: () => c<Estatisticas>("estatisticas"),
     favoritar: async (id, favorito) => { await c("favoritar", { id, favorito }); },
     emuladores: () => c<EmuladoresInfo>("emuladores"),
-    preparar: async () => ({ nucleo: "", baixou: false }),
+    preparar: (id) => c<{ nucleo: string; baixou: boolean }>("preparar_jogo", { id }),
     lancar: (id) => c<ResultadoLancamento>("lancar", { id }),
     modoJogo: (nova) => c<ModoJogoConfig>("modo_jogo_config", nova ? { configuracao: nova } : {}),
     organizar: (simulacao = false) => c<RelatorioOrganizacao>("organizar", { simulacao }),

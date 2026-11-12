@@ -69,6 +69,7 @@ public class VortexPlugin extends Plugin {
                     a.put("biblioteca", new File(getContext().getFilesDir(), "vortex/biblioteca.json").getAbsolutePath());
                     Object r;
                     if (comando.equals("emuladores")) r = emuladores();
+                    else if (comando.equals("preparar_jogo")) r = preparar(a);
                     else if (comando.equals("lancar")) r = lancar(a);
                     else r = motor.executar(comando, a);
                     JSObject saida = new JSObject();
@@ -93,6 +94,15 @@ public class VortexPlugin extends Plugin {
         return new JSONObject().put("instalados", l);
     }
 
+    /** Baixa o núcleo de emulação do console do jogo (só na primeira vez). */
+    private JSONObject preparar(JSONObject a) throws Exception {
+        JSONObject j = (JSONObject) motor.executar("jogo", a);
+        Plataformas.P p = Plataformas.porId(j.getString("plataforma"));
+        if (p == null || p.nucleos.length == 0) throw new Exception("Esse console ainda não tem motor embutido no Vortex.");
+        boolean baixou = NucleosAndroid.garantir(getContext(), p.nucleos[0]);
+        return new JSONObject().put("nucleo", p.nucleos[0]).put("baixou", baixou);
+    }
+
     /** Escolhe o emulador (o específico da plataforma, senão o RetroArch) e abre o jogo nele. */
     private JSONObject lancar(JSONObject a) throws Exception {
         JSONObject j = (JSONObject) motor.executar("jogo", a);
@@ -100,6 +110,17 @@ public class VortexPlugin extends Plugin {
         File rom = new File(j.getString("caminho"));
         if (!rom.isFile()) throw new Exception("O arquivo deste jogo não foi encontrado.");
         Plataformas.P p = Plataformas.porId(plat);
+        // preferência: o motor embutido do próprio Vortex (sem instalar emulador)
+        if (p != null && p.nucleos.length > 0 && NucleosAndroid.arquivo(getContext(), p.nucleos[0]).isFile()) {
+            Intent jogo = new Intent(getContext(), JogoActivity.class);
+            jogo.putExtra("rom", rom.getAbsolutePath()).putExtra("nucleo", p.nucleos[0]).putExtra("id", j.getString("id"));
+            jogo.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(jogo);
+            motor.executar("sessao_iniciar", new JSONObject().put("biblioteca", a.getString("biblioteca")).put("id", j.getString("id")));
+            jogoAberto = j.getString("id");
+            abertoEm = System.currentTimeMillis();
+            return new JSONObject().put("pid", 0).put("emulador", "Vortex").put("nucleo", p.nucleos[0]).put("modo_jogo", false);
+        }
         String[] escolhido = null;
         String pacote = null;
         for (String[] e : EMULADORES) {
