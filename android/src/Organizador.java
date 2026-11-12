@@ -161,12 +161,13 @@ public class Organizador {
             return Class.forName("tech.vetorial.vortex.Arquivo7z").getMethod(metodo, tipos).invoke(null, args);
         } catch (java.lang.reflect.InvocationTargetException e) {
             Throwable c = e.getCause() == null ? e : e.getCause();
+            if (c instanceof NoClassDefFoundError || c instanceof LinkageError) throw new Exception("biblioteca de .7z ausente no app: " + c);
             throw new Exception(c instanceof OutOfMemoryError ? "Sem memória para abrir este .7z (use .zip ou um 7z com dicionário menor)." : String.valueOf(c.getMessage()));
         }
     }
 
-    static Plataformas.P identificarEm7z(File arquivo) {
-        try { return (Plataformas.P) chamar7z("identificar", new Class<?>[]{File.class}, arquivo); } catch (Throwable e) { return null; }
+    static Plataformas.P identificarEm7z(File arquivo) throws Exception {
+        return (Plataformas.P) chamar7z("identificar", new Class<?>[]{File.class}, arquivo);
     }
 
     static File extrairDe7z(File arquivo, File pasta, Plataformas.P plat) throws Exception {
@@ -234,7 +235,11 @@ public class Organizador {
                     if (pasta != null && pasta.id.equals("arcade")) plat = pasta; else { plat = dentroDoZip(arq); doZip = true; }
                 } else if (sete) {
                     Plataformas.P pasta = Motor.plataformaDaPasta(arq, raiz);
-                    if (pasta != null && pasta.id.equals("arcade")) plat = pasta; else { plat = identificarEm7z(arq); doZip = true; }
+                    if (pasta != null && pasta.id.equals("arcade")) plat = pasta; else { 
+                        try { plat = identificarEm7z(arq); } catch (Throwable ex) { r.falhas.add(arq.getName() + ": não consegui abrir o .7z (" + ex.getClass().getSimpleName() + ": " + ex.getMessage() + ")"); continue; }
+                        doZip = true;
+                        if (plat == null) r.falhas.add(arq.getName() + ": abri o .7z mas não achei um jogo que eu reconheça dentro");
+                    }
                 } else plat = Motor.identificar(arq, raiz);
                 if (plat == null) continue;
                 File pasta = new File(vortex, nomeDePasta(plat));

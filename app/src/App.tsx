@@ -110,12 +110,15 @@ export function App() {
       // sem a permissão de arquivos a busca veria pastas vazias e esvaziaria a biblioteca à toa
       if ((await motor.permissoes()).some((p) => p.id === "arquivos" && !p.concedida)) { if (manual) avisar("Libere o acesso a todos os arquivos em Ajustes › Permissões para atualizar."); return; }
       if (manual) setOcupado("Procurando jogos novos e organizando… Jogos compactados grandes demoram alguns minutos. Não travou.");
-      const org = manual && organizarAutomatico() ? (await motor.organizar()).organizados.length : 0;
+      const rOrg = manual && organizarAutomatico() ? await motor.organizar() : null;
+      const org = rOrg ? rOrg.organizados.length : 0;
+      const falhaOrg = rOrg?.falhas?.[0];
       const r = await motor.escanear();
       const f = manual ? await faxinaAutomatica(motor) : null;
       if (manual || r.removidos || r.novos || org || f) await recarregar();
       if (manual) avisar(`Biblioteca atualizada: ${r.encontrados} jogos${r.novos ? ` · ${r.novos} novos` : ""}${r.removidos ? ` · ${r.removidos} saíram` : ""}${org ? ` · ${org} organizados` : ""}${f ? ` · ${resumoDaFaxina(f)}` : ""}`);
-      else if (r.removidos) avisar(`${r.removidos} ${r.removidos === 1 ? "jogo saiu" : "jogos saíram"} da biblioteca (arquivo apagado ou movido)`);
+      if (manual && falhaOrg) window.setTimeout(() => avisar(`Não organizei: ${falhaOrg}`), 4000);
+      if (!manual && r.removidos) avisar(`${r.removidos} ${r.removidos === 1 ? "jogo saiu" : "jogos saíram"} da biblioteca (arquivo apagado ou movido)`);
     } catch (e) { if (manual) avisar(String(e instanceof Error ? e.message : e)); }
     finally { atualizando.current = false; setAtualizandoBib(false); setOcupado(""); }
   }, [motor, recarregar, avisar]);
