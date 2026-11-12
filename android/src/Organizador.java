@@ -37,7 +37,7 @@ public class Organizador {
 
     private static final Set<String> IGNORAR = new HashSet<String>(java.util.Arrays.asList("windows", "android", "appdata", "node_modules", "lost.dir"));
 
-    private static final Set<String> NOMES_DE_ROMS = new HashSet<String>(java.util.Arrays.asList("download", "downloads", "documents", "documentos", "roms", "rom", "games", "jogos", "emulation", "emulacao", "retro", "retroarch", "emulators", "emuladores", "retrogames", "gamesretro"));
+    private static final Set<String> NOMES_DE_ROMS = new HashSet<String>(java.util.Arrays.asList("download", "downloads", "documents", "documentos", "roms", "rom", "games", "jogos", "emulation", "emulacao", "retro", "retroarch", "emulators", "emuladores", "retrogames", "gamesretro", "compactados", "compactado", "arquivos compactados", "compressed", "archives"));
 
     private static boolean pareceDeJogos(String nome) {
         String n = Motor.normalizar(nome);

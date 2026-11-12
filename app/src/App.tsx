@@ -42,6 +42,8 @@ export function App() {
   const [lancando, setLancando] = useState<Jogo | null>(null);
   const [etapa, setEtapa] = useState("Preparando o jogo…");
   const [aviso, setAviso] = useState("");
+  // trabalho demorado (descompactar um jogo de mais de 1 GB): fica à vista até acabar, para ninguém achar que travou
+  const [ocupado, setOcupado] = useState("");
   const [controle, setControle] = useState(false);
   const [apps, setApps] = useState<Jogo[]>([]);
   const [focadoJogo, setFocadoJogo] = useState<Jogo | null>(null);
@@ -87,14 +89,15 @@ export function App() {
     // organização automática: acha jogos soltos, guarda por console na pasta do Vortex e mostra tudo na biblioteca
     if (organizarAutomatico()) {
       // sem a permissão de arquivos a busca não acharia nada (e abriria a tela do sistema toda vez): a configuração e os Ajustes pedem
-      motor.permissoes().then((l) => (l.some((p) => p.id === "arquivos" && !p.concedida) ? null : motor.organizar())).then(async (r) => {
+      motor.permissoes().then((l) => (l.some((p) => p.id === "arquivos" && !p.concedida) ? null : (setOcupado("Procurando jogos novos e organizando… Jogos compactados grandes demoram alguns minutos. Não travou."), motor.organizar()))).then(async (r) => {
+        setOcupado("");
         if (!r) return;
         if (r.organizados.length) avisar(`${r.organizados.length} jogos organizados por console`);
         // um jogo só por título e nada de arquivo quebrado
         const f = await faxinaAutomatica(motor);
         if (f) avisar(`Faxina: ${resumoDaFaxina(f)}`);
         if (r.organizados.length || f) recarregar();
-      }).catch(() => {});
+      }).catch(() => { setOcupado(""); });
     }
   }, [motor, recarregar, avisar]);
   // Atualizar a biblioteca: procura tudo de novo; o que foi apagado ou movido sai (e o console some se ficou sem jogos).
@@ -106,6 +109,7 @@ export function App() {
     try {
       // sem a permissão de arquivos a busca veria pastas vazias e esvaziaria a biblioteca à toa
       if ((await motor.permissoes()).some((p) => p.id === "arquivos" && !p.concedida)) { if (manual) avisar("Libere o acesso a todos os arquivos em Ajustes › Permissões para atualizar."); return; }
+      if (manual) setOcupado("Procurando jogos novos e organizando… Jogos compactados grandes demoram alguns minutos. Não travou.");
       const org = manual && organizarAutomatico() ? (await motor.organizar()).organizados.length : 0;
       const r = await motor.escanear();
       const f = manual ? await faxinaAutomatica(motor) : null;
@@ -113,7 +117,7 @@ export function App() {
       if (manual) avisar(`Biblioteca atualizada: ${r.encontrados} jogos${r.novos ? ` · ${r.novos} novos` : ""}${r.removidos ? ` · ${r.removidos} saíram` : ""}${org ? ` · ${org} organizados` : ""}${f ? ` · ${resumoDaFaxina(f)}` : ""}`);
       else if (r.removidos) avisar(`${r.removidos} ${r.removidos === 1 ? "jogo saiu" : "jogos saíram"} da biblioteca (arquivo apagado ou movido)`);
     } catch (e) { if (manual) avisar(String(e instanceof Error ? e.message : e)); }
-    finally { atualizando.current = false; setAtualizandoBib(false); }
+    finally { atualizando.current = false; setAtualizandoBib(false); setOcupado(""); }
   }, [motor, recarregar, avisar]);
   // sozinho: ao abrir e sempre que o Vortex volta para a frente (por exemplo, depois de apagar uma pasta no Vindex)
   useEffect(() => {
@@ -348,6 +352,7 @@ export function App() {
           <button data-foco className="botao primario" disabled={atualizacao.instalando} onClick={() => { void atualizacao.atualizar(); }}>{atualizacao.instalando ? "Atualizando…" : "Atualizar"}</button>
         </div>
       )}
+      {ocupado && <div className="fixed bottom-20 left-1/2 z-[60] flex w-[min(92vw,34rem)] -translate-x-1/2 items-center gap-3 rounded-2xl border border-cyan-300/40 bg-[#0b1226ee] px-5 py-3 text-sm shadow-[0_0_30px_rgba(25,227,255,.3)]" role="status" aria-live="polite"><span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-cyan-300/30 border-t-cyan-300" /><span>{ocupado}</span></div>}
       {aviso && <div className="entrar fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-full border border-cyan-300/40 bg-[#0b1226ee] px-6 py-3 text-sm shadow-[0_0_30px_rgba(25,227,255,.3)]" role="status">{aviso}</div>}
     </>
   );
