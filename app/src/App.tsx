@@ -6,11 +6,12 @@ import { organizarAutomatico } from "./config";
 import { tempoJogado } from "./navegacao";
 import { Ajustes } from "./telas/Ajustes";
 import { Loja } from "./telas/Loja";
+import { Controles } from "./telas/Controles";
 import { Detalhe } from "./telas/Detalhe";
 import { Capa, Carrossel, Carta } from "./telas/pecas";
 
-type Aba = "inicio" | "biblioteca" | "loja" | "favoritos" | "ajustes";
-const ABAS: [Aba, string][] = [["inicio", "Início"], ["biblioteca", "Biblioteca"], ["loja", "Loja"], ["favoritos", "Favoritos"], ["ajustes", "Ajustes"]];
+type Aba = "inicio" | "biblioteca" | "loja" | "controles" | "favoritos" | "ajustes";
+const ABAS: [Aba, string][] = [["inicio", "Início"], ["biblioteca", "Biblioteca"], ["loja", "Loja"], ["controles", "Controles"], ["favoritos", "Favoritos"], ["ajustes", "Ajustes"]];
 
 export function App() {
   const motor = useMotor();
@@ -118,7 +119,7 @@ export function App() {
             {motor.plataforma === "demo" && <span className="chip">demonstração</span>}
           </div>
           <nav className="flex gap-1" aria-label="Seções">
-            {ABAS.map(([id, nome]) => <button key={id} data-foco className="aba" data-ativa={aba === id} onClick={() => setAba(id)}>{nome}</button>)}
+            {ABAS.filter(([id]) => id !== "controles" || motor.controles).map(([id, nome]) => <button key={id} data-foco className="aba" data-ativa={aba === id} onClick={() => setAba(id)}>{nome}</button>)}
           </nav>
           <div className="flex items-center gap-4 text-sm text-slate-300">
             {stats && <span className="max-md:hidden">{stats.jogos} jogos · {tempoJogado(stats.tempo_total_s)}</span>}
@@ -128,7 +129,7 @@ export function App() {
         </header>
 
         <main className="rolagem min-h-0 flex-1 pb-10">
-          {vazio && aba !== "ajustes" && aba !== "loja" ? (
+          {vazio && aba !== "ajustes" && aba !== "loja" && aba !== "controles" ? (
             <div className="entrar mx-auto mt-20 max-w-xl text-center">
               <div className="titulo-neon text-4xl font-black">Sua biblioteca está vazia</div>
               <p className="mt-3 text-slate-300">{pasta ? "Não achei jogos nas pastas escolhidas. Confira as pastas ou procure de novo." : "Escolha a pasta onde ficam seus jogos e o Vortex organiza tudo sozinho."}</p>
@@ -158,6 +159,8 @@ export function App() {
             </>
           ) : aba === "loja" ? (
             <Loja motor={motor} aoInstalar={recarregar} avisar={avisar} aoJogar={(id) => { const j = jogos.find((x) => x.id === id); if (j) jogar(j); else avisar("O jogo ainda está aparecendo na biblioteca. Tente de novo em instantes."); }} />
+          ) : aba === "controles" && motor.controles ? (
+            <Controles controles={motor.controles} avisar={avisar} />
           ) : aba === "ajustes" ? (
             <Ajustes motor={motor} aoMudarBiblioteca={recarregar} avisar={avisar} />
           ) : (

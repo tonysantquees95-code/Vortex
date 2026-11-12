@@ -10,6 +10,25 @@ export interface ResumoPlataforma { id: string; nome: string; tipo: string; tota
 export interface Estatisticas { jogos: number; plataformas: number; favoritos: number; tempo_total_s: number; sessoes: number }
 export interface ResumoEscaneamento { encontrados: number; novos: number; atualizados: number; removidos: number; ignorados: number; pastas_ausentes: string[] }
 export type Ordem = "titulo" | "recentes" | "mais_jogados" | "adicionados" | "ano";
+export interface PerfilControle {
+  id: string; pacote: string; nome: string;
+  direcional: { cx: number; cy: number; raio: number };
+  botoes: { tecla: string; x: number; y: number }[];
+}
+export interface ModeloControle { modelo: string; nome: string; descricao: string }
+export interface Controles {
+  jogos(): Promise<{ pacote: string; nome: string }[]>;
+  servicoAtivo(): Promise<boolean>;
+  abrirAcessibilidade(): Promise<void>;
+  modelos(): Promise<ModeloControle[]>;
+  perfis(): Promise<{ perfis: PerfilControle[]; ativos: Record<string, string> }>;
+  novo(pacote: string, nome: string, modelo: string): Promise<PerfilControle>;
+  apagar(id: string): Promise<void>;
+  ativar(pacote: string, id: string): Promise<void>;
+  jogar(pacote: string): Promise<void>;
+  /** Abre o jogo e mostra os pontos do perfil por cima dele, para arrastar até os botões. */
+  posicionar(pacote: string, id: string): Promise<void>;
+}
 export interface Filtro { texto?: string; plataforma?: string | null; so_favoritos?: boolean; ordem?: Ordem; limite?: number }
 export interface ModoJogoConfig {
   ligado: boolean; prioridade_do_jogo: boolean; rebaixar_apps: boolean; pausar_atualizadores: boolean; liberar_ram: boolean;
@@ -31,6 +50,8 @@ export interface Oferta {
 
 export interface Motor {
   plataforma: "windows" | "android" | "demo";
+  /** Só no Android: controle para jogos que não têm suporte. */
+  controles?: Controles;
   pastas(): Promise<string[]>;
   escolherPasta(): Promise<string | null>;
   adicionarPasta(pasta: string): Promise<string[]>;

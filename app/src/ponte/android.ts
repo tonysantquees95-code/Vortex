@@ -1,5 +1,5 @@
 import { registerPlugin } from "@capacitor/core";
-import type { EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, Oferta } from "./tipos";
+import type { Controles, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, Oferta } from "./tipos";
 
 /** Mesmo contrato do Rust, implementado em Java (plugin "Vortex"). */
 interface PluginVortex {
@@ -10,8 +10,21 @@ const Vortex = registerPlugin<PluginVortex>("Vortex");
 
 export function motorAndroid(): Motor {
   const c = async <T>(comando: string, args: Record<string, unknown> = {}): Promise<T> => JSON.parse((await Vortex.motor({ comando, args: JSON.stringify(args) })).resultado) as T;
+  const controles: Controles = {
+    jogos: () => c("controle_jogos"),
+    servicoAtivo: async () => (await c<{ servico: boolean }>("controle_estado")).servico,
+    abrirAcessibilidade: async () => { await c("controle_abrir_acessibilidade"); },
+    modelos: () => c("controle_modelos"),
+    perfis: () => c("controle_perfis"),
+    novo: (pacote, nome, modelo) => c("controle_novo", { pacote, nome, modelo }),
+    apagar: async (id) => { await c("controle_apagar", { id }); },
+    ativar: async (pacote, id) => { await c("controle_ativar", { pacote, id }); },
+    jogar: async (pacote) => { await c("controle_jogar", { pacote }); },
+    posicionar: async (pacote, id) => { await c("controle_editar", { pacote, id }); },
+  };
   return {
     plataforma: "android",
+    controles,
     pastas: () => c<string[]>("pastas"),
     escolherPasta: async () => (await Vortex.escolherPasta()).pasta,
     adicionarPasta: (pasta) => c<string[]>("adicionar_pasta", { pasta }),

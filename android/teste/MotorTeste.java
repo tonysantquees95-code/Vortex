@@ -108,6 +108,35 @@ public class MotorTeste {
         try { ruim.executar("loja_instalar", args2.put("id", "j1").put("pasta_vortex", new File(t, "V3").getPath())); } catch (Exception e) { erro = e.getMessage(); }
         confere(erro.contains("não confere") && !new File(t, "V3").exists(), "loja: arquivo adulterado é recusado");
         confere(!Motor.hospedeiroPermitido("https://romsgames.net/x") && Motor.hospedeiroPermitido("https://raw.githubusercontent.com/a/b"), "loja: só baixa de servidor permitido");
+        // perfis de controle
+        File arqPerfis = new File(t, "perfis/perfis.json");
+        confere(Perfis.modelos().length() >= 3, "perfis: há modelos prontos");
+        JSONObject np = Perfis.novo("com.exemplo.jogo", "", "tiro", 5);
+        confere(np.getString("nome").startsWith("Tiro") && np.getJSONArray("botoes").length() > 5, "perfis: perfil novo copia o modelo");
+        Perfis.guardarPerfil(arqPerfis, np);
+        JSONObject todos = Perfis.carregar(arqPerfis);
+        confere(Perfis.ativoDe(todos, "com.exemplo.jogo") != null, "perfis: o primeiro perfil do jogo vira o ativo");
+        double[] alvo = Perfis.alvoDaTecla(Perfis.ativoDe(todos, "com.exemplo.jogo"), 105); // R2
+        confere(alvo != null && alvo[0] > 0.8, "perfis: R2 toca onde o modelo manda");
+        double[] cima = Perfis.alvoDaTecla(Perfis.ativoDe(todos, "com.exemplo.jogo"), 19);
+        confere(cima != null && cima[1] < 0.70, "perfis: direcional para cima toca acima do centro");
+        confere(Perfis.alvoDaTecla(Perfis.ativoDe(todos, "com.exemplo.jogo"), 4) == null, "perfis: tecla desconhecida não faz nada");
+        JSONObject sujo = new JSONObject(np.toString());
+        sujo.getJSONArray("botoes").put(new JSONObject().put("tecla", "HACK").put("x", 9).put("y", -3));
+        sujo.getJSONArray("botoes").put(new JSONObject().put("tecla", "A").put("x", 5).put("y", -1));
+        JSONObject limpo = Perfis.limpar(sujo);
+        boolean temHack = false; double ax = -1;
+        for (int i = 0; i < limpo.getJSONArray("botoes").length(); i++) { JSONObject b = limpo.getJSONArray("botoes").getJSONObject(i); if (b.getString("tecla").equals("HACK")) temHack = true; if (b.getString("tecla").equals("A")) ax = b.getDouble("x"); }
+        confere(!temHack && ax <= 1.0, "perfis: tecla estranha sai e posição fica dentro da tela");
+        boolean recusou = false;
+        try { Perfis.limpar(new JSONObject().put("id", "x").put("pacote", "../../etc")); } catch (Exception e) { recusou = true; }
+        confere(recusou, "perfis: pacote com caminho estranho é recusado");
+        Perfis.guardarPerfil(arqPerfis, Perfis.novo("com.exemplo.jogo", "Meu layout", "acao", 6));
+        String segundo = Perfis.carregar(arqPerfis).getJSONArray("perfis").getJSONObject(1).getString("id");
+        Perfis.ativar(arqPerfis, "com.exemplo.jogo", segundo);
+        confere(Perfis.ativoDe(Perfis.carregar(arqPerfis), "com.exemplo.jogo").getString("nome").equals("Meu layout"), "perfis: trocar o perfil ativo");
+        Perfis.apagarPerfil(arqPerfis, segundo);
+        confere(Perfis.ativoDe(Perfis.carregar(arqPerfis), "com.exemplo.jogo") != null && Perfis.carregar(arqPerfis).getJSONArray("perfis").length() == 1, "perfis: apagar o ativo passa para outro");
         System.out.println(falhas == 0 ? "TUDO CERTO" : falhas + " FALHAS");
         System.exit(falhas == 0 ? 0 : 1);
     }

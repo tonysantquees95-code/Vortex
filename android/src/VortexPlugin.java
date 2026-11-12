@@ -70,6 +70,7 @@ public class VortexPlugin extends Plugin {
                     if (comando.startsWith("loja_")) a.put("catalogo_json", lerCatalogo());
                     Object r;
                     if (comando.equals("emuladores")) r = emuladores();
+                    else if (comando.startsWith("controle_")) r = controle(comando, a);
                     else if (comando.equals("preparar_jogo")) r = preparar(a);
                     else if (comando.equals("lancar")) r = lancar(a);
                     else r = motor.executar(comando, a);
@@ -81,6 +82,63 @@ public class VortexPlugin extends Plugin {
                 }
             }
         });
+    }
+
+    private File arquivoPerfis() { return ControleService.arquivoDePerfis(getContext()); }
+
+    private boolean servicoAtivo() { return ControleService.instancia != null; }
+
+    /** Jogos nativos de Android e perfis de controle (modelos, salvar, ativar, posicionar os botões na tela do jogo). */
+    private Object controle(String comando, JSONObject a) throws Exception {
+        PackageManager pm = getContext().getPackageManager();
+        switch (comando) {
+            case "controle_jogos": {
+                JSONArray r = new JSONArray();
+                for (android.content.pm.ApplicationInfo ai : pm.getInstalledApplications(0)) {
+                    boolean jogo = Build.VERSION.SDK_INT >= 26 ? ai.category == android.content.pm.ApplicationInfo.CATEGORY_GAME : (ai.flags & android.content.pm.ApplicationInfo.FLAG_IS_GAME) != 0;
+                    if (!jogo || (ai.flags & android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0 || ai.packageName.equals(getContext().getPackageName())) continue;
+                    if (pm.getLaunchIntentForPackage(ai.packageName) == null) continue;
+                    r.put(new JSONObject().put("pacote", ai.packageName).put("nome", String.valueOf(pm.getApplicationLabel(ai))));
+                }
+                return r;
+            }
+            case "controle_estado": return new JSONObject().put("servico", servicoAtivo());
+            case "controle_abrir_acessibilidade": {
+                Intent i = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(i);
+                return new JSONObject().put("ok", true);
+            }
+            case "controle_modelos": return Perfis.modelos();
+            case "controle_perfis": return Perfis.carregar(arquivoPerfis());
+            case "controle_novo": {
+                JSONObject p = Perfis.novo(a.getString("pacote"), a.optString("nome", ""), a.optString("modelo", "acao"), System.currentTimeMillis() / 1000);
+                { JSONObject g = Perfis.guardarPerfil(arquivoPerfis(), p); if (servicoAtivo()) ControleService.instancia.recarregar(); return g; }
+            }
+            case "controle_salvar": return Perfis.guardarPerfil(arquivoPerfis(), a.getJSONObject("perfil"));
+            case "controle_apagar": { Perfis.apagarPerfil(arquivoPerfis(), a.getString("id")); if (servicoAtivo()) ControleService.instancia.recarregar(); return new JSONObject().put("ok", true); }
+            case "controle_ativar": { Perfis.ativar(arquivoPerfis(), a.getString("pacote"), a.getString("id")); if (servicoAtivo()) ControleService.instancia.recarregar(); return new JSONObject().put("ok", true); }
+            case "controle_jogar": {
+                Intent i = pm.getLaunchIntentForPackage(a.getString("pacote"));
+                if (i == null) throw new Exception("Esse jogo não está mais instalado.");
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(i);
+                return new JSONObject().put("servico", servicoAtivo());
+            }
+            case "controle_editar": {
+                if (!servicoAtivo()) throw new Exception("Ative o serviço “Vortex Controle” nas configurações de acessibilidade para posicionar os botões.");
+                Intent i = pm.getLaunchIntentForPackage(a.getString("pacote"));
+                if (i == null) throw new Exception("Esse jogo não está mais instalado.");
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(i);
+                final String perfilId = a.getString("id");
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+                    public void run() { if (ControleService.instancia != null) ControleService.instancia.editar(perfilId); }
+                }, 2500);
+                return new JSONObject().put("ok", true);
+            }
+            default: throw new Exception("Comando desconhecido: " + comando);
+        }
     }
 
     private String lerCatalogo() throws Exception {

@@ -95,7 +95,7 @@ jobs:
         run: |
           curl -fsSL -o json.jar https://repo1.maven.org/maven2/org/json/json/20240303/json-20240303.jar
           mkdir -p saida
-          javac -cp json.jar -d saida android/src/Plataformas.java android/src/Motor.java android/src/Organizador.java android/teste/MotorTeste.java
+          javac -cp json.jar -d saida android/src/Plataformas.java android/src/Motor.java android/src/Organizador.java android/src/Perfis.java android/teste/MotorTeste.java
           java -cp "json.jar;saida" tech.vetorial.vortex.MotorTeste
       - name: Preparar o projeto Android
         working-directory: app
@@ -125,6 +125,11 @@ jobs:
           sed -i 's#<activity#<activity android:screenOrientation="sensorLandscape"#' android/app/src/main/AndroidManifest.xml
           # tela do jogo (motor de emulação embutido: LibretroDroid) e o repositório JitPack onde ele mora
           sed -i 's#</application>#    <activity android:name=".JogoActivity" android:exported="false" android:screenOrientation="sensorLandscape" android:configChanges="orientation|screenSize|keyboardHidden|keyboard|navigation|uiMode" android:theme="@style/AppTheme.NoActionBar" />\n    </application>#' android/app/src/main/AndroidManifest.xml
+          # serviço de controle (acessibilidade): botões do controle viram toques na tela dos jogos sem suporte
+          printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"' '    android:accessibilityEventTypes="typeWindowStateChanged"' '    android:accessibilityFeedbackType="feedbackGeneric"' '    android:accessibilityFlags="flagRequestFilterKeyEvents"' '    android:canRequestFilterKeyEvents="true"' '    android:canPerformGestures="true"' '    android:notificationTimeout="100"' '    android:description="@string/controle_descricao" />' > android/app/src/main/res/xml/controle_service.xml
+          printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<resources>' '    <string name="controle_descricao">Transforma os botões do controle em toques na tela dos jogos de Android sem suporte a controle. Não lê o conteúdo da tela.</string>' '    <string name="controle_nome">Vortex Controle</string>' '</resources>' > android/app/src/main/res/values/vortex_strings.xml
+          sed -i 's#</application>#    <service android:name=".ControleService" android:label="@string/controle_nome" android:exported="true" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">\n        <intent-filter><action android:name="android.accessibilityservice.AccessibilityService" /></intent-filter>\n        <meta-data android:name="android.accessibilityservice" android:resource="@xml/controle_service" />\n    </service>\n    </application>#' android/app/src/main/AndroidManifest.xml
+          grep -c "ControleService" android/app/src/main/AndroidManifest.xml
           npx capacitor-assets generate --android --iconBackgroundColor '#05060D' --iconBackgroundColorDark '#05060D' --splashBackgroundColor '#05060D' --splashBackgroundColorDark '#05060D'
           npx cap sync android
       - name: Compilar o APK
