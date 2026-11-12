@@ -2,6 +2,7 @@
 //! Todo comando recebe `biblioteca` (caminho do arquivo JSON da biblioteca) e devolve JSON.
 use crate::biblioteca::{Biblioteca, Filtro, OpcoesEscaneamento};
 use crate::modo_jogo::{self, SistemaReal, Sistema};
+use crate::loja;
 use crate::nucleos;
 use crate::organizador;
 use crate::emuladores::{self, Ambiente, Configuracao, Lancamento, Preferido};
@@ -96,6 +97,52 @@ fn para<T: serde::Serialize>(x: T) -> Result<Value, String> {
     serde_json::to_value(x).map_err(|e| e.to_string())
 }
 
+fn arquivo_da_loja(biblioteca: &Path) -> PathBuf {
+    biblioteca.with_file_name("loja_instalados.json")
+}
+
+fn instalados_da_loja(biblioteca: &Path) -> std::collections::BTreeMap<String, String> {
+    std::fs::read_to_string(arquivo_da_loja(biblioteca)).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
+}
+
+/// Catálogo da loja com o que já está instalado (e o id do jogo na biblioteca, para o botão Jogar).
+fn loja_catalogo_json(biblioteca: &Path) -> Value {
+    let marcados = instalados_da_loja(biblioteca);
+    let b = Biblioteca::carregar(biblioteca);
+    let lista: Vec<Value> = loja::catalogo().into_iter().map(|o| {
+        let caminho = marcados.get(&o.id).filter(|c| Path::new(c).is_file());
+        let jogo_id = caminho.and_then(|c| b.jogos.values().find(|j| j.caminho == Path::new(c)).map(|j| j.id.clone()));
+        let mut v = serde_json::to_value(&o).unwrap_or(Value::Null);
+        v["instalado"] = json!(caminho.is_some());
+        v["jogo_id"] = json!(jogo_id);
+        v
+    }).collect();
+    json!(lista)
+}
+
+/// Baixa e instala um jogo da loja. Roda sem segurar a biblioteca (o download pode demorar).
+fn loja_instalar_com(args: &Value, baixar: loja::Baixar) -> Result<Value, String> {
+    let arquivo = arquivo_da_biblioteca(args)?;
+    let id = texto(args, "id")?;
+    let oferta = loja::catalogo().into_iter().find(|o| o.id == id).ok_or("Esse jogo não está mais no catálogo.")?;
+    let amb = Ambiente::atual();
+    let pasta_vortex = args.get("pasta_vortex").and_then(|x| x.as_str()).filter(|s| !s.trim().is_empty()).map(PathBuf::from).unwrap_or_else(|| amb.casa.join("Documents").join("Vortex").join("Jogos"));
+    let itens = loja::instalar(&oferta, &pasta_de_dados(&arquivo), &pasta_vortex, baixar)?;
+    let destino = itens.first().map(|i| i.destino.to_string_lossy().to_string()).ok_or("Nada foi instalado.")?;
+    let mut m = instalados_da_loja(&arquivo);
+    m.insert(oferta.id.clone(), destino);
+    let _ = std::fs::create_dir_all(pasta_de_dados(&arquivo));
+    if let Ok(t) = serde_json::to_string_pretty(&m) {
+        let _ = std::fs::write(arquivo_da_loja(&arquivo), t);
+    }
+    // a pasta do Vortex entra na biblioteca e o jogo já aparece
+    executar("adicionar_pasta", &json!({ "biblioteca": arquivo, "pasta": pasta_vortex, "agora": args.get("agora") }))?;
+    executar("escanear", &json!({ "biblioteca": arquivo, "agora": args.get("agora") }))?;
+    let cat = loja_catalogo_json(&arquivo);
+    let jogo_id = cat.as_array().and_then(|l| l.iter().find(|v| v["id"] == oferta.id)).map(|v| v["jogo_id"].clone()).unwrap_or(Value::Null);
+    Ok(json!({ "instalado": true, "jogo_id": jogo_id }))
+}
+
 /// Garante o motor embutido (RetroArch portátil + núcleo) do console do jogo. Pode demorar na primeira vez, por isso roda sem segurar a biblioteca.
 fn preparar_jogo_com(args: &Value, baixar: nucleos::Baixar) -> Result<Value, String> {
     let arquivo = arquivo_da_biblioteca(args)?;
@@ -116,6 +163,12 @@ fn preparar_jogo_com(args: &Value, baixar: nucleos::Baixar) -> Result<Value, Str
 }
 
 pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
+    if comando == "loja_catalogo" {
+        return Ok(loja_catalogo_json(&arquivo_da_biblioteca(args)?));
+    }
+    if comando == "loja_instalar" {
+        return loja_instalar_com(args, &loja::baixar_https);
+    }
     if comando == "preparar_jogo" {
         return preparar_jogo_com(args, &nucleos::baixar_da_libretro);
     }
@@ -408,6 +461,29 @@ mod testes {
         assert_eq!(r["baixou"], true);
         let cfg = Configuracao::carregar(&arquivo_de_configuracao(Path::new(&bib)));
         assert!(cfg.retroarch.is_some(), "motor embutido vira o RetroArch do Vortex");
+    }
+
+    #[test]
+    fn loja_instala_e_mostra_como_instalado() {
+        let t = tempfile::tempdir().unwrap();
+        let bib = t.path().join("dados/biblioteca.json").to_string_lossy().to_string();
+        let vortex = t.path().join("Vortex/Jogos");
+        let o = loja::catalogo().into_iter().next().unwrap();
+        let a = json!({ "biblioteca": bib, "agora": 3, "id": o.id, "pasta_vortex": vortex });
+        assert!(executar("loja_catalogo", &a).unwrap().as_array().unwrap().iter().all(|v| v["instalado"] == false));
+        // servidor falso: gera um zip com um .nes e acerta a assinatura
+        let falso_zip = t.path().join("falso.zip");
+        {
+            use std::io::Write;
+            let mut w = zip::ZipWriter::new(fs::File::create(&falso_zip).unwrap());
+            w.start_file("jogo.nes", zip::write::SimpleFileOptions::default()).unwrap();
+            w.write_all(b"x").unwrap();
+            w.finish().unwrap();
+        }
+        let baixar = |_: &str, d: &Path| fs::copy(&falso_zip, d).map(|_| ()).map_err(|e| e.to_string());
+        // com a assinatura do catálogo real o arquivo falso é recusado
+        assert!(loja_instalar_com(&a, &baixar).unwrap_err().contains("não confere"));
+        assert!(executar("loja_instalar", &json!({ "biblioteca": bib, "id": "nao-existe" })).is_err());
     }
 
     #[cfg(unix)]

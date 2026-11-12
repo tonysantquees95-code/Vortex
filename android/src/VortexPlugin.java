@@ -67,6 +67,7 @@ public class VortexPlugin extends Plugin {
                 try {
                     JSONObject a = new JSONObject(args);
                     a.put("biblioteca", new File(getContext().getFilesDir(), "vortex/biblioteca.json").getAbsolutePath());
+                    if (comando.startsWith("loja_")) a.put("catalogo_json", lerCatalogo());
                     Object r;
                     if (comando.equals("emuladores")) r = emuladores();
                     else if (comando.equals("preparar_jogo")) r = preparar(a);
@@ -80,6 +81,15 @@ public class VortexPlugin extends Plugin {
                 }
             }
         });
+    }
+
+    private String lerCatalogo() throws Exception {
+        try (java.io.InputStream in = getContext().getAssets().open("catalogo.json")) {
+            java.io.ByteArrayOutputStream o = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[8192]; int n;
+            while ((n = in.read(buf)) > 0) o.write(buf, 0, n);
+            return o.toString("UTF-8");
+        }
     }
 
     private JSONObject emuladores() throws Exception {

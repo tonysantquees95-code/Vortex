@@ -54,6 +54,11 @@ jobs:
         run: |
           curl -fsSIL -o /dev/null https://buildbot.libretro.com/nightly/windows/x86_64/RetroArch.7z
           curl -fsSIL -o /dev/null https://buildbot.libretro.com/nightly/windows/x86_64/latest/snes9x_libretro.dll.zip
+      - name: Conferir os downloads do catálogo da loja
+        run: |
+          node -e 'for (const j of require("./catalogo/catalogo.json").jogos) console.log(j.url)' | while read -r url; do
+            curl -fsSIL -o /dev/null "$url" || { echo "Link quebrado: $url"; exit 1; }
+          done
       - name: Testar o app e o motor
         run: cargo test --workspace --all-targets
       - name: Gerar o instalador
@@ -108,6 +113,9 @@ jobs:
           grep -q 'fileprovider' android/app/src/main/AndroidManifest.xml
           mkdir -p android/app/src/main/res/xml
           printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<paths xmlns:android="http://schemas.android.com/apk/res/android">' '    <root-path name="raiz" path="." />' '    <cache-path name="cache" path="." />' '</paths>' > android/app/src/main/res/xml/file_paths.xml
+          # catálogo da loja (lido pelo plugin)
+          mkdir -p android/app/src/main/assets
+          cp ../catalogo/catalogo.json android/app/src/main/assets/catalogo.json
           # tela do jogo: o motor de emulação (LibretroDroid) mora no JitPack
           sed -i 's#mavenCentral()#mavenCentral()\n        maven { url "https://jitpack.io" }#' android/build.gradle
           grep -n jitpack android/build.gradle

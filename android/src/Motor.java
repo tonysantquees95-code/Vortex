@@ -24,8 +24,36 @@ public class Motor {
     public interface Relogio { long agora(); }
 
     private final Relogio relogio;
+    private final Baixador baixador;
 
-    public Motor(Relogio relogio) { this.relogio = relogio; }
+    public interface Baixador { void baixar(String url, File destino) throws Exception; }
+
+    public Motor(Relogio relogio) { this(relogio, null); }
+
+    public Motor(Relogio relogio, Baixador baixador) { this.relogio = relogio; this.baixador = baixador != null ? baixador : new Baixador() { public void baixar(String u, File d) throws Exception { baixarHttps(u, d); } }; }
+
+    static boolean hospedeiroPermitido(String url) { return url.startsWith("https://raw.githubusercontent.com/"); }
+
+    /** Download de verdade (HTTPS), só dos servidores do catálogo. */
+    static void baixarHttps(String url, File destino) throws Exception {
+        if (!hospedeiroPermitido(url)) throw new Exception("Endereço de download não permitido.");
+        java.net.HttpURLConnection h = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+        h.setConnectTimeout(20000);
+        h.setReadTimeout(60000);
+        if (h.getResponseCode() != 200) throw new Exception("O servidor do jogo respondeu com erro " + h.getResponseCode() + ". Tente de novo mais tarde.");
+        try (java.io.InputStream in = h.getInputStream(); FileOutputStream o = new FileOutputStream(destino)) {
+            byte[] buf = new byte[65536]; int n;
+            while ((n = in.read(buf)) > 0) o.write(buf, 0, n);
+        } finally { h.disconnect(); }
+    }
+
+    static String sha256(File f) throws Exception {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        try (java.io.InputStream in = new java.io.FileInputStream(f)) { byte[] buf = new byte[65536]; int n; while ((n = in.read(buf)) > 0) md.update(buf, 0, n); }
+        StringBuilder sb = new StringBuilder();
+        for (byte x : md.digest()) sb.append(String.format("%02x", x));
+        return sb.toString();
+    }
 
     public Object executar(String comando, JSONObject args) throws Exception {
         File arquivo = new File(args.optString("biblioteca", ""));
@@ -166,9 +194,66 @@ public class Motor {
                 salvar(arquivo, bib);
                 return r;
             }
+            case "loja_catalogo": return lojaCatalogo(args, arquivo, jogos);
+            case "loja_instalar": {
+                JSONObject oferta = null;
+                JSONArray cat = new JSONObject(args.optString("catalogo_json", "{\"jogos\":[]}")).getJSONArray("jogos");
+                for (int i = 0; i < cat.length(); i++) if (cat.getJSONObject(i).getString("id").equals(texto(args, "id"))) oferta = cat.getJSONObject(i);
+                if (oferta == null) throw new Exception("Esse jogo não está mais no catálogo.");
+                File vortex = new File(args.optString("pasta_vortex", "/storage/emulated/0/Vortex/Jogos"));
+                File tmp = new File(arquivo.getParentFile(), "loja/" + oferta.getString("id"));
+                deletarArvore(tmp);
+                tmp.mkdirs();
+                String destino;
+                try {
+                    File zip = new File(tmp, oferta.getString("id") + ".zip");
+                    baixador.baixar(oferta.getString("url"), zip);
+                    if (!sha256(zip).equalsIgnoreCase(oferta.getString("sha256"))) throw new Exception("O arquivo baixado não confere com o catálogo (pode estar corrompido). Tente de novo mais tarde.");
+                    Organizador.Resultado res = Organizador.organizar(java.util.Collections.singletonList(tmp), vortex, false);
+                    if (!res.falhas.isEmpty()) throw new Exception(res.falhas.get(0));
+                    if (res.organizados.isEmpty()) throw new Exception("Não consegui identificar o jogo dentro do arquivo baixado.");
+                    destino = res.organizados.get(0).destino.getPath();
+                } finally { deletarArvore(tmp); }
+                File marc = new File(arquivo.getParentFile(), "loja_instalados.json");
+                JSONObject m = marc.exists() ? new JSONObject(new String(Files.readAllBytes(marc.toPath()), StandardCharsets.UTF_8)) : new JSONObject();
+                m.put(oferta.getString("id"), destino);
+                gravar(marc, m.toString());
+                if (!contem(bib.getJSONArray("pastas"), vortex.getPath())) bib.getJSONArray("pastas").put(vortex.getPath());
+                escanear(bib, t);
+                salvar(arquivo, bib);
+                for (int i = 0; i < 0; i++) { }
+                JSONArray novo = lojaCatalogo(args, arquivo, bib.getJSONObject("jogos"));
+                Object jogoId = JSONObject.NULL;
+                for (int i = 0; i < novo.length(); i++) if (novo.getJSONObject(i).getString("id").equals(oferta.getString("id"))) jogoId = novo.getJSONObject(i).get("jogo_id");
+                return new JSONObject().put("instalado", true).put("jogo_id", jogoId);
+            }
             case "modo_jogo_recuperar": return new JSONObject().put("desfeito", false);
             default: throw new Exception("Comando desconhecido: " + comando);
         }
+    }
+
+    private static void deletarArvore(File f) {
+        File[] fs = f.listFiles();
+        if (fs != null) for (File x : fs) deletarArvore(x);
+        f.delete();
+    }
+
+    /** Catálogo da loja com o que já está instalado e o id do jogo na biblioteca (para o botão Jogar). */
+    private JSONArray lojaCatalogo(JSONObject args, File arquivo, JSONObject jogos) throws Exception {
+        JSONArray cat = new JSONObject(args.optString("catalogo_json", "{\"jogos\":[]}")).getJSONArray("jogos");
+        File marc = new File(arquivo.getParentFile(), "loja_instalados.json");
+        JSONObject m = marc.exists() ? new JSONObject(new String(Files.readAllBytes(marc.toPath()), StandardCharsets.UTF_8)) : new JSONObject();
+        JSONArray r = new JSONArray();
+        for (int i = 0; i < cat.length(); i++) {
+            JSONObject o = cat.getJSONObject(i);
+            String caminho = m.optString(o.getString("id"), "");
+            boolean inst = !caminho.isEmpty() && new File(caminho).isFile();
+            Object jogoId = JSONObject.NULL;
+            if (inst) for (String id : chaves(jogos)) if (jogos.getJSONObject(id).optString("caminho").equals(caminho)) jogoId = id;
+            o.put("instalado", inst).put("jogo_id", jogoId);
+            r.put(o);
+        }
+        return r;
     }
 
     private static List<String> pathsDe(List<File> l) { List<String> r = new ArrayList<String>(); for (File f : l) r.add(f.getPath()); return r; }

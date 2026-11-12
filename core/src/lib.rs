@@ -10,3 +10,4 @@ pub mod emuladores;
 pub mod modo_jogo;
 pub mod organizador;
 pub mod nucleos;
+pub mod loja;

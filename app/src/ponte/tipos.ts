@@ -24,6 +24,11 @@ export interface RelatorioOrganizacao {
   falhas: string[]; simulacao: boolean; pasta_vortex: string;
 }
 
+export interface Oferta {
+  id: string; titulo: string; plataforma: string; autor: string; descricao: string; licenca: string; site: string;
+  url: string; sha256: string; bytes: number; instalado: boolean; jogo_id: string | null;
+}
+
 export interface Motor {
   plataforma: "windows" | "android" | "demo";
   pastas(): Promise<string[]>;
@@ -39,6 +44,9 @@ export interface Motor {
   emuladores(): Promise<EmuladoresInfo>;
   /** Garante o motor do console (baixa só na primeira vez). */
   preparar(id: string): Promise<{ nucleo: string; baixou: boolean }>;
+  lojaCatalogo(): Promise<Oferta[]>;
+  /** Baixa em segundo plano, confere, descompacta e guarda na pasta do console. */
+  lojaInstalar(id: string): Promise<{ instalado: boolean; jogo_id: string | null }>;
   lancar(id: string): Promise<ResultadoLancamento>;
   modoJogo(nova?: ModoJogoConfig): Promise<ModoJogoConfig>;
   recuperarModoJogo(): Promise<void>;

@@ -88,6 +88,26 @@ public class MotorTeste {
         confere(tem, "pasta do Vortex entrou na biblioteca");
         JSONObject d = (JSONObject) run.apply("organizar_desfazer", new JSONObject());
         confere(d.getInt("devolvidos") == 3 && new File(solto, "psx/Crash.bin").exists() && new File(solto, "Sonic (USA).md").exists(), "desfazer devolve os arquivos soltos (" + d.getInt("devolvidos") + ")");
+        // loja: baixa (servidor falso), confere a assinatura, organiza e marca como instalado
+        File falsoZip = new File(t, "falso.zip");
+        try (java.util.zip.ZipOutputStream z = new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(falsoZip))) {
+            z.putNextEntry(new java.util.zip.ZipEntry("Jogo.nes")); z.write("x".getBytes()); z.closeEntry();
+        }
+        String sha = Motor.sha256(falsoZip);
+        String catalogo = new JSONObject().put("jogos", new JSONArray().put(new JSONObject().put("id", "j1").put("titulo", "Jogo").put("plataforma", "nes").put("url", "https://raw.githubusercontent.com/x/Jogo.zip").put("sha256", sha))).toString();
+        Motor lojaMotor = new Motor(() -> 9, (u, dest) -> Files.copy(falsoZip.toPath(), dest.toPath()));
+        File vortex2 = new File(t, "V2/Jogos");
+        JSONObject args2 = new JSONObject().put("biblioteca", new File(t, "loja/biblioteca.json").getPath()).put("catalogo_json", catalogo).put("pasta_vortex", vortex2.getPath()).put("id", "j1");
+        JSONArray cat0 = (JSONArray) lojaMotor.executar("loja_catalogo", args2);
+        confere(cat0.length() == 1 && !cat0.getJSONObject(0).getBoolean("instalado"), "loja: começa sem nada instalado");
+        JSONObject inst = (JSONObject) lojaMotor.executar("loja_instalar", args2);
+        confere(inst.getBoolean("instalado") && !inst.isNull("jogo_id"), "loja: instalou e achou o jogo na biblioteca");
+        confere(((JSONArray) lojaMotor.executar("loja_catalogo", args2)).getJSONObject(0).getBoolean("instalado"), "loja: aparece como instalado");
+        Motor ruim = new Motor(() -> 9, (u, dest) -> Files.write(dest.toPath(), "lixo".getBytes()));
+        String erro = "";
+        try { ruim.executar("loja_instalar", args2.put("id", "j1").put("pasta_vortex", new File(t, "V3").getPath())); } catch (Exception e) { erro = e.getMessage(); }
+        confere(erro.contains("não confere") && !new File(t, "V3").exists(), "loja: arquivo adulterado é recusado");
+        confere(!Motor.hospedeiroPermitido("https://romsgames.net/x") && Motor.hospedeiroPermitido("https://raw.githubusercontent.com/a/b"), "loja: só baixa de servidor permitido");
         System.out.println(falhas == 0 ? "TUDO CERTO" : falhas + " FALHAS");
         System.exit(falhas == 0 ? 0 : 1);
     }

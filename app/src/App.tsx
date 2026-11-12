@@ -5,11 +5,12 @@ import type { Estatisticas, Jogo, Ordem, ResumoPlataforma } from "./ponte";
 import { organizarAutomatico } from "./config";
 import { tempoJogado } from "./navegacao";
 import { Ajustes } from "./telas/Ajustes";
+import { Loja } from "./telas/Loja";
 import { Detalhe } from "./telas/Detalhe";
 import { Capa, Carrossel, Carta } from "./telas/pecas";
 
-type Aba = "inicio" | "biblioteca" | "favoritos" | "ajustes";
-const ABAS: [Aba, string][] = [["inicio", "Início"], ["biblioteca", "Biblioteca"], ["favoritos", "Favoritos"], ["ajustes", "Ajustes"]];
+type Aba = "inicio" | "biblioteca" | "loja" | "favoritos" | "ajustes";
+const ABAS: [Aba, string][] = [["inicio", "Início"], ["biblioteca", "Biblioteca"], ["loja", "Loja"], ["favoritos", "Favoritos"], ["ajustes", "Ajustes"]];
 
 export function App() {
   const motor = useMotor();
@@ -127,7 +128,7 @@ export function App() {
         </header>
 
         <main className="rolagem min-h-0 flex-1 pb-10">
-          {vazio && aba !== "ajustes" ? (
+          {vazio && aba !== "ajustes" && aba !== "loja" ? (
             <div className="entrar mx-auto mt-20 max-w-xl text-center">
               <div className="titulo-neon text-4xl font-black">Sua biblioteca está vazia</div>
               <p className="mt-3 text-slate-300">{pasta ? "Não achei jogos nas pastas escolhidas. Confira as pastas ou procure de novo." : "Escolha a pasta onde ficam seus jogos e o Vortex organiza tudo sozinho."}</p>
@@ -155,6 +156,8 @@ export function App() {
               <Carrossel titulo="Adicionados recentemente" jogos={recentes} aoAbrir={setAberto} />
               {plats.slice(0, 4).map((p) => <Carrossel key={p.id} titulo={p.nome} jogos={jogos.filter((j) => j.plataforma === p.id).slice(0, 14)} aoAbrir={setAberto} />)}
             </>
+          ) : aba === "loja" ? (
+            <Loja motor={motor} aoInstalar={recarregar} avisar={avisar} aoJogar={(id) => { const j = jogos.find((x) => x.id === id); if (j) jogar(j); else avisar("O jogo ainda está aparecendo na biblioteca. Tente de novo em instantes."); }} />
           ) : aba === "ajustes" ? (
             <Ajustes motor={motor} aoMudarBiblioteca={recarregar} avisar={avisar} />
           ) : (

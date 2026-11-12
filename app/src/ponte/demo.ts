@@ -1,4 +1,4 @@
-import type { Filtro, Jogo, ModoJogoConfig, Motor } from "./tipos";
+import type { Filtro, Jogo, ModoJogoConfig, Motor, Oferta } from "./tipos";
 
 const base = (id: string, titulo: string, plataforma: string, extra: Partial<Jogo> = {}): Jogo => ({
   id, titulo, plataforma, caminho: `C:\\Jogos\\${titulo}`, bytes: 40_000_000, regioes: ["USA"], idiomas: [], tags: [],
@@ -32,6 +32,8 @@ export async function motorDemo(): Promise<Motor> {
     l = [...l].sort((a, b) => o === "recentes" ? b.ultimo_jogo - a.ultimo_jogo : o === "mais_jogados" ? b.tempo_total_s - a.tempo_total_s : o === "ano" ? (b.ano ?? 0) - (a.ano ?? 0) : a.titulo.localeCompare(b.titulo));
     return f.limite ? l.slice(0, f.limite) : l;
   };
+  const oferta = (id: string, titulo: string, plataforma: string, autor: string): Oferta => ({ id, titulo, plataforma, autor, descricao: `Jogo independente (homebrew) de ${autor}, distribuído gratuitamente.`, licenca: "Homebrew gratuito", site: "", url: "", sha256: "", bytes: 40_000, instalado: false, jogo_id: null });
+  let loja: Oferta[] = [oferta("alter-ego", "Alter Ego", "nes", "Shiru"), oferta("streemerz", "Streemerz", "nes", "Faux Game Company"), oferta("apotris", "Apotris", "gba", "akouzoukos"), oferta("mazezam", "MazezaM Challenge", "gba", "Alekmaul")];
   return {
     plataforma: "demo",
     pastas: async () => pastas,
@@ -46,6 +48,15 @@ export async function motorDemo(): Promise<Motor> {
     favoritar: async (id, fav) => { jogos = jogos.map((j) => (j.id === id ? { ...j, favorito: fav } : j)); },
     emuladores: async () => ({ instalados: [{ id: "retroarch", nome: "RetroArch", plataformas: Object.keys(NOMES) }] }),
     preparar: async () => { await new Promise((r) => setTimeout(r, 800)); return { nucleo: "snes9x_libretro", baixou: false }; },
+    lojaCatalogo: async () => loja,
+    lojaInstalar: async (id) => {
+      await new Promise((r) => setTimeout(r, 1500));
+      const o = loja.find((x) => x.id === id);
+      if (!o) throw new Error("Esse jogo não está mais no catálogo.");
+      jogos = [...jogos, base("loja-" + id, o.titulo, o.plataforma, { adicionado: Date.now() / 1000 })];
+      loja = loja.map((x) => (x.id === id ? { ...x, instalado: true, jogo_id: "loja-" + id } : x));
+      return { instalado: true, jogo_id: "loja-" + id };
+    },
     lancar: async (id) => {
       jogos = jogos.map((j) => (j.id === id ? { ...j, ultimo_jogo: Date.now() / 1000, sessoes: j.sessoes + 1 } : j));
       return { pid: 0, emulador: "RetroArch (demonstração)", nucleo: null, modo_jogo: modo.ligado };
