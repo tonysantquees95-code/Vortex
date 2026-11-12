@@ -1,12 +1,13 @@
 //! Interface única (JSON) do motor, usada pelo app de Windows (Tauri) e pelos testes. O Android implementa o mesmo contrato.
 //! Todo comando recebe `biblioteca` (caminho do arquivo JSON da biblioteca) e devolve JSON.
 use crate::biblioteca::{Biblioteca, Filtro, OpcoesEscaneamento};
+use crate::modo_jogo::{self, SistemaReal, Sistema};
 use crate::emuladores::{self, Ambiente, Configuracao, Lancamento, Preferido};
 use crate::plataformas::PLATAFORMAS;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Quem lê e grava a biblioteca (a tela e o vigia de jogo aberto) passa por aqui, uma de cada vez.
@@ -27,6 +28,15 @@ fn pasta_de_dados(biblioteca: &Path) -> PathBuf {
 /// Abre o emulador e, quando ele fecha, soma o tempo jogado. Devolve o número do processo.
 /// `relogio` dá a hora em segundos (nos testes é falso).
 pub fn lancar_plano(plano: &Lancamento, biblioteca: PathBuf, id: String, relogio: impl Fn() -> u64 + Send + 'static) -> Result<u32, String> {
+    lancar_com_modo(plano, biblioteca, id, relogio, None)
+}
+
+fn arquivo_do_modo_jogo(biblioteca: &Path) -> PathBuf {
+    biblioteca.with_file_name("modo_jogo_config.json")
+}
+
+/// Igual a `lancar_plano`, mas liga o modo jogo enquanto o emulador estiver aberto e desfaz tudo quando ele fechar.
+pub fn lancar_com_modo(plano: &Lancamento, biblioteca: PathBuf, id: String, relogio: impl Fn() -> u64 + Send + 'static, modo: Option<modo_jogo::Configuracao>) -> Result<u32, String> {
     let mut cmd = Command::new(&plano.programa);
     cmd.args(&plano.args).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
     if let Some(d) = plano.diretorio.as_ref().filter(|d| d.is_dir()) {
@@ -40,8 +50,18 @@ pub fn lancar_plano(plano: &Lancamento, biblioteca: PathBuf, id: String, relogio
         b.iniciar_sessao(&id, relogio())?;
         b.salvar(&biblioteca)?;
     }
+    let sistema = Arc::new(SistemaReal::novo());
+    let dados = pasta_de_dados(&biblioteca);
+    let mut avisos = Vec::new();
+    if let Some(cfg) = modo.filter(|c| c.ligado) {
+        let rel = modo_jogo::ativar(sistema.as_ref(), &cfg, pid, Some(&plano.programa), &[std::process::id()], &dados, agora_real());
+        avisos = rel.avisos;
+    }
+    let _ = avisos; // o app mostra os avisos pelo comando "modo_jogo_ativar"; aqui só seguimos
+    let sis_fim = sistema.clone();
     std::thread::spawn(move || {
         let _ = filho.wait();
+        modo_jogo::desativar(sis_fim.as_ref(), &dados);
         let _g = BLOQUEIO.lock().unwrap_or_else(|e| e.into_inner());
         let mut b = Biblioteca::carregar(&biblioteca);
         b.encerrar_sessao(&id, relogio());
@@ -164,8 +184,30 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
             let id = texto(args, "id")?.to_string();
             let plano = plano_do_jogo(&b, &id, &arquivo)?;
             drop(_g);
-            let pid = lancar_plano(&plano, arquivo.clone(), id, agora_real)?;
-            return Ok(json!({ "pid": pid, "emulador": plano.emulador, "nucleo": plano.nucleo }));
+            let modo = modo_jogo::Configuracao::carregar(&arquivo_do_modo_jogo(&arquivo));
+            let modo_ligado = modo.ligado;
+            let pid = lancar_com_modo(&plano, arquivo.clone(), id, agora_real, Some(modo))?;
+            return Ok(json!({ "pid": pid, "emulador": plano.emulador, "nucleo": plano.nucleo, "modo_jogo": modo_ligado }));
+        }
+        "modo_jogo_config" => {
+            let ca = arquivo_do_modo_jogo(&arquivo);
+            let mut c = modo_jogo::Configuracao::carregar(&ca);
+            if let Some(novo) = args.get("configuracao") {
+                c = serde_json::from_value(novo.clone()).map_err(|e| format!("Configuração do Modo Jogo inválida: {e}"))?;
+                c.salvar(&ca)?;
+            }
+            para(c)
+        }
+        "modo_jogo_simular" => {
+            // mostra o que o Modo Jogo faria agora, sem mexer em nada
+            let cfg = modo_jogo::Configuracao::carregar(&arquivo_do_modo_jogo(&arquivo));
+            let procs = SistemaReal::novo().processos();
+            para(modo_jogo::planejar(&procs, &[std::process::id()], &cfg))
+        }
+        "modo_jogo_pendente" => para(modo_jogo::pendente(&pasta_de_dados(&arquivo))),
+        "modo_jogo_recuperar" => {
+            // chamado quando o Vortex abre: se ele fechou no meio de um jogo, devolve o computador ao normal
+            Ok(json!({ "desfeito": modo_jogo::desativar(&SistemaReal::novo(), &pasta_de_dados(&arquivo)) }))
         }
         "historico" => {
             let n = args.get("limite").and_then(|x| x.as_u64()).unwrap_or(50) as usize;
@@ -235,6 +277,22 @@ mod testes {
         let c = executar("configurar", &json!({ "biblioteca": bib, "plataforma": "snes", "emulador": "" })).unwrap();
         assert!(c["preferidos"].as_object().unwrap().is_empty());
         assert!(executar("plano_lancamento", &json!({ "biblioteca": bib, "id": "x" })).unwrap_err().contains("não está"));
+    }
+
+    #[test]
+    fn modo_jogo_pela_api() {
+        let t = tempfile::tempdir().unwrap();
+        let bib = t.path().join("d/biblioteca.json").to_string_lossy().to_string();
+        let c = executar("modo_jogo_config", &json!({ "biblioteca": bib })).unwrap();
+        assert_eq!(c["ligado"], true);
+        let c = executar("modo_jogo_config", &json!({ "biblioteca": bib, "configuracao": { "energia_maxima": false, "rebaixar_extra": ["obs64"] } })).unwrap();
+        assert_eq!(c["energia_maxima"], false);
+        assert_eq!(c["gpu_dedicada"], true); // o que não foi informado continua no padrão
+        assert_eq!(executar("modo_jogo_config", &json!({ "biblioteca": bib })).unwrap()["rebaixar_extra"][0], "obs64");
+        assert!(executar("modo_jogo_config", &json!({ "biblioteca": bib, "configuracao": { "ligado": "talvez" } })).is_err());
+        assert!(executar("modo_jogo_simular", &json!({ "biblioteca": bib })).unwrap()["alvos"].is_array());
+        assert!(executar("modo_jogo_pendente", &json!({ "biblioteca": bib })).unwrap().is_null());
+        assert_eq!(executar("modo_jogo_recuperar", &json!({ "biblioteca": bib })).unwrap()["desfeito"], false);
     }
 
     #[cfg(unix)]

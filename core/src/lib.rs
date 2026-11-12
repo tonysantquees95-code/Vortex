@@ -7,3 +7,4 @@ pub mod midia;
 pub mod biblioteca;
 pub mod api;
 pub mod emuladores;
+pub mod modo_jogo;
