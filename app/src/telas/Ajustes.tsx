@@ -7,6 +7,7 @@ import { BUILD } from "../atualizacao";
 import type { Atualizacao } from "../useAtualizacao";
 import { CORES, TEMA_PADRAO, hexValido, type Fundo, type Tema } from "../tema";
 import { Interruptor } from "./pecas";
+import { SeletorDeCor } from "./SeletorDeCor";
 import { Dock } from "./Dock";
 import { Icone3D } from "./Icones";
 import { Permissoes } from "./Permissoes";
@@ -289,6 +290,7 @@ export function TelaAparencia({ tema, aoMudar, jogos = [], avisar }: { tema: Tem
     try { m({ fundo: "foto", foto: await reduzirFoto(arq) }); } catch (e) { avisar?.(String(e instanceof Error ? e.message : e)); }
   };
   const personalizada = hexValido(tema.cor);
+  const [escolhendoCor, setEscolhendoCor] = useState(false);
   return (
     <div className="grid gap-6">
       <section className="grid gap-3">
@@ -297,10 +299,9 @@ export function TelaAparencia({ tema, aoMudar, jogos = [], avisar }: { tema: Tem
           {CORES.map((c) => (
             <button key={c.id} data-foco className="amostra" data-ativa={tema.cor === c.id} aria-label={c.nome} title={c.nome} onClick={() => m({ cor: c.id })} style={{ background: `linear-gradient(135deg, ${c.principal}, ${c.segunda})` }} />
           ))}
-          <label className="amostra relative grid cursor-pointer place-items-center overflow-hidden text-xs font-bold" data-ativa={personalizada} title="Escolher outra cor" style={{ background: personalizada ? tema.cor : "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)" }}>
-            <input type="color" className="absolute inset-0 size-full cursor-pointer opacity-0" value={personalizada ? tema.cor : "#ff2a3d"} onChange={(e) => m({ cor: e.target.value })} aria-label="Cor personalizada" />
-          </label>
+          <button data-foco className="amostra" data-ativa={personalizada} title="Escolher outra cor" aria-label="Escolher outra cor" onClick={() => setEscolhendoCor(true)} style={{ background: personalizada ? tema.cor : "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)" }} />
         </div>
+        {escolhendoCor && <SeletorDeCor inicial={personalizada ? tema.cor : "#ff2a3d"} aoCancelar={() => setEscolhendoCor(false)} aoDefinir={(hex) => { m({ cor: hex }); setEscolhendoCor(false); }} />}
         <p className="text-sm text-slate-400">{CORES.find((c) => c.id === tema.cor)?.nome ?? "Personalizada"} · o último círculo deixa você escolher qualquer cor.</p>
       </section>
       <section className="grid gap-2">
