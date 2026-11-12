@@ -137,6 +137,46 @@ public class MotorTeste {
         confere(Perfis.ativoDe(Perfis.carregar(arqPerfis), "com.exemplo.jogo").getString("nome").equals("Meu layout"), "perfis: trocar o perfil ativo");
         Perfis.apagarPerfil(arqPerfis, segundo);
         confere(Perfis.ativoDe(Perfis.carregar(arqPerfis), "com.exemplo.jogo") != null && Perfis.carregar(arqPerfis).getJSONArray("perfis").length() == 1, "perfis: apagar o ativo passa para outro");
+        // ---- nuvem: mesma chave do Rust e mesma regra de versões
+        confere(Nuvem.chaveDoJogo("nes", "Super Mario Bros. (USA).nes").equals("nes-super-mario-bros-usa-nes"), "nuvem: chave do jogo igual à do Windows");
+        confere(Nuvem.chaveDoJogo("snes", "  Zelda!!  ").equals("snes-zelda") && Nuvem.chaveDoJogo("gba", "a".repeat(200)).length() <= 60, "nuvem: chave limpa e curta");
+        final java.util.Map<String, Object[]> servidor = new java.util.HashMap<String, Object[]>();
+        Nuvem.Rede falsa = (metodo, caminho, token, corpo, base) -> {
+            if (caminho.equals("/id/entrar")) return new Nuvem.Resposta(200, "{\"token\":\"jwt\"}".getBytes(), -1);
+            if (caminho.equals("/vortex/licenca")) return new Nuvem.Resposta(200, "{\"vortex\":true}".getBytes(), -1);
+            if (caminho.equals("/vortex/saves")) {
+                JSONArray l = new JSONArray();
+                for (java.util.Map.Entry<String, Object[]> e : servidor.entrySet()) { String[] p = e.getKey().split("/"); l.put(new JSONObject().put("jogo", p[0]).put("arquivo", p[1]).put("versao", (Long) e.getValue()[0])); }
+                return new Nuvem.Resposta(200, new JSONObject().put("saves", l).toString().getBytes(), -1);
+            }
+            String k = caminho.substring("/vortex/saves/".length());
+            Object[] atual = servidor.get(k);
+            if (metodo.equals("GET")) return atual == null ? new Nuvem.Resposta(404, "{}".getBytes(), -1) : new Nuvem.Resposta(200, (byte[]) atual[1], (Long) atual[0]);
+            long v = atual == null ? 0 : (Long) atual[0];
+            if (atual != null && base != v) return new Nuvem.Resposta(409, "{}".getBytes(), -1);
+            servidor.put(k, new Object[]{v + 1, corpo});
+            return new Nuvem.Resposta(200, ("{\"versao\":" + (v + 1) + "}").getBytes(), -1);
+        };
+        File dA = new File(t, "nuvemA"), dB = new File(t, "nuvemB");
+        File sA = new File(dA, "saves/a.srm"), sB = new File(dB, "saves/b.srm");
+        sA.getParentFile().mkdirs();
+        Nuvem.entrar(falsa, dA, " A@B.C ", "senha", "Celular A");
+        Nuvem.entrar(falsa, dB, "a@b.c", "senha", "Celular B");
+        confere(Nuvem.estado(falsa, dA).getBoolean("vortex") && !Nuvem.estado(falsa, new File(t, "ninguem")).getBoolean("logado"), "nuvem: estado da conta");
+        Files.write(sA.toPath(), "save 1".getBytes());
+        java.util.List<Nuvem.Item> iA = java.util.Arrays.asList(new Nuvem.Item("nes-zelda", "jogo.srm", sA));
+        java.util.List<Nuvem.Item> iB = java.util.Arrays.asList(new Nuvem.Item("nes-zelda", "jogo.srm", sB));
+        confere(Nuvem.sincronizar(falsa, dA, iA, "perguntar").getInt("enviados") == 1, "nuvem: A envia o save");
+        confere(Nuvem.sincronizar(falsa, dB, iB, "perguntar").getInt("baixados") == 1 && new String(Files.readAllBytes(sB.toPath())).equals("save 1"), "nuvem: B baixa o save de A");
+        Files.write(sA.toPath(), "do A".getBytes());
+        Files.write(sB.toPath(), "do B".getBytes());
+        confere(Nuvem.sincronizar(falsa, dA, iA, "perguntar").getInt("enviados") == 1, "nuvem: A envia a mudança");
+        JSONObject rc = Nuvem.sincronizar(falsa, dB, iB, "perguntar");
+        confere(rc.getJSONArray("conflitos").length() == 1 && new String(Files.readAllBytes(sB.toPath())).equals("do B"), "nuvem: mudou nos dois lados vira conflito e nada se perde");
+        confere(Nuvem.sincronizar(falsa, dB, iB, "nuvem").getInt("baixados") == 1 && new String(Files.readAllBytes(sB.toPath())).equals("do A")
+                && new String(Files.readAllBytes(new File(sB.getPath() + ".antes-da-nuvem").toPath())).equals("do B"), "nuvem: escolher a nuvem guarda o save local ao lado");
+        Nuvem.sair(falsa, dB);
+        confere(!Nuvem.estado(falsa, dB).getBoolean("logado"), "nuvem: sair apaga o login");
         System.out.println(falhas == 0 ? "TUDO CERTO" : falhas + " FALHAS");
         System.exit(falhas == 0 ? 0 : 1);
     }

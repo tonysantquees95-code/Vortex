@@ -42,3 +42,6 @@ body { margin: 0; background: var(--fundo); color: #e8ecff; font-family: "Segoe 
 .interruptor[data-lig="true"] { background: linear-gradient(90deg, var(--neon2), var(--neon)); }
 .interruptor[data-lig="true"]::after { transform: translateX(1.3rem); }
 @media (prefers-reduced-motion: reduce) { *, *::after { animation: none !important; transition: none !important; } }
+
+.campo { width: 100%; padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,.06); border: 1px solid var(--borda); color: inherit; }
+.campo:focus { outline: 2px solid var(--neon); }

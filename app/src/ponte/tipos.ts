@@ -16,6 +16,15 @@ export interface PerfilControle {
   botoes: { tecla: string; x: number; y: number }[];
 }
 export interface ModeloControle { modelo: string; nome: string; descricao: string }
+export interface EstadoConta { logado: boolean; email?: string; vortex: boolean; mensagem?: string; offline?: boolean }
+export interface RelatorioSaves { enviados: number; baixados: number; conflitos: string[]; falhas: string[] }
+/** Conta Vetorial ID: licença do Vortex e saves na nuvem. */
+export interface ContaVetorial {
+  estado(): Promise<EstadoConta>;
+  entrar(email: string, senha: string): Promise<EstadoConta>;
+  sair(): Promise<void>;
+  sincronizar(conflitos?: "local" | "nuvem"): Promise<RelatorioSaves>;
+}
 export interface Controles {
   jogos(): Promise<{ pacote: string; nome: string }[]>;
   servicoAtivo(): Promise<boolean>;
@@ -52,6 +61,8 @@ export interface Motor {
   plataforma: "windows" | "android" | "demo";
   /** Só no Android: controle para jogos que não têm suporte. */
   controles?: Controles;
+  /** Windows e Android: entrar com o Vetorial ID e sincronizar saves. */
+  conta?: ContaVetorial;
   pastas(): Promise<string[]>;
   escolherPasta(): Promise<string | null>;
   adicionarPasta(pasta: string): Promise<string[]>;

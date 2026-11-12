@@ -1,5 +1,5 @@
 import { registerPlugin } from "@capacitor/core";
-import type { Controles, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, Oferta } from "./tipos";
+import type { ContaVetorial, EstadoConta, RelatorioSaves, Controles, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, Oferta } from "./tipos";
 
 /** Mesmo contrato do Rust, implementado em Java (plugin "Vortex"). */
 interface PluginVortex {
@@ -22,8 +22,15 @@ export function motorAndroid(): Motor {
     jogar: async (pacote) => { await c("controle_jogar", { pacote }); },
     posicionar: async (pacote, id) => { await c("controle_editar", { pacote, id }); },
   };
+  const conta: ContaVetorial = {
+    estado: () => c<EstadoConta>("conta_estado"),
+    entrar: async (email, senha) => { await c("conta_entrar", { email, senha, aparelho: "Celular Android" }); return c<EstadoConta>("conta_estado"); },
+    sair: async () => { await c("conta_sair"); },
+    sincronizar: (conflitos) => c<RelatorioSaves>("saves_sincronizar", conflitos ? { conflitos } : {}),
+  };
   return {
     plataforma: "android",
+    conta,
     controles,
     pastas: () => c<string[]>("pastas"),
     escolherPasta: async () => (await Vortex.escolherPasta()).pasta,

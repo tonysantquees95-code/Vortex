@@ -1,12 +1,19 @@
-import type { EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, Oferta } from "./tipos";
+import type { ContaVetorial, EstadoConta, RelatorioSaves, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, Oferta } from "./tipos";
 
 /** Windows: fala com o motor em Rust pelo comando "motor" do Tauri (o Rust acrescenta o caminho da biblioteca). */
 export async function motorTauri(): Promise<Motor> {
   const { invoke } = await import("@tauri-apps/api/core");
   const { open } = await import("@tauri-apps/plugin-dialog");
   const c = <T>(comando: string, args: Record<string, unknown> = {}) => invoke<T>("motor", { comando, args });
+  const conta: ContaVetorial = {
+    estado: () => c<EstadoConta>("conta_estado"),
+    entrar: async (email, senha) => { await c("conta_entrar", { email, senha, aparelho: "Computador Windows" }); return c<EstadoConta>("conta_estado"); },
+    sair: async () => { await c("conta_sair"); },
+    sincronizar: (conflitos) => c<RelatorioSaves>("saves_sincronizar", conflitos ? { conflitos } : {}),
+  };
   return {
     plataforma: "windows",
+    conta,
     pastas: () => c<string[]>("pastas"),
     escolherPasta: async () => {
       const r = await open({ directory: true, multiple: false });

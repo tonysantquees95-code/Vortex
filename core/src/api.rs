@@ -4,6 +4,7 @@ use crate::biblioteca::{Biblioteca, Filtro, OpcoesEscaneamento};
 use crate::modo_jogo::{self, SistemaReal, Sistema};
 use crate::loja;
 use crate::nucleos;
+use crate::nuvem;
 use crate::organizador;
 use crate::emuladores::{self, Ambiente, Configuracao, Lancamento, Preferido};
 use crate::plataformas::PLATAFORMAS;
@@ -162,6 +163,42 @@ fn preparar_jogo_com(args: &Value, baixar: nucleos::Baixar) -> Result<Value, Str
     Ok(json!({ "nucleo": r.nucleo, "baixou": r.baixou }))
 }
 
+/// Conta Vetorial ID e saves na nuvem. Fica fora do trava da biblioteca porque espera pela rede.
+pub fn conta_e_saves(comando: &str, args: &Value, rede: &dyn nuvem::Rede) -> Result<Value, String> {
+    let arquivo = arquivo_da_biblioteca(args)?;
+    let dados = pasta_de_dados(&arquivo);
+    match comando {
+        "conta_estado" => Ok(nuvem::estado(rede, &dados)),
+        "conta_entrar" => {
+            let c = nuvem::entrar(rede, &dados, texto(args, "email")?, texto(args, "senha")?, texto(args, "aparelho").unwrap_or("Computador"), "windows")?;
+            Ok(json!({ "logado": true, "email": c.email }))
+        }
+        "conta_sair" => {
+            nuvem::sair(rede, &dados);
+            Ok(json!({ "logado": false }))
+        }
+        "saves_sincronizar" => {
+            let c = nuvem::conta_salva(&dados).ok_or("Entre na sua conta Vetorial ID para sincronizar os saves.")?;
+            let politica = match args.get("conflitos").and_then(|x| x.as_str()) {
+                Some("local") => nuvem::Conflito::UsarLocal,
+                Some("nuvem") => nuvem::Conflito::UsarNuvem,
+                _ => nuvem::Conflito::Perguntar,
+            };
+            let motor = nucleos::pasta_do_motor(&dados);
+            let b = Biblioteca::carregar(&arquivo);
+            let mut itens = Vec::new();
+            for j in b.jogos.values().filter(|j| j.disponivel) {
+                let Some(stem) = j.caminho.file_stem().and_then(|s| s.to_str()) else { continue };
+                let jogo = nuvem::chave_do_jogo(&j.plataforma, stem);
+                itens.push(nuvem::ItemLocal { jogo: jogo.clone(), arquivo: "jogo.srm".into(), caminho: motor.join("saves").join(format!("{stem}.srm")) });
+                itens.push(nuvem::ItemLocal { jogo, arquivo: "estado.auto".into(), caminho: motor.join("states").join(format!("{stem}.state.auto")) });
+            }
+            para(nuvem::sincronizar(rede, &c.token, &itens, &dados.join("saves_estado.json"), politica)?)
+        }
+        _ => Err(format!("Comando desconhecido: {comando}")),
+    }
+}
+
 pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
     if comando == "loja_catalogo" {
         return Ok(loja_catalogo_json(&arquivo_da_biblioteca(args)?));
@@ -171,6 +208,9 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
     }
     if comando == "preparar_jogo" {
         return preparar_jogo_com(args, &nucleos::baixar_da_libretro);
+    }
+    if comando.starts_with("conta_") || comando == "saves_sincronizar" {
+        return conta_e_saves(comando, args, &nuvem::RedeReal);
     }
     if comando == "plataformas_catalogo" {
         return para(PLATAFORMAS);

@@ -85,6 +85,21 @@ export function App() {
     } catch (e) { avisar(String(e)); }
   }, [motor, avisar]);
 
+  // saves na nuvem: confere ao abrir e sempre que a janela volta ao foco (por exemplo, ao fechar um jogo)
+  useEffect(() => {
+    const conta = motor.conta;
+    if (!conta) return;
+    let ultimo = 0;
+    const sinc = async () => {
+      if (Date.now() - ultimo < 60_000) return;
+      ultimo = Date.now();
+      try { const e = await conta.estado(); if (e.logado && e.vortex && !e.offline) await conta.sincronizar(); } catch { /* sem conta ou sem internet: tudo segue local */ }
+    };
+    void sinc();
+    window.addEventListener("focus", sinc);
+    return () => window.removeEventListener("focus", sinc);
+  }, [motor]);
+
   const jogar = useCallback(async (j: Jogo) => {
     setAberto(null); setLancando(j); setEtapa("Preparando o jogo…");
     const minimo = new Promise((r) => setTimeout(r, 1600));
@@ -92,6 +107,7 @@ export function App() {
       // primeira vez de cada console: o Vortex baixa o motor sozinho (sem a pessoa instalar nada)
       const dica = window.setTimeout(() => setEtapa("Preparando o motor deste console (só na primeira vez)…"), 1500);
       await motor.preparar(j.id).finally(() => window.clearTimeout(dica));
+      if (motor.conta) { setEtapa("Conferindo os saves na nuvem…"); await Promise.race([motor.conta.sincronizar().catch(() => null), new Promise((r) => setTimeout(r, 6000))]); }
       setEtapa("Abrindo o jogo…");
       const [r] = await Promise.all([motor.lancar(j.id), minimo]);
       avisar(`${j.titulo} aberto no ${r.emulador}${r.modo_jogo ? " · Modo Jogo ligado" : ""}`);

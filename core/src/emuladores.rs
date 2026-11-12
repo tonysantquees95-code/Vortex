@@ -354,7 +354,13 @@ pub fn planejar(rom: &Path, plataforma_id: &str, instalados: &[Instalado], cfg: 
         if let Some(p) = arq_cfg.parent() {
             fs::create_dir_all(p).map_err(|e| format!("Não consegui preparar a configuração do RetroArch: {e}"))?;
         }
-        fs::write(&arq_cfg, configuracao_retroarch(pl, &ra.programa, cfg)).map_err(|e| format!("Não consegui gravar a configuração do RetroArch: {e}"))?;
+        let mut texto_cfg = configuracao_retroarch(pl, &ra.programa, cfg);
+        // no motor do próprio Vortex os saves ficam em pastas conhecidas (para a nuvem); no RetroArch da pessoa nada muda
+        let motor = pasta_dados.join("retroarch");
+        if ra.programa.parent() == Some(motor.as_path()) {
+            texto_cfg.push_str(&format!("savefile_directory = \"{}\"\nsavestate_directory = \"{}\"\n", motor.join("saves").to_string_lossy().replace('\\', "/"), motor.join("states").to_string_lossy().replace('\\', "/")));
+        }
+        fs::write(&arq_cfg, texto_cfg).map_err(|e| format!("Não consegui gravar a configuração do RetroArch: {e}"))?;
         Ok(Lancamento {
             emulador: "retroarch".into(),
             programa: ra.programa.clone(),

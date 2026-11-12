@@ -1,7 +1,55 @@
 import { useEffect, useState } from "react";
-import type { EmuladoresInfo, ModoJogoConfig, Motor } from "../ponte";
+import type { EmuladoresInfo, EstadoConta, ModoJogoConfig, Motor } from "../ponte";
 import { definirOrganizarAutomatico, organizarAutomatico } from "../config";
 import { Interruptor } from "./pecas";
+
+function ContaVetorial({ motor, avisar }: { motor: Motor; avisar: (t: string) => void }) {
+  const conta = motor.conta!;
+  const [estado, setEstado] = useState<EstadoConta | null>(null);
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const [conflitos, setConflitos] = useState<string[]>([]);
+  useEffect(() => { conta.estado().then(setEstado).catch(() => setEstado({ logado: false, vortex: false })); }, [conta]);
+  const tente = async (f: () => Promise<void>) => { setOcupado(true); try { await f(); } catch (e) { avisar(String(e instanceof Error ? e.message : e)); } finally { setOcupado(false); } };
+  const sincronizar = (c?: "local" | "nuvem") => tente(async () => {
+    const r = await conta.sincronizar(c);
+    setConflitos(r.conflitos);
+    avisar(r.conflitos.length ? `${r.conflitos.length} save(s) mudaram nos dois lugares. Escolha qual manter.` : `Saves em dia · ${r.enviados} enviados · ${r.baixados} baixados`);
+    if (r.falhas.length) avisar(r.falhas[0]);
+  });
+  if (!estado) return <p className="text-slate-400">Carregando…</p>;
+  if (!estado.logado) {
+    return (
+      <div className="vidro grid gap-3 p-4">
+        <p className="text-sm text-slate-300">Entre com a sua conta Vetorial ID (a mesma da Vênus) para liberar o Vortex e guardar os saves na nuvem. Até 3 aparelhos vinculados, 2 ao mesmo tempo.</p>
+        {estado.mensagem && <p className="text-sm text-amber-300">{estado.mensagem}</p>}
+        <input className="campo" type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input className="campo" type="password" placeholder="Senha" value={senha} onChange={(e) => setSenha(e.target.value)} />
+        <div><button data-foco className="botao primario" disabled={ocupado || !email || !senha} onClick={() => tente(async () => { setEstado(await conta.entrar(email, senha)); setSenha(""); })}>{ocupado ? "Entrando…" : "Entrar"}</button></div>
+      </div>
+    );
+  }
+  return (
+    <div className="vidro grid gap-3 p-4">
+      <p><span className="font-semibold">{estado.email}</span> <span className="text-sm text-slate-400">· {estado.vortex ? "Vortex liberado" : "Vortex não liberado nesta conta"}{estado.offline ? " (sem internet agora)" : ""}</span></p>
+      {estado.mensagem && !estado.vortex && <p className="text-sm text-amber-300">{estado.mensagem}</p>}
+      <div className="flex flex-wrap gap-3">
+        <button data-foco className="botao primario" disabled={ocupado || !estado.vortex} onClick={() => sincronizar()}>{ocupado ? "Sincronizando…" : "☁ Sincronizar saves agora"}</button>
+        <button data-foco className="botao" disabled={ocupado} onClick={() => tente(async () => { await conta.sair(); setEstado({ logado: false, vortex: false }); })}>Sair da conta</button>
+      </div>
+      {conflitos.length > 0 && (
+        <div className="grid gap-2 text-sm">
+          <p className="text-amber-300">Mudaram nos dois lugares: {conflitos.join(", ")}</p>
+          <div className="flex flex-wrap gap-3">
+            <button data-foco className="botao" disabled={ocupado} onClick={() => sincronizar("nuvem")}>Manter o da nuvem (o daqui fica guardado ao lado)</button>
+            <button data-foco className="botao" disabled={ocupado} onClick={() => sincronizar("local")}>Manter o deste aparelho</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const OPCOES: [keyof ModoJogoConfig, string, string][] = [
   ["ligado", "Modo Jogo", "Liga sozinho ao abrir um jogo e desfaz tudo quando você sai."],
@@ -69,6 +117,12 @@ export function Ajustes({ motor, aoMudarBiblioteca, avisar }: { motor: Motor; ao
 
   return (
     <div className="entrar mx-auto grid max-w-4xl gap-8 px-10 pb-16">
+      {motor.conta && (
+        <section>
+          <h3 className="mb-3 text-lg font-bold text-cyan-100/90">Conta Vetorial ID e saves na nuvem</h3>
+          <ContaVetorial motor={motor} avisar={avisar} />
+        </section>
+      )}
       <section>
         <h3 className="mb-3 text-lg font-bold text-cyan-100/90">Organização automática</h3>
         <div className="grid gap-3">
