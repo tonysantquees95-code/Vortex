@@ -64,8 +64,14 @@ function guardar() {
   gravar = window.setTimeout(() => { try { localStorage.setItem(CHAVE, JSON.stringify(cache)); } catch { /* sem espaço: vale só nesta sessão */ } }, 800);
 }
 
+/** Ícones que já vêm prontos (apps do Android): ficam só na memória, nunca no localStorage. */
+const locais = new Map<string, string>();
+export const registrarCapaLocal = (id: string, url: string) => { locais.set(id, url); };
+
 /** Capa que já se sabe qual é (sem rede). */
 export function capaConhecida(id: string): string | null {
+  const l = locais.get(id);
+  if (l) return l;
   const r = memoria()[id];
   return r && "u" in r ? r.u : null;
 }
@@ -84,6 +90,8 @@ function vez(): Promise<void> {
 
 /** Acha (e lembra) a capa de um jogo. null = não existe na internet; a tentativa se repete depois de uma semana. */
 export function resolverCapa(j: DadosDaCapa & { id: string }): Promise<string | null> {
+  const local = locais.get(j.id);
+  if (local) return Promise.resolve(local);
   const feito = memoria()[j.id];
   if (feito && "u" in feito) return Promise.resolve(feito.u);
   if (feito && "f" in feito && Date.now() / 1000 - feito.f < REPETIR_DEPOIS_S) return Promise.resolve(null);

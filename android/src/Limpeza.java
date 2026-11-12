@@ -33,6 +33,11 @@ public final class Limpeza {
         byte[] c = new byte[16];
         int lidos = 0;
         try (FileInputStream in = new FileInputStream(f)) { lidos = Math.max(0, in.read(c)); } catch (Exception e) { return null; }
+        String m = basico(f, ext, tam, c, lidos);
+        return m != null ? m : profunda(f, ext, tam);
+    }
+
+    private static String basico(File f, String ext, long tam, byte[] c, int lidos) {
         switch (ext) {
             case "cue": {
                 File dir = f.getParentFile();
@@ -59,6 +64,52 @@ public final class Limpeza {
                 return lidos > 0 && ((c[0] & 0xff) == 0x80 || (c[0] & 0xff) == 0x37 || (c[0] & 0xff) == 0x40) ? null : "cabeçalho Nintendo 64 inválido";
             default:
                 return tam < 512 ? "pequeno demais para ser um jogo" : null;
+        }
+    }
+
+    private static long u32(byte[] h, int o) { return o + 4 > h.length ? 0 : (h[o] & 0xffL) | (h[o + 1] & 0xffL) << 8 | (h[o + 2] & 0xffL) << 16 | (h[o + 3] & 0xffL) << 24; }
+    private static long u64(byte[] h, int o) { return u32(h, o) | u32(h, o + 4) << 32; }
+    private static boolean texto(byte[] h, int o, String t) { if (o + t.length() > h.length) return false; for (int i = 0; i < t.length(); i++) if (h[o + i] != (byte) t.charAt(i)) return false; return true; }
+
+    /** Confere o cabeçalho de verdade (e o tamanho que ele promete) para pegar download incompleto: o arquivo existe mas está cortado. */
+    static String profunda(File f, String ext, long tam) {
+        byte[] h = new byte[65536];
+        int n = 0;
+        try (FileInputStream in = new FileInputStream(f)) { int l; while (n < h.length && (l = in.read(h, n, h.length - n)) > 0) n += l; } catch (Exception e) { return null; }
+        if (n < h.length) h = java.util.Arrays.copyOf(h, n);
+        switch (ext) {
+            case "nsp": {
+                if (!texto(h, 0, "PFS0")) return "cabeçalho NSP inválido";
+                long cont = u32(h, 4), strs = u32(h, 8);
+                if (cont <= 0 || cont > 2000 || 16 + 24 * cont > h.length) return cont <= 0 || cont > 2000 ? "cabeçalho NSP inválido" : null;
+                long fim = 0;
+                for (int i = 0; i < cont; i++) fim = Math.max(fim, u64(h, (int) (16 + 24 * i)) + u64(h, (int) (16 + 24 * i + 8)));
+                return tam < 16 + 24 * cont + strs + fim ? "download incompleto (faltam " + ((16 + 24 * cont + strs + fim - tam) / 1048576) + " MB)" : null;
+            }
+            case "xci": {
+                if (!texto(h, 0x100, "HEAD")) return "cabeçalho XCI inválido";
+                long fim = u32(h, 0x118) * 512;
+                return fim > 0 && tam < fim ? "download incompleto (faltam " + ((fim - tam) / 1048576) + " MB)" : null;
+            }
+            case "3ds": return texto(h, 0x100, "NCSD") ? null : "cabeçalho 3DS inválido";
+            case "nds": {
+                if (h.length < 0x200 || u32(h, 0x15C) % 65536 != 0xCF56) return "cabeçalho Nintendo DS inválido";
+                long usado = u32(h, 0x80);
+                return usado > 0 && tam < usado ? "download incompleto" : null;
+            }
+            case "gba": return h.length >= 0xC0 && (h[0xB2] & 0xff) == 0x96 ? null : "cabeçalho Game Boy Advance inválido";
+            case "gb": case "gbc": return h.length >= 0x108 && (h[0x104] & 0xff) == 0xCE && (h[0x105] & 0xff) == 0xED && h[0x106] == 0x66 && h[0x107] == 0x66 ? null : "cabeçalho Game Boy inválido";
+            case "chd": return texto(h, 0, "MComprHD") ? null : "cabeçalho CHD inválido";
+            case "cso": case "ciso": return texto(h, 0, "CISO") ? null : "cabeçalho CSO inválido";
+            case "iso": {
+                if (tam < 65536) return "pequeno demais para ser um jogo";
+                long blocos; int sec;
+                if (texto(h, 0x8001, "CD001")) { blocos = u32(h, 0x8050); sec = 2048; }
+                else if (texto(h, 0x9319, "CD001")) { blocos = u32(h, 0x9368); sec = 2352; }
+                else return null;
+                return blocos > 0 && tam < blocos * sec * 0.995 ? "download incompleto" : null;
+            }
+            default: return null;
         }
     }
 
@@ -120,6 +171,17 @@ public final class Limpeza {
             while ((n = in.read(buf)) > 0) c.update(buf, 0, n);
             return c.getValue();
         } catch (Exception e) { return null; }
+    }
+
+    /** Tira um jogo que não abriu da biblioteca e guarda o arquivo na pasta Corrompidos. */
+    public static JSONObject isolar(JSONObject jogos, String id) throws Exception {
+        JSONObject j = jogos.optJSONObject(id);
+        if (j == null) throw new Exception("Esse jogo não está mais na biblioteca.");
+        List<String> falhas = new ArrayList<String>();
+        File f = new File(j.optString("caminho"));
+        if (f.isFile() && !mover(f, new File(j.optString("raiz"), CORROMPIDOS), falhas)) throw new Exception(falhas.isEmpty() ? "Não consegui mover o arquivo." : falhas.get(0));
+        jogos.remove(id);
+        return new JSONObject().put("isolado", true);
     }
 
     /** Remove da biblioteca (e do disco, para as pastas Duplicados/Corrompidos) o que não serve. Com simulação só conta. */

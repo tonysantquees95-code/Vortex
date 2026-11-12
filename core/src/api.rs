@@ -248,6 +248,11 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
             mudou = true;
             para(r)
         }
+        "isolar" => {
+            crate::limpeza::isolar(&mut b, texto(args, "id")?)?;
+            mudou = true;
+            Ok(json!({ "isolado": true }))
+        }
         "limpar" => {
             let r = crate::limpeza::limpar(&mut b, args.get("simulacao").and_then(|x| x.as_bool()).unwrap_or(false));
             mudou = !r.simulacao;

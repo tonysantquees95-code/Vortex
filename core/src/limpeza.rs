@@ -24,6 +24,73 @@ pub struct RelatorioLimpeza {
 
 /// Por que o arquivo não presta (None = parece bom). Só olha o que dá para saber sem abrir o jogo.
 pub fn motivo_de_corrupcao(caminho: &Path) -> Option<String> {
+    basico(caminho).or_else(|| profunda(caminho))
+}
+
+fn u32le(h: &[u8], o: usize) -> u64 {
+    h.get(o..o + 4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as u64).unwrap_or(0)
+}
+fn u64le(h: &[u8], o: usize) -> u64 {
+    u32le(h, o) | (u32le(h, o + 4) << 32)
+}
+fn tem(h: &[u8], o: usize, t: &str) -> bool {
+    h.get(o..o + t.len()).is_some_and(|b| b == t.as_bytes())
+}
+
+/// Confere o cabeçalho de verdade (e o tamanho que ele promete) para pegar download incompleto: o arquivo existe mas está cortado.
+fn profunda(caminho: &Path) -> Option<String> {
+    let ext = plataformas::extensao(caminho);
+    let tam = fs::metadata(caminho).ok()?.len();
+    let mut h = Vec::new();
+    fs::File::open(caminho).ok()?.take(65536).read_to_end(&mut h).ok()?;
+    match ext.as_str() {
+        "nsp" => {
+            if !tem(&h, 0, "PFS0") {
+                return Some("cabeçalho NSP inválido".into());
+            }
+            let cont = u32le(&h, 4);
+            let strs = u32le(&h, 8);
+            if cont == 0 || cont > 2000 {
+                return Some("cabeçalho NSP inválido".into());
+            }
+            if 16 + 24 * cont > h.len() as u64 {
+                return None;
+            }
+            let fim = (0..cont).map(|i| u64le(&h, (16 + 24 * i) as usize) + u64le(&h, (16 + 24 * i + 8) as usize)).max().unwrap_or(0);
+            let esperado = 16 + 24 * cont + strs + fim;
+            (tam < esperado).then(|| format!("download incompleto (faltam {} MB)", (esperado - tam) / 1_048_576))
+        }
+        "xci" => {
+            if !tem(&h, 0x100, "HEAD") {
+                return Some("cabeçalho XCI inválido".into());
+            }
+            let fim = u32le(&h, 0x118) * 512;
+            (fim > 0 && tam < fim).then(|| format!("download incompleto (faltam {} MB)", (fim - tam) / 1_048_576))
+        }
+        "3ds" => (!tem(&h, 0x100, "NCSD")).then(|| "cabeçalho 3DS inválido".into()),
+        "nds" => {
+            if h.len() < 0x200 || u32le(&h, 0x15C) % 65536 != 0xCF56 {
+                return Some("cabeçalho Nintendo DS inválido".into());
+            }
+            let usado = u32le(&h, 0x80);
+            (usado > 0 && tam < usado).then(|| "download incompleto".into())
+        }
+        "gba" => (!(h.len() >= 0xC0 && h[0xB2] == 0x96)).then(|| "cabeçalho Game Boy Advance inválido".into()),
+        "gb" | "gbc" => (!(h.len() >= 0x108 && h[0x104..0x108] == [0xCE, 0xED, 0x66, 0x66])).then(|| "cabeçalho Game Boy inválido".into()),
+        "chd" => (!tem(&h, 0, "MComprHD")).then(|| "cabeçalho CHD inválido".into()),
+        "cso" | "ciso" => (!tem(&h, 0, "CISO")).then(|| "cabeçalho CSO inválido".into()),
+        "iso" => {
+            if tam < 65536 {
+                return Some("pequeno demais para ser um jogo".into());
+            }
+            let (blocos, sec) = if tem(&h, 0x8001, "CD001") { (u32le(&h, 0x8050), 2048) } else if tem(&h, 0x9319, "CD001") { (u32le(&h, 0x9368), 2352) } else { return None };
+            (blocos > 0 && (tam as f64) < (blocos * sec) as f64 * 0.995).then(|| "download incompleto".into())
+        }
+        _ => None,
+    }
+}
+
+fn basico(caminho: &Path) -> Option<String> {
     let ext = plataformas::extensao(caminho);
     let meta = fs::metadata(caminho).ok()?;
     if meta.len() == 0 {
@@ -76,6 +143,17 @@ fn mover_com_acompanhantes(j: &Path, pasta: &Path, falhas: &mut Vec<String>) -> 
 
 fn pasta_de(j: &Jogo, nome: &str) -> PathBuf {
     j.raiz.join(nome)
+}
+
+/// Tira da biblioteca um jogo que não abriu e guarda o arquivo na pasta Corrompidos.
+pub fn isolar(b: &mut Biblioteca, id: &str) -> Result<(), String> {
+    let j = b.jogos.get(id).cloned().ok_or("Esse jogo não está mais na biblioteca.")?;
+    let mut falhas = Vec::new();
+    if j.caminho.is_file() && !mover_com_acompanhantes(&j.caminho, &pasta_de(&j, PASTA_CORROMPIDOS), &mut falhas) {
+        return Err(falhas.into_iter().next().unwrap_or_else(|| "Não consegui mover o arquivo.".into()));
+    }
+    b.jogos.remove(id);
+    Ok(())
 }
 
 /// Move corrompidos e cópias repetidas para fora da biblioteca. Com `simulacao` só conta.
@@ -183,6 +261,38 @@ mod testes {
         b.escanear(200, OpcoesEscaneamento::default());
         assert_eq!(b.jogos.len(), 2, "{:?}", b.jogos.values().map(|j| &j.titulo).collect::<Vec<_>>());
         assert!(limpar(&mut b, false).duplicados.is_empty());
+    }
+
+    #[test]
+    fn nsp_cortado_e_pego_e_inteiro_passa() {
+        let t = tempfile::tempdir().unwrap();
+        let mut nsp = vec![0u8; 2048];
+        nsp[..4].copy_from_slice(b"PFS0");
+        nsp[4] = 1; // um arquivo
+        nsp[8] = 8; // tabela de nomes
+        nsp[16 + 8..16 + 10].copy_from_slice(&5000u16.to_le_bytes()); // promete 5000 bytes
+        arq(t.path(), "cortado.nsp", &nsp);
+        let m = motivo_de_corrupcao(&t.path().join("cortado.nsp")).unwrap();
+        assert!(m.starts_with("download incompleto"), "{m}");
+        nsp.resize(16 + 24 + 8 + 5000, 1);
+        arq(t.path(), "inteiro.nsp", &nsp);
+        assert_eq!(motivo_de_corrupcao(&t.path().join("inteiro.nsp")), None);
+        arq(t.path(), "ruim.gba", &vec![0u8; 4096]);
+        assert!(motivo_de_corrupcao(&t.path().join("ruim.gba")).is_some());
+    }
+
+    #[test]
+    fn isolar_move_o_jogo_e_tira_da_biblioteca() {
+        let t = tempfile::tempdir().unwrap();
+        let raiz = t.path().join("roms");
+        arq(&raiz, "nes/Contra (USA).nes", &nes(1));
+        let mut b = Biblioteca::default();
+        b.adicionar_pasta(&raiz).unwrap();
+        b.escanear(100, OpcoesEscaneamento::default());
+        let id = b.jogos.keys().next().unwrap().clone();
+        isolar(&mut b, &id).unwrap();
+        assert!(b.jogos.is_empty() && raiz.join("Corrompidos/Contra (USA).nes").is_file());
+        assert!(isolar(&mut b, &id).is_err());
     }
 
     #[test]

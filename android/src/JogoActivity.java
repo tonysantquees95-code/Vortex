@@ -6,6 +6,7 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.util.TypedValue;
+import android.hardware.input.InputManager;
 import android.view.Gravity;
 import android.view.InputDevice;
 import android.view.KeyEvent;
@@ -34,6 +35,9 @@ public class JogoActivity extends AppCompatActivity {
     private File srm;
     private FrameLayout raiz;
     private View controles;
+    private GameBar gameBar;
+    private boolean controleDetectado;
+    private InputManager.InputDeviceListener ouvinte;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -70,6 +74,22 @@ public class JogoActivity extends AppCompatActivity {
         retro.setFocusable(true);
         retro.requestFocus();
         atualizarControles();
+        // controle ligado ou desligado com o jogo aberto: os botões da tela somem e voltam sozinhos
+        ouvinte = new InputManager.InputDeviceListener() {
+            public void onInputDeviceAdded(int i) { atualizarControles(); }
+            public void onInputDeviceRemoved(int i) { controleDetectado = false; atualizarControles(); }
+            public void onInputDeviceChanged(int i) { atualizarControles(); }
+        };
+        ((InputManager) getSystemService(Context.INPUT_SERVICE)).registerInputDeviceListener(ouvinte, null);
+        gameBar = new GameBar(this, raiz);
+        gameBar.iniciar();
+    }
+
+    @Override
+    protected void onDestroy() {
+        try { ((InputManager) getSystemService(Context.INPUT_SERVICE)).unregisterInputDeviceListener(ouvinte); } catch (Throwable ignora) { }
+        if (gameBar != null) gameBar.parar();
+        super.onDestroy();
     }
 
     private boolean temControleFisico() {
@@ -80,10 +100,12 @@ public class JogoActivity extends AppCompatActivity {
         return false;
     }
 
-    private void atualizarControles() { controles.setVisibility(temControleFisico() ? View.GONE : View.VISIBLE); }
+    private void atualizarControles() { controles.setVisibility(controleDetectado || temControleFisico() ? View.GONE : View.VISIBLE); }
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
+        // qualquer tecla vinda de um controle prova que ele está conectado (alguns aparelhos o listam de um jeito que a busca não vê)
+        if (!controleDetectado && (e.getSource() & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD) { controleDetectado = true; atualizarControles(); }
         if (e.getKeyCode() == KeyEvent.KEYCODE_BACK && e.getAction() == KeyEvent.ACTION_UP) { finish(); return true; }
         // botão "voltar" do controle (Select longo seria demais): Mode/Guide sai do jogo
         if (e.getKeyCode() == KeyEvent.KEYCODE_BUTTON_MODE && e.getAction() == KeyEvent.ACTION_UP) { finish(); return true; }
@@ -92,7 +114,7 @@ public class JogoActivity extends AppCompatActivity {
 
     @Override
     public boolean dispatchGenericMotionEvent(MotionEvent e) {
-        if (retro != null && (e.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK) { atualizarControles(); return retro.onGenericMotionEvent(e); }
+        if (retro != null && (e.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK) { if (!controleDetectado) { controleDetectado = true; atualizarControles(); } return retro.onGenericMotionEvent(e); }
         return super.dispatchGenericMotionEvent(e);
     }
 
@@ -106,6 +128,7 @@ public class JogoActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         atualizarControles();
+        if (gameBar != null) gameBar.recarregar();
     }
 
     private void guardarSave() {

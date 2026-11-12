@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { EmuladoresInfo, EstadoConta, Jogo, ModoJogoConfig, Motor, RelatorioLimpeza } from "../ponte";
+import type { ConfigGameBar, EmuladoresInfo, EstadoConta, Jogo, ModoDesempenho, ModoJogoConfig, Motor, PosicaoGameBar, RelatorioLimpeza } from "../ponte";
 import { atualizarSozinho, definirAtualizarSozinho, definirLimparSozinho, definirOrganizarAutomatico, limparSozinho, organizarAutomatico } from "../config";
 import { faxinaAutomatica, resumoDaFaxina } from "../faxina";
 import { capaConhecida } from "../capas";
@@ -82,6 +82,46 @@ export function TelaModoJogo({ motor, avisar }: { motor: Motor; avisar: Avisar }
     <div className="grid gap-3">
       {motor.plataforma === "android" && <p className="text-sm text-slate-400">No Android o Modo Jogo ainda não mexe no aparelho; as opções ficam guardadas para quando o recurso chegar.</p>}
       {modo ? OPCOES.map(([k, r, d]) => <Interruptor key={k} ligado={Boolean(modo[k])} rotulo={r} detalhe={d} aoMudar={(v) => mudar(k, v)} />) : <p className="text-slate-400">Carregando…</p>}
+    </div>
+  );
+}
+
+const POSICOES: [PosicaoGameBar, string][] = [["oculta", "Escondida"], ["topo", "Em cima"], ["base", "Embaixo"], ["esquerda", "Esquerda"], ["direita", "Direita"]];
+const MODOS: [ModoDesempenho, string, string][] = [["economico", "🔋 Econômico", "Tela em 60 Hz e brilho menor: dura mais."], ["normal", "⚖ Normal", "Do jeito que o aparelho já faz."], ["turbo", "⚡ Turbo", "Taxa de atualização máxima e prioridade alta."]];
+const ITENS_GB: [keyof ConfigGameBar, string, string][] = [
+  ["fps", "FPS", "Quadros por segundo da tela (não o do jogo por dentro)."],
+  ["cpu", "CPU", "Uso de processador só do Vortex."],
+  ["gpu", "GPU", "Aparece só nos aparelhos que deixam ler o uso da GPU."],
+  ["ram", "Memória", "Memória livre do aparelho."],
+  ["temp", "Temperatura", "Temperatura da bateria."],
+  ["bateria", "Bateria", "Carga restante."],
+];
+
+/** Game Bar: barra de status por cima do jogo (só nos jogos abertos dentro do Vortex), com troca rápida de modo. */
+export function TelaGameBar({ motor, avisar }: { motor: Motor; avisar: Avisar }) {
+  const [cfg, setCfg] = useState<ConfigGameBar | null>(null);
+  useEffect(() => { motor.gameBar?.().then(setCfg).catch(() => {}); }, [motor]);
+  const mudar = async (parte: Partial<ConfigGameBar>) => {
+    try { setCfg(await motor.gameBar!(parte)); } catch (e) { avisar(String(e)); }
+  };
+  if (!cfg) return <p className="text-slate-400">Carregando…</p>;
+  return (
+    <div className="grid gap-5">
+      <Interruptor ligado={cfg.ligada} rotulo="Game Bar" detalhe="Mostra a barra de status quando você joga. Dá para trocar o modo sem sair do jogo." aoMudar={(v) => mudar({ ligada: v })} />
+      <section className="grid gap-2">
+        <h3 className="font-bold text-cyan-100">Onde ela fica</h3>
+        <div className="flex flex-wrap gap-2">{POSICOES.map(([id, nome]) => <button key={id} data-foco className="chip" data-ativa={cfg.posicao === id} onClick={() => mudar({ posicao: id })}>{nome}</button>)}</div>
+        <p className="text-sm text-slate-400">Escondida: sobra só uma bolinha que abre a barra por alguns segundos.</p>
+      </section>
+      <section className="grid gap-2">
+        <h3 className="font-bold text-cyan-100">Modo de desempenho ao abrir o jogo</h3>
+        <div className="flex flex-wrap gap-2">{MODOS.map(([id, nome]) => <button key={id} data-foco className="chip" data-ativa={cfg.modo === id} onClick={() => mudar({ modo: id })}>{nome}</button>)}</div>
+        <p className="text-sm text-slate-400">{MODOS.find(([id]) => id === cfg.modo)?.[2]}</p>
+      </section>
+      <section className="grid gap-3">
+        <h3 className="font-bold text-cyan-100">O que mostrar</h3>
+        {ITENS_GB.map(([k, r, d]) => <Interruptor key={k} ligado={Boolean(cfg[k])} rotulo={r} detalhe={d} aoMudar={(v) => mudar({ [k]: v })} />)}
+      </section>
     </div>
   );
 }
@@ -301,7 +341,7 @@ export function TelaAparencia({ tema, aoMudar, jogos = [], avisar }: { tema: Tem
   );
 }
 
-type Tela = "conta" | "jogos" | "aparencia" | "modo" | "permissoes" | "atualizacoes" | "emuladores" | "sobre";
+type Tela = "conta" | "gamebar" | "jogos" | "aparencia" | "modo" | "permissoes" | "atualizacoes" | "emuladores" | "sobre";
 interface Item { id: Tela; icone: string; nome: string; titulo: string; detalhe: string }
 
 /** Ajustes em seções: ícone grande + título no alto, dock para trocar de seção (o foco já troca) e o conteúdo logo abaixo. */
@@ -312,6 +352,7 @@ export function Ajustes({ motor, aoMudarBiblioteca, avisar, atualizacao, tema, a
     { id: "aparencia", icone: "aparencia", nome: "Visual", titulo: "Personalização", detalhe: "Cor, brilho neon, fundo (foto, capa ou modelos), formato e abertura." },
     { id: "permissoes", icone: "permissoes", nome: "Permissões", titulo: "Permissões", detalhe: "O que o Vortex precisa liberar no aparelho e por quê." },
     { id: "modo", icone: "modo", nome: "Modo Jogo", titulo: "Modo Jogo", detalhe: "Desempenho máximo enquanto você joga." },
+    ...(motor.gameBar ? [{ id: "gamebar" as const, icone: "controles", nome: "Game Bar", titulo: "Game Bar", detalhe: "Barra com FPS, CPU, GPU e temperatura por cima do jogo, e modos Turbo, Normal e Econômico." }] : []),
     { id: "emuladores", icone: "emuladores", nome: "Emuladores", titulo: "Emuladores", detalhe: "Motores de emulação encontrados." },
     { id: "atualizacoes", icone: "atualizacoes", nome: "Atualizar", titulo: "Atualizações", detalhe: atualizacao.nova ? `Versão nova disponível: 1.${atualizacao.nova.numero}` : "Versão instalada e atualização automática." },
     { id: "sobre", icone: "sobre", nome: "Sobre", titulo: "Sobre e termos", detalhe: "Termos de uso e atalhos do controle." },
@@ -333,6 +374,7 @@ export function Ajustes({ motor, aoMudarBiblioteca, avisar, atualizacao, tema, a
         {atual.id === "aparencia" && <TelaAparencia tema={tema} aoMudar={aoMudarTema} jogos={jogos} avisar={avisar} />}
         {atual.id === "permissoes" && <Permissoes motor={motor} avisar={avisar} />}
         {atual.id === "modo" && <TelaModoJogo motor={motor} avisar={avisar} />}
+        {atual.id === "gamebar" && <TelaGameBar motor={motor} avisar={avisar} />}
         {atual.id === "emuladores" && <TelaEmuladores motor={motor} />}
         {atual.id === "atualizacoes" && <TelaAtualizacoes motor={motor} avisar={avisar} atualizacao={atualizacao} />}
         {atual.id === "sobre" && (

@@ -18,6 +18,8 @@ import { useAtualizacao } from "./useAtualizacao";
 import { Biblioteca } from "./telas/Biblioteca";
 import { Dock } from "./telas/Dock";
 import { Colecao, colecoesDe, Inicio } from "./telas/Inicio";
+import { BarraStatus } from "./telas/BarraStatus";
+import { androidParaJogos, favoritarAndroid, ehAndroid, pacoteDe, falhaDeAbertura, limparFalhas } from "./androidApps";
 import { capaConhecida, resolverCapa } from "./capas";
 import { faxinaAutomatica, resumoDaFaxina } from "./faxina";
 
@@ -38,7 +40,8 @@ export function App() {
   const [etapa, setEtapa] = useState("Preparando o jogo…");
   const [aviso, setAviso] = useState("");
   const [controle, setControle] = useState(false);
-  const [colecaoAberta, setColecaoAberta] = useState<string | null>(null);
+  const [apps, setApps] = useState<Jogo[]>([]);
+  const [focadoJogo, setFocadoJogo] = useState<Jogo | null>(null);
   const [ultimaColecao, setUltimaColecao] = useState<string | null>(null);
   const [focada, setFocada] = useState<Colecao | null>(null);
   const [fundoImg, setFundoImg] = useState<string | null>(null);
@@ -60,6 +63,7 @@ export function App() {
   const recarregar = useCallback(async () => {
     try {
       const [l, c, p, s, ps] = await Promise.all([motor.listar({ ordem: "titulo" }), motor.continuar(12), motor.plataformas(), motor.estatisticas(), motor.pastas()]);
+      if (motor.appsAndroid) motor.appsAndroid().then((a) => setApps(androidParaJogos(a))).catch(() => {});
       setJogos(l); setContinuar(c); setPlats(p); setStats(s); setPasta(ps.length > 0);
     } catch (e) { avisar(String(e)); } finally { setCarregado(true); }
   }, [motor, avisar]);
@@ -100,18 +104,11 @@ export function App() {
   }, [aba, carregado]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { if (aba !== "ajustes") document.documentElement.dataset.secao = aba; }, [aba]);
-  // B fecha o console aberto e volta para a cascata
-  useEffect(() => {
-    if (!colecaoAberta || aberto || lancando) return;
-    const voltar = () => setColecaoAberta(null);
-    window.addEventListener("vortex:voltar", voltar);
-    return () => window.removeEventListener("vortex:voltar", voltar);
-  }, [colecaoAberta, aberto, lancando]);
   // o fundo acompanha a capa do console em foco (usa a primeira capa que existir entre os primeiros jogos dele)
   useEffect(() => {
     if (!focada || tema.fundo !== "console") return;
     let vivo = true;
-    const candidatos = focada.jogos.slice(0, 6);
+    const candidatos = focadoJogo ? [focadoJogo] : focada.jogos.slice(0, 6);
     const pronta = candidatos.map((j) => capaConhecida(j.id)).find(Boolean);
     if (pronta) { setFundoImg(pronta); return; }
     const atraso = window.setTimeout(async () => {
@@ -119,11 +116,12 @@ export function App() {
       if (vivo) setFundoImg(null);
     }, 250);
     return () => { vivo = false; window.clearTimeout(atraso); };
-  }, [focada, tema.fundo]);
+  }, [focada, focadoJogo, tema.fundo]);
 
   const favoritar = useCallback(async (j: Jogo) => {
     const novo = !j.favorito;
     try {
+      if (ehAndroid(j)) { favoritarAndroid(j.id, novo); setApps((l) => l.map((x) => (x.id === j.id ? { ...x, favorito: novo } : x))); setAberto((a) => (a && a.id === j.id ? { ...a, favorito: novo } : a)); return; }
       await motor.favoritar(j.id, novo);
       setJogos((l) => l.map((x) => (x.id === j.id ? { ...x, favorito: novo } : x)));
       setContinuar((l) => l.map((x) => (x.id === j.id ? { ...x, favorito: novo } : x)));
@@ -196,23 +194,35 @@ export function App() {
     setAberto(null); setLancando(j); setEtapa("Preparando o jogo…");
     const minimo = new Promise((r) => setTimeout(r, 1600));
     try {
+      if (ehAndroid(j) && motor.abrirApp) {
+        await Promise.all([motor.abrirApp(pacoteDe(j)), minimo]);
+        avisar(`${j.titulo} aberto`);
+        return;
+      }
       // primeira vez de cada console: o Vortex baixa o motor sozinho (sem a pessoa instalar nada)
       const dica = window.setTimeout(() => setEtapa("Preparando o motor deste console (só na primeira vez)…"), 1500);
       await motor.preparar(j.id).finally(() => window.clearTimeout(dica));
       if (motor.conta) { setEtapa("Conferindo os saves na nuvem…"); await Promise.race([motor.conta.sincronizar().catch(() => null), new Promise((r) => setTimeout(r, 6000))]); }
       setEtapa("Abrindo o jogo…");
       const [r] = await Promise.all([motor.lancar(j.id), minimo]);
+      limparFalhas(j.id);
       avisar(`${j.titulo} aberto no ${r.emulador}${r.modo_jogo ? " · Modo Jogo ligado" : ""}`);
       window.setTimeout(recarregar, 1500);
-    } catch (e) { avisar(String(e)); } finally { setLancando(null); }
+    } catch (e) {
+      // jogo que não abre duas vezes seguidas: o arquivo está quebrado (download incompleto etc.) e vai para a pasta Corrompidos
+      if (!ehAndroid(j) && falhaDeAbertura(j.id)) {
+        try { await motor.isolar(j.id); avisar(`${j.titulo} não abriu duas vezes e foi para a pasta Corrompidos`); recarregar(); }
+        catch { avisar(String(e)); }
+      } else avisar(String(e));
+    } finally { setLancando(null); }
   }, [motor, avisar, recarregar]);
   useEffect(() => { jogarRef.current = jogar; recarregarRef.current = () => { void recarregar(); }; }, [jogar, recarregar]);
 
-  const favoritos = useMemo(() => jogos.filter((j) => j.favorito), [jogos]);
-  const colecoes = useMemo(() => colecoesDe(jogos, plats), [jogos, plats]);
-  const abertaCol = colecaoAberta ? colecoes.find((c) => c.id === colecaoAberta) ?? null : null;
+  const todos = useMemo(() => [...jogos, ...apps], [jogos, apps]);
+  const favoritos = useMemo(() => todos.filter((j) => j.favorito), [todos]);
+  const colecoes = useMemo(() => colecoesDe(todos, plats), [todos, plats]);
 
-  const vazio = carregado && !jogos.length;
+  const vazio = carregado && !todos.length;
   const intro = abertura ? <Abertura aoTerminar={() => setAbertura(false)} /> : null;
   if (!aceitou) return <>{intro}<FundoDaTela tema={abertura ? { ...tema, fundo: "liso" } : tema} imagem={fundoImg} /><Termos aoAceitar={() => { aceitarTermos(); setAceitou(true); }} /></>;
   return (
@@ -220,15 +230,11 @@ export function App() {
       {intro}
       <FundoDaTela tema={abertura ? { ...tema, fundo: "liso" } : tema} imagem={fundoImg} />
       <div className="relative flex h-full flex-col">
-        <header className="grid gap-2 px-6 pb-1 pt-3 sm:px-10">
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-            <div className="flex items-center gap-3 text-sm text-slate-300">
-              <span title={controle ? "Controle conectado" : "Nenhum controle"} className={controle ? "text-cyan-300" : "text-slate-600"}>🎮</span>
-              <span className="font-semibold tabular-nums">{hora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
-              {motor.plataforma === "demo" && <span className="chip max-sm:hidden">demonstração</span>}
-            </div>
-            <div className="text-center"><span className="marca"><span className="nome text-2xl sm:text-4xl">VORTEX</span></span></div>
-            <div className="flex justify-end text-sm text-slate-300">{stats && <span className="max-sm:hidden">{stats.jogos} jogos · {tempoJogado(stats.tempo_total_s)}</span>}</div>
+        <header className="cabeca grid gap-2 pb-1">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 max-sm:grid-cols-1 max-sm:justify-items-center">
+            <BarraStatus hora={hora} controle={controle} demo={motor.plataforma === "demo"} />
+            <div className="text-center max-sm:order-first"><span className="marca"><span className="nome text-2xl sm:text-4xl">VORTEX</span></span></div>
+            <div className="flex justify-end text-sm text-slate-300">{stats && <span className="max-sm:hidden">{todos.length} jogos · {tempoJogado(stats.tempo_total_s)}</span>}</div>
           </div>
         </header>
 
@@ -240,11 +246,8 @@ export function App() {
               <button data-foco className="botao primario mt-8" onClick={() => setAba("ajustes")}>Ir para os Ajustes</button>
             </div>
           ) : aba === "inicio" ? (
-            abertaCol ? (
-              <Biblioteca key={abertaCol.id} jogos={abertaCol.jogos} plats={plats} aoAbrir={setAberto} titulo={abertaCol.nome} consoleFixo={abertaCol.tipo === "console" ? abertaCol.id : null} aoVoltar={() => setColecaoAberta(null)} vazio="Nenhum jogo aqui." />
-            ) : (
-              <Inicio colecoes={colecoes} inicial={ultimaColecao} aoFocar={setFocada} aoAbrir={(c) => { setUltimaColecao(c.id); setColecaoAberta(c.id); }} jogoParaContinuar={continuar[0] ?? null} aoContinuar={jogar} />
-            )
+            <Inicio colecoes={colecoes} inicial={ultimaColecao} aoFocar={setFocada} aoFocarJogo={setFocadoJogo} aoLembrar={setUltimaColecao}
+              aoJogar={jogar} aoDetalhes={setAberto} aoFavoritar={favoritar} jogoParaContinuar={continuar[0] ?? null} aoContinuar={jogar} />
           ) : aba === "loja" ? (
             <Loja motor={motor} aoInstalar={recarregar} avisar={avisar} aoJogar={(id) => { const j = jogos.find((x) => x.id === id); if (j) jogar(j); else avisar("O jogo ainda está aparecendo na biblioteca. Tente de novo em instantes."); }} />
           ) : aba === "controles" && motor.controles ? (
@@ -252,7 +255,7 @@ export function App() {
           ) : aba === "ajustes" ? (
             <Ajustes motor={motor} aoMudarBiblioteca={recarregar} avisar={avisar} atualizacao={atualizacao} tema={tema} aoMudarTema={setTema} jogos={jogos} />
           ) : aba === "biblioteca" ? (
-            <Biblioteca jogos={jogos} plats={plats} aoAbrir={setAberto} vazio="Nenhum jogo encontrado." />
+            <Biblioteca jogos={todos} plats={plats} aoAbrir={setAberto} vazio="Nenhum jogo encontrado." />
           ) : (
             <Biblioteca key="fav" jogos={favoritos} plats={plats} aoAbrir={setAberto} titulo="Favoritos" vazio="Nenhum favorito ainda. Abra um jogo e aperte Y (ou F) para favoritar." />
           )}

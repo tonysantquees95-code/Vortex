@@ -83,6 +83,14 @@ public class MotorTeste {
             confere(rl.getJSONArray("falhas").length() == 0, "limpar sem falhas " + rl);
             confere(new File(t, "limpa/Corrompidos/Quebrado.nes").isFile() && new File(t, "limpa/Corrompidos/Vazio.nes").isFile(), "corrompidos vão para a pasta Corrompidos");
             confere(new File(t, "limpa/Duplicados").isDirectory() && new File(lr, "Contra (USA).nes").isFile() && new File(lr, "Mario (USA).nes").isFile(), "fica a versão preferida e os outros jogos");
+            // download incompleto: NSP que promete mais bytes do que tem; e pedaço "00" não vira jogo
+            File sw = new File(t, "fora/switch"); sw.mkdirs();
+            byte[] nsp = new byte[1024];
+            nsp[0] = 'P'; nsp[1] = 'F'; nsp[2] = 'S'; nsp[3] = '0'; nsp[4] = 1; nsp[8] = 8; // 1 arquivo, tabela de nomes com 8 bytes
+            nsp[16 + 8] = (byte) (5000 & 0xff); nsp[16 + 9] = (byte) (5000 >> 8); // promete 5000 bytes, o arquivo tem 1024
+            Files.write(new File(sw, "Jogo Cortado.nsp").toPath(), nsp);
+            Files.write(new File(sw, "00.nsp").toPath(), nsp);
+            confere(Limpeza.motivo(new File(sw, "Jogo Cortado.nsp")) != null && Limpeza.motivo(new File(sw, "Jogo Cortado.nsp")).startsWith("download incompleto"), "NSP cortado é pego (" + Limpeza.motivo(new File(sw, "Jogo Cortado.nsp")) + ")");
             JSONObject r3 = (JSONObject) m.executar("escanear", new JSONObject().put("biblioteca", bib2));
             confere(r3.getInt("encontrados") == 2, "depois da limpeza a biblioteca tem 2 jogos (achou " + r3.getInt("encontrados") + ")");
         }

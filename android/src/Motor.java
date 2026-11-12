@@ -93,6 +93,11 @@ public class Motor {
                 if (!r.optBoolean("simulacao")) salvar(arquivo, bib);
                 return r;
             }
+            case "isolar": {
+                JSONObject r = Limpeza.isolar(jogos, texto(args, "id"));
+                salvar(arquivo, bib);
+                return r;
+            }
             case "listar": return listar(jogos, args.optJSONObject("filtro"));
             case "continuar": {
                 JSONObject f = new JSONObject().put("ordem", "recentes");
@@ -304,6 +309,10 @@ public class Motor {
             for (File f : arquivos) {
                 Plataformas.P p = identificar(f, raiz);
                 if (p == null) continue;
+                // "00", "0C"…: pedaços de arquivo dividido, não jogos
+                String nomeF = f.getName();
+                int pt = nomeF.lastIndexOf('.');
+                if ((pt > 0 ? pt : nomeF.length()) <= 2) continue;
                 encontrados++;
                 String id = idDe(f.getAbsolutePath());
                 vistos.put(id, true);

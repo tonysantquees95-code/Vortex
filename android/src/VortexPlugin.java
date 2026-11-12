@@ -76,10 +76,11 @@ public class VortexPlugin extends Plugin {
                     }
                     Object r;
                     if (comando.equals("emuladores")) r = emuladores();
-                    else if (comando.startsWith("controle_")) r = controle(comando, a);
+                    else if (comando.startsWith("controle_") || comando.equals("apps_android")) r = controle(comando, a);
                     else if (comando.startsWith("conta_") || comando.startsWith("ponte_") || comando.equals("saves_sincronizar")) r = contaESaves(comando, a);
                     else if (comando.equals("preparar_jogo")) r = preparar(a);
                     else if (comando.equals("lancar")) r = lancar(a);
+                    else if (comando.equals("gamebar")) r = a.has("definir") ? GameBar.gravar(getContext(), a.getJSONObject("definir")) : GameBar.ler(getContext());
                     else r = motor.executar(comando, a);
                     JSObject saida = new JSObject();
                     saida.put("resultado", String.valueOf(r));
@@ -125,6 +126,27 @@ public class VortexPlugin extends Plugin {
                     if (!jogo || (ai.flags & android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0 || ai.packageName.equals(getContext().getPackageName())) continue;
                     if (pm.getLaunchIntentForPackage(ai.packageName) == null) continue;
                     r.put(new JSONObject().put("pacote", ai.packageName).put("nome", String.valueOf(pm.getApplicationLabel(ai))));
+                }
+                return r;
+            }
+            case "apps_android": {
+                // jogos de Android instalados, com o ícone de cada um (para a biblioteca "Android" do Vortex)
+                JSONArray r = new JSONArray();
+                for (android.content.pm.ApplicationInfo ai : pm.getInstalledApplications(0)) {
+                    boolean jogo = Build.VERSION.SDK_INT >= 26 ? ai.category == android.content.pm.ApplicationInfo.CATEGORY_GAME : (ai.flags & android.content.pm.ApplicationInfo.FLAG_IS_GAME) != 0;
+                    if (!jogo || (ai.flags & android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0 || ai.packageName.equals(getContext().getPackageName())) continue;
+                    if (pm.getLaunchIntentForPackage(ai.packageName) == null) continue;
+                    String icone = "";
+                    try {
+                        android.graphics.drawable.Drawable d = pm.getApplicationIcon(ai);
+                        android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(128, 128, android.graphics.Bitmap.Config.ARGB_8888);
+                        android.graphics.Canvas cv = new android.graphics.Canvas(bmp);
+                        d.setBounds(0, 0, 128, 128); d.draw(cv);
+                        java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
+                        bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 90, bo);
+                        icone = "data:image/png;base64," + android.util.Base64.encodeToString(bo.toByteArray(), android.util.Base64.NO_WRAP);
+                    } catch (Throwable ignora) { }
+                    r.put(new JSONObject().put("pacote", ai.packageName).put("nome", String.valueOf(pm.getApplicationLabel(ai))).put("icone", icone));
                 }
                 return r;
             }

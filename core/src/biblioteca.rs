@@ -315,6 +315,11 @@ impl Biblioteca {
                     None => None,
                 };
                 let Some(pl) = pl else { continue };
+                // "00", "0C"…: pedaços de arquivo dividido, não jogos
+                if caminho.file_stem().and_then(|s| s.to_str()).is_some_and(|s| s.chars().count() <= 2) {
+                    r.ignorados += 1;
+                    continue;
+                }
                 if ext == "m3u" && pl.extensoes.contains(&"m3u") {
                     // a lista vira o jogo; os discos dela ficam escondidos
                 } else if (ext == "bin" || ext == "img" || ext == "mdf" || ext == "iso") && cobertos.contains(&nome_baixo) && plataformas::extensao(caminho) != "m3u" {

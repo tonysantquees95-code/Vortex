@@ -44,6 +44,14 @@ export interface Controles {
   /** Abre o jogo e mostra os pontos do perfil por cima dele, para arrastar até os botões. */
   posicionar(pacote: string, id: string): Promise<void>;
 }
+export interface AppAndroid { pacote: string; nome: string; icone: string }
+/** Game Bar (só Android): barra de status por cima do jogo. */
+export type PosicaoGameBar = "oculta" | "topo" | "base" | "esquerda" | "direita";
+export type ModoDesempenho = "economico" | "normal" | "turbo";
+export interface ConfigGameBar {
+  ligada: boolean; posicao: PosicaoGameBar; modo: ModoDesempenho;
+  fps: boolean; cpu: boolean; gpu: boolean; ram: boolean; temp: boolean; bateria: boolean;
+}
 export interface Filtro { texto?: string; plataforma?: string | null; so_favoritos?: boolean; ordem?: Ordem; limite?: number }
 export interface ModoJogoConfig {
   ligado: boolean; prioridade_do_jogo: boolean; rebaixar_apps: boolean; pausar_atualizadores: boolean; liberar_ram: boolean;
@@ -65,6 +73,12 @@ export interface Oferta {
 
 export interface Motor {
   plataforma: "windows" | "android" | "demo";
+  /** Só no Android: jogos instalados no aparelho (biblioteca "Android"). */
+  appsAndroid?(): Promise<AppAndroid[]>;
+  /** Só no Android: abre um app/jogo instalado. */
+  abrirApp?(pacote: string): Promise<void>;
+  /** Só no Android: Game Bar. */
+  gameBar?(definir?: Partial<ConfigGameBar>): Promise<ConfigGameBar>;
   /** Só no Android: controle para jogos que não têm suporte. */
   controles?: Controles;
   /** Windows e Android: entrar com o Vetorial ID e sincronizar saves. */
@@ -97,6 +111,8 @@ export interface Motor {
   /** Procura jogos soltos no aparelho, identifica o console, descompacta e guarda na pasta do Vortex (uma pasta por console). */
   /** Deixa um jogo só por título e tira os arquivos quebrados da biblioteca. Com simulação só conta. */
   limpar(simulacao?: boolean): Promise<RelatorioLimpeza>;
+  /** Tira da biblioteca um jogo que não abriu e guarda o arquivo na pasta Corrompidos. */
+  isolar(id: string): Promise<void>;
   organizar(simulacao?: boolean): Promise<RelatorioOrganizacao>;
   desfazerOrganizacao(): Promise<{ devolvidos: number; falhas: string[] }>;
 }
