@@ -63,6 +63,8 @@ jobs:
         run: cargo test --workspace --all-targets
       - name: Gerar o instalador
         working-directory: desktop/src-tauri
+        env:
+          VITE_BUILD: ${{ github.run_number }}
         run: tauri build
       - uses: actions/upload-artifact@v4
         with:
@@ -99,6 +101,8 @@ jobs:
           java -cp "json.jar;saida" tech.vetorial.vortex.MotorTeste
       - name: Preparar o projeto Android
         working-directory: app
+        env:
+          VITE_BUILD: ${{ github.run_number }}
         run: |
           npm run build
           npx cap add android
@@ -106,7 +110,7 @@ jobs:
           mkdir -p $D
           cp ../android/src/*.java $D/
           # permissões: arquivos (liberada pela pessoa), apps instalados (achar emuladores) e controle
-          PERMS='<uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />\n    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />'
+          PERMS='<uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />\n    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />'
           sed -i "s#<application#$PERMS\n    <application#" android/app/src/main/AndroidManifest.xml
           grep -c "uses-permission" android/app/src/main/AndroidManifest.xml
           # entregar a ROM ao emulador por FileProvider (o Capacitor já declara o ".fileprovider"; aqui liberamos os caminhos)

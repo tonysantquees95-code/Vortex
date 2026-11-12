@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import type { EmuladoresInfo, EstadoConta, ModoJogoConfig, Motor } from "../ponte";
-import { definirOrganizarAutomatico, organizarAutomatico } from "../config";
+import { atualizarSozinho, definirAtualizarSozinho, definirOrganizarAutomatico, organizarAutomatico } from "../config";
+import { BUILD } from "../atualizacao";
+import type { Atualizacao } from "../useAtualizacao";
 import { Interruptor } from "./pecas";
 
 function ContaVetorial({ motor, avisar }: { motor: Motor; avisar: (t: string) => void }) {
@@ -61,7 +63,8 @@ const OPCOES: [keyof ModoJogoConfig, string, string][] = [
   ["manter_acordado", "Tela sempre ligada", "O computador não apaga a tela nem dorme jogando."],
 ];
 
-export function Ajustes({ motor, aoMudarBiblioteca, avisar }: { motor: Motor; aoMudarBiblioteca: () => void; avisar: (t: string) => void }) {
+export function Ajustes({ motor, aoMudarBiblioteca, avisar, atualizacao }: { motor: Motor; aoMudarBiblioteca: () => void; avisar: (t: string) => void; atualizacao: Atualizacao }) {
+  const [autoAtualizar, setAutoAtualizar] = useState(atualizarSozinho);
   const [pastas, setPastas] = useState<string[]>([]);
   const [modo, setModo] = useState<ModoJogoConfig | null>(null);
   const [emu, setEmu] = useState<EmuladoresInfo | null>(null);
@@ -156,6 +159,21 @@ export function Ajustes({ motor, aoMudarBiblioteca, avisar }: { motor: Motor; ao
           {emu?.instalados.length ? emu.instalados.map((e) => <div key={e.id}><span className="font-semibold">{e.nome}</span> <span className="text-sm text-slate-400">· {e.plataformas.length} plataformas</span></div>) : <p className="text-slate-400">Nenhum emulador encontrado ainda. Instale o RetroArch e o Vortex acha sozinho.</p>}
         </div>
       </section>
+      {motor.plataforma !== "demo" && (
+        <section>
+          <h3 className="mb-3 text-lg font-bold text-cyan-100/90">Atualizações</h3>
+          <div className="grid gap-3">
+            <div className="vidro grid gap-3 p-4">
+              <div className="text-sm text-slate-300">{BUILD > 0 ? `Você está na versão 1.${BUILD}.` : "Versão de desenvolvimento."}{atualizacao.nova ? ` Tem a 1.${atualizacao.nova.numero} esperando.` : ""}</div>
+              <div className="flex flex-wrap gap-3">
+                <button data-foco className="botao" disabled={atualizacao.conferindo || BUILD === 0} onClick={() => { atualizacao.conferir().then((v) => avisar(v ? `Versão nova: 1.${v.numero}` : "O Vortex já está na versão mais recente.")).catch((e) => avisar(String(e instanceof Error ? e.message : e))); }}>{atualizacao.conferindo ? "Verificando…" : "Verificar atualizações"}</button>
+                {atualizacao.nova && <button data-foco className="botao primario" disabled={atualizacao.instalando} onClick={() => { void atualizacao.atualizar(); }}>{atualizacao.instalando ? "Atualizando…" : `Atualizar para a 1.${atualizacao.nova.numero}`}</button>}
+              </div>
+            </div>
+            <Interruptor ligado={autoAtualizar} rotulo="Atualizar sozinho" detalhe="Quando sai versão nova, o Vortex baixa e instala (nunca com um jogo abrindo)." aoMudar={(v) => { setAutoAtualizar(v); definirAtualizarSozinho(v); }} />
+          </div>
+        </section>
+      )}
       <section>
         <button data-foco className="botao" onClick={() => window.dispatchEvent(new CustomEvent("vortex:termos"))}>Ler os termos de uso</button>
       </section>

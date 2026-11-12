@@ -16,6 +16,7 @@ export async function motorTauri(): Promise<Motor> {
   return {
     plataforma: "windows",
     conta,
+    instalarAtualizacao: async (url, sha256) => { await invoke("instalar_atualizacao", { url, sha256 }); },
     pastas: () => c<string[]>("pastas"),
     escolherPasta: async () => {
       const r = await open({ directory: true, multiple: false });

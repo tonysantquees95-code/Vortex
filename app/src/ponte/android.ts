@@ -5,6 +5,7 @@ import type { PedidoDaVenus, ContaVetorial, EstadoConta, RelatorioSaves, Control
 interface PluginVortex {
   motor(opcoes: { comando: string; args: string }): Promise<{ resultado: string }>;
   escolherPasta(): Promise<{ pasta: string | null }>;
+  instalarAtualizacao(opcoes: { url: string; sha256: string }): Promise<void>;
 }
 const Vortex = registerPlugin<PluginVortex>("Vortex");
 
@@ -34,6 +35,7 @@ export function motorAndroid(): Motor {
     plataforma: "android",
     conta,
     controles,
+    instalarAtualizacao: async (url, sha256) => { await Vortex.instalarAtualizacao({ url, sha256 }); },
     pastas: () => c<string[]>("pastas"),
     escolherPasta: async () => (await Vortex.escolherPasta()).pasta,
     adicionarPasta: (pasta) => c<string[]>("adicionar_pasta", { pasta }),

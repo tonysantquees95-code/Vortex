@@ -10,6 +10,7 @@ import { Controles } from "./telas/Controles";
 import { Termos } from "./telas/Termos";
 import { aceitarTermos, termosAceitos } from "./termos";
 import { Detalhe } from "./telas/Detalhe";
+import { useAtualizacao } from "./useAtualizacao";
 import { Capa, Carrossel, Carta } from "./telas/pecas";
 
 type Aba = "inicio" | "biblioteca" | "loja" | "controles" | "favoritos" | "ajustes";
@@ -88,6 +89,7 @@ export function App() {
   }, [motor, avisar]);
 
   const [aceitou, setAceitou] = useState(termosAceitos);
+  const atualizacao = useAtualizacao(motor, lancando !== null, avisar, aceitou);
   const [lendoTermos, setLendoTermos] = useState(false);
   useEffect(() => { const f = () => setLendoTermos(true); window.addEventListener("vortex:termos", f); return () => window.removeEventListener("vortex:termos", f); }, []);
 
@@ -227,7 +229,7 @@ export function App() {
           ) : aba === "controles" && motor.controles ? (
             <Controles controles={motor.controles} avisar={avisar} />
           ) : aba === "ajustes" ? (
-            <Ajustes motor={motor} aoMudarBiblioteca={recarregar} avisar={avisar} />
+            <Ajustes motor={motor} aoMudarBiblioteca={recarregar} avisar={avisar} atualizacao={atualizacao} />
           ) : (
             <div className="entrar px-10">
               <div className="mb-5 flex flex-wrap items-center gap-3">
@@ -260,6 +262,12 @@ export function App() {
             <div className="pulso absolute inset-4 rounded-full bg-gradient-to-br from-violet-500 to-cyan-300 blur-sm" />
           </div>
           <div className="text-center"><div className="titulo-neon text-3xl font-black">{lancando.titulo}</div><div className="pulso mt-2 text-slate-300">{etapa}</div></div>
+        </div>
+      )}
+      {atualizacao.nova && !lancando && (
+        <div className="entrar fixed right-6 top-6 z-[60] flex items-center gap-4 rounded-2xl border border-cyan-300/40 bg-[#0b1226ee] px-5 py-3 text-sm shadow-[0_0_30px_rgba(25,227,255,.3)]" role="status">
+          <span>Tem versão nova do Vortex (1.{atualizacao.nova.numero}).</span>
+          <button data-foco className="botao primario" disabled={atualizacao.instalando} onClick={() => { void atualizacao.atualizar(); }}>{atualizacao.instalando ? "Atualizando…" : "Atualizar"}</button>
         </div>
       )}
       {aviso && <div className="entrar fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-full border border-cyan-300/40 bg-[#0b1226ee] px-6 py-3 text-sm shadow-[0_0_30px_rgba(25,227,255,.3)]" role="status">{aviso}</div>}

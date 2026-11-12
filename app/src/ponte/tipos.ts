@@ -67,6 +67,8 @@ export interface Motor {
   controles?: Controles;
   /** Windows e Android: entrar com o Vetorial ID e sincronizar saves. */
   conta?: ContaVetorial;
+  /** Baixa o instalador da versão nova (só do GitHub, com SHA-256) e instala. */
+  instalarAtualizacao(url: string, sha256: string): Promise<void>;
   pastas(): Promise<string[]>;
   escolherPasta(): Promise<string | null>;
   adicionarPasta(pasta: string): Promise<string[]>;

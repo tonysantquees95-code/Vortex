@@ -282,6 +282,80 @@ public class VortexPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void instalarAtualizacao(final PluginCall call) {
+        final String url = call.getString("url", "");
+        final String sha = call.getString("sha256", "");
+        final boolean https = url.startsWith("https://");
+        String host = "";
+        try { host = new java.net.URL(url).getHost().toLowerCase(java.util.Locale.ROOT); } catch (Exception e) { /* url inválida */ }
+        if (!https || !(host.equals("github.com") || host.endsWith(".githubusercontent.com") || host.endsWith(".github.com"))) {
+            call.reject("Endereço de atualização não permitido.");
+            return;
+        }
+        if (!podeInstalar()) {
+            pedirTelaInstalar();
+            call.reject("Libere “Instalar apps desconhecidos” para o Vortex na tela que abriu e toque em Atualizar de novo.");
+            return;
+        }
+        getBridge().execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    File apk = new File(getContext().getCacheDir(), "vortex-atualizacao.apk");
+                    java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+                    c.setConnectTimeout(20_000);
+                    c.setReadTimeout(60_000);
+                    if (c.getResponseCode() != 200) throw new Exception("O download falhou (" + c.getResponseCode() + ").");
+                    java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+                    java.io.InputStream in = c.getInputStream();
+                    java.io.FileOutputStream out = new java.io.FileOutputStream(apk);
+                    try {
+                        byte[] b = new byte[64 * 1024];
+                        int n;
+                        while ((n = in.read(b)) > 0) { out.write(b, 0, n); md.update(b, 0, n); }
+                    } finally { out.close(); in.close(); c.disconnect(); }
+                    StringBuilder hex = new StringBuilder();
+                    for (byte x : md.digest()) hex.append(String.format("%02x", x));
+                    if (!sha.isEmpty() && !sha.equalsIgnoreCase(hex.toString())) { apk.delete(); throw new Exception("O arquivo baixado não confere com o publicado. Nada foi instalado."); }
+
+                    // abre a tela de instalação do próprio Android (mais confiável que a sessão do instalador, que às vezes não mostra a confirmação)
+                    final android.net.Uri uri = androidx.core.content.FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", apk);
+                    final Intent it = new Intent(Intent.ACTION_VIEW);
+                    it.setDataAndType(uri, "application/vnd.android.package-archive");
+                    it.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+                    getActivity().runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            try { getContext().startActivity(it); call.resolve(); }
+                            catch (Exception e) { call.reject("Não consegui abrir a instalação: " + e.getMessage()); }
+                        }
+                    });
+                    return;
+
+                } catch (Exception e) {
+                    call.reject(e.getMessage() == null ? e.toString() : e.getMessage());
+                }
+            }
+        });
+    }
+
+    private boolean podeInstalar() {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.O || getContext().getPackageManager().canRequestPackageInstalls();
+    }
+
+    private void pedirTelaInstalar() {
+        try {
+            Intent i = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getContext().getPackageName()));
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(i);
+        } catch (Exception e) {
+            Intent i = new Intent(Settings.ACTION_SECURITY_SETTINGS);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(i);
+        }
+    }
+
+    @PluginMethod
     public void escolherPasta(PluginCall call) {
         if (!temAcessoATudo()) {
             pedirAcessoATudo();
