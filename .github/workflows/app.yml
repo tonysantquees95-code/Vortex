@@ -86,7 +86,7 @@ jobs:
         run: |
           curl -fsSL -o json.jar https://repo1.maven.org/maven2/org/json/json/20240303/json-20240303.jar
           mkdir -p saida
-          javac -cp json.jar -d saida android/src/Plataformas.java android/src/Motor.java android/teste/MotorTeste.java
+          javac -cp json.jar -d saida android/src/Plataformas.java android/src/Motor.java android/src/Organizador.java android/teste/MotorTeste.java
           java -cp "json.jar;saida" tech.vetorial.vortex.MotorTeste
       - name: Preparar o projeto Android
         working-directory: app
