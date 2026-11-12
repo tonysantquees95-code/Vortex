@@ -14,13 +14,13 @@ import java.util.Locale;
 public final class Arquivo7z {
     private Arquivo7z() { }
 
-    /** O console do que está dentro: pela extensão e, para .iso, pela assinatura do disco (GameCube/Wii). null se não reconhece. */
+    /** O console do que está dentro: pela extensão e, para .iso, pela assinatura do disco. null se não reconhece.
+     *  Só lê a lista de nomes e o começo de UM .iso: num 7z "sólido" passar de arquivo em arquivo descompactaria tudo (minutos). */
     @SuppressWarnings("deprecation")
     public static Plataformas.P identificar(File arquivo) throws Exception {
         try (SevenZFile s = new SevenZFile(arquivo)) {
-            SevenZArchiveEntry e;
-            List<String> iso = new ArrayList<String>();
-            while ((e = s.getNextEntry()) != null) {
+            SevenZArchiveEntry iso = null;
+            for (SevenZArchiveEntry e : s.getEntries()) {
                 if (e.isDirectory()) continue;
                 String nome = e.getName();
                 int p = nome.lastIndexOf('.');
@@ -29,16 +29,16 @@ public final class Arquivo7z {
                 Plataformas.P x = Motor.unicaPelaExtensao(ext);
                 if (x != null) return x;
                 if (ext.equals("cso") || ext.equals("pbp")) return Plataformas.porId("psp");
-                if (ext.equals("iso")) {
-                    byte[] b = new byte[Motor.BYTES_DO_DISCO];
-                    int n = 0, r;
-                    while (n < b.length && (r = s.read(b, n, b.length - n)) > 0) n += r;
-                    Plataformas.P h = Motor.plataformaDoCabecalho(b, n);
-                    if (h != null) return h;
-                }
+                if (ext.equals("iso") && iso == null) iso = e;
             }
+            if (iso == null) return null;
+            byte[] b = new byte[Motor.BYTES_DO_DISCO];
+            int n = 0, r;
+            try (java.io.InputStream in = s.getInputStream(iso)) {
+                while (n < b.length && (r = in.read(b, n, b.length - n)) > 0) n += r;
+            }
+            return Motor.plataformaDoCabecalho(b, n);
         }
-        return null;
     }
 
     /** Extrai para [pasta] (um arquivo só vai direto; vários vão para uma subpasta com o nome do .7z). Devolve o arquivo principal. */
@@ -55,7 +55,7 @@ public final class Arquivo7z {
             String baseCanon = base.getCanonicalPath() + File.separator;
             File principal = base;
             SevenZArchiveEntry e;
-            byte[] buf = new byte[65536];
+            byte[] buf = new byte[1 << 20];
             while ((e = s.getNextEntry()) != null) {
                 if (e.isDirectory()) continue;
                 String rel = arquivos <= 1 ? new File(e.getName()).getName() : e.getName();

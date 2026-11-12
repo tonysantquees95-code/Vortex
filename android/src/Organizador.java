@@ -35,6 +35,10 @@ public class Organizador {
         public final List<String> falhas = new ArrayList<String>();
     }
 
+    /** Compactados que já abri e não deram jogo (nome|tamanho|data): não gasta minutos abrindo de novo a cada atualização. */
+    public static final Set<String> JA_VISTOS = new HashSet<String>();
+    static String chaveDe(File f) { return f.getPath() + "|" + f.length() + "|" + f.lastModified(); }
+
     private static final Set<String> IGNORAR = new HashSet<String>(java.util.Arrays.asList("windows", "android", "appdata", "node_modules", "lost.dir"));
 
     private static final Set<String> NOMES_DE_ROMS = new HashSet<String>(java.util.Arrays.asList("download", "downloads", "documents", "documentos", "roms", "rom", "games", "jogos", "emulation", "emulacao", "retro", "retroarch", "emulators", "emuladores", "retrogames", "gamesretro", "compactados", "compactado", "arquivos compactados", "compressed", "archives"));
@@ -230,6 +234,7 @@ public class Organizador {
                 Plataformas.P plat;
                 boolean doZip = false;
                 boolean sete = e.equals("7z");
+                if ((sete || e.equals("zip")) && JA_VISTOS.contains(chaveDe(arq))) continue;
                 if (e.equals("zip")) {
                     Plataformas.P pasta = Motor.plataformaDaPasta(arq, raiz);
                     if (pasta != null && pasta.id.equals("arcade")) plat = pasta; else { plat = dentroDoZip(arq); doZip = true; }
@@ -241,7 +246,7 @@ public class Organizador {
                         if (plat == null) r.falhas.add(arq.getName() + ": abri o .7z mas não achei um jogo que eu reconheça dentro");
                     }
                 } else plat = Motor.identificar(arq, raiz);
-                if (plat == null) continue;
+                if (plat == null) { if (sete || e.equals("zip")) JA_VISTOS.add(chaveDe(arq)); continue; }
                 File pasta = new File(vortex, nomeDePasta(plat));
                 feitos.add(arq);
                 try {
