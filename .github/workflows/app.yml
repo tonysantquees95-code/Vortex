@@ -108,14 +108,15 @@ jobs:
           grep -q 'fileprovider' android/app/src/main/AndroidManifest.xml
           mkdir -p android/app/src/main/res/xml
           printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<paths xmlns:android="http://schemas.android.com/apk/res/android">' '    <root-path name="raiz" path="." />' '    <cache-path name="cache" path="." />' '</paths>' > android/app/src/main/res/xml/file_paths.xml
-          # tela do jogo (motor de emulação embutido: LibretroDroid) e o repositório JitPack onde ele mora
-          sed -i 's#</application>#    <activity android:name=".JogoActivity" android:exported="false" android:screenOrientation="sensorLandscape" android:configChanges="orientation|screenSize|keyboardHidden|keyboard|navigation|uiMode" android:theme="@style/AppTheme.NoActionBar" />\n    </application>#' android/app/src/main/AndroidManifest.xml
-          sed -i '0,/mavenCentral()/s#mavenCentral()#mavenCentral()\n        maven { url "https://jitpack.io" }#' android/build.gradle
+          # tela do jogo: o motor de emulação (LibretroDroid) mora no JitPack
+          sed -i 's#mavenCentral()#mavenCentral()\n        maven { url "https://jitpack.io" }#' android/build.gradle
           grep -n jitpack android/build.gradle
           sed -i "0,/dependencies {/s#dependencies {#dependencies {\n    implementation 'com.github.swordfish90:libretrodroid:0.14.0'#" android/app/build.gradle
           grep -n libretrodroid android/app/build.gradle
           # tela cheia e deitado, como um console
           sed -i 's#<activity#<activity android:screenOrientation="sensorLandscape"#' android/app/src/main/AndroidManifest.xml
+          # tela do jogo (motor de emulação embutido: LibretroDroid) e o repositório JitPack onde ele mora
+          sed -i 's#</application>#    <activity android:name=".JogoActivity" android:exported="false" android:screenOrientation="sensorLandscape" android:configChanges="orientation|screenSize|keyboardHidden|keyboard|navigation|uiMode" android:theme="@style/AppTheme.NoActionBar" />\n    </application>#' android/app/src/main/AndroidManifest.xml
           npx capacitor-assets generate --android --iconBackgroundColor '#05060D' --iconBackgroundColorDark '#05060D' --splashBackgroundColor '#05060D' --splashBackgroundColorDark '#05060D'
           npx cap sync android
       - name: Compilar o APK
