@@ -89,7 +89,7 @@ export function App() {
     // organização automática: acha jogos soltos, guarda por console na pasta do Vortex e mostra tudo na biblioteca
     if (organizarAutomatico()) {
       // sem a permissão de arquivos a busca não acharia nada (e abriria a tela do sistema toda vez): a configuração e os Ajustes pedem
-      motor.permissoes().then((l) => (l.some((p) => p.id === "arquivos" && !p.concedida) ? null : (setOcupado("Procurando jogos novos e organizando… Jogos compactados grandes demoram alguns minutos. Não travou."), motor.organizar()))).then(async (r) => {
+      motor.permissoes().then((l) => (l.some((p) => p.id === "arquivos" && !p.concedida) ? null : (setOcupado("1"), motor.organizar()))).then(async (r) => {
         setOcupado("");
         if (!r) return;
         if (r.organizados.length) avisar(`${r.organizados.length} jogos organizados por console`);
@@ -109,7 +109,7 @@ export function App() {
     try {
       // sem a permissão de arquivos a busca veria pastas vazias e esvaziaria a biblioteca à toa
       if ((await motor.permissoes()).some((p) => p.id === "arquivos" && !p.concedida)) { if (manual) avisar("Libere o acesso a todos os arquivos em Ajustes › Permissões para atualizar."); return; }
-      if (manual) setOcupado("Procurando jogos novos e organizando… Jogos compactados grandes demoram alguns minutos. Não travou.");
+      if (manual) setOcupado("1");
       const rOrg = manual && organizarAutomatico() ? await motor.organizar() : null;
       const org = rOrg ? rOrg.organizados.length : 0;
       const falhaOrg = rOrg?.falhas?.[0];
@@ -355,7 +355,7 @@ export function App() {
           <button data-foco className="botao primario" disabled={atualizacao.instalando} onClick={() => { void atualizacao.atualizar(); }}>{atualizacao.instalando ? "Atualizando…" : "Atualizar"}</button>
         </div>
       )}
-      {ocupado && <div className="fixed bottom-20 left-1/2 z-[60] flex w-[min(92vw,34rem)] -translate-x-1/2 items-center gap-3 rounded-2xl border border-cyan-300/40 bg-[#0b1226ee] px-5 py-3 text-sm shadow-[0_0_30px_rgba(25,227,255,.3)]" role="status" aria-live="polite"><span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-cyan-300/30 border-t-cyan-300" /><span>{ocupado}</span></div>}
+      {ocupado && <div className="fixed right-8 top-[4.5rem] z-[60] flex items-center gap-3 rounded-full border border-cyan-300/40 bg-[#0b1226ee] px-5 py-2.5 text-sm shadow-[0_0_24px_rgba(25,227,255,.25)]" role="status" aria-live="polite"><span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-cyan-300/30 border-t-cyan-300" /><span>Atualizando biblioteca… aguarde</span></div>}
       {aviso && <div className="entrar fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-full border border-cyan-300/40 bg-[#0b1226ee] px-6 py-3 text-sm shadow-[0_0_30px_rgba(25,227,255,.3)]" role="status">{aviso}</div>}
     </>
   );
