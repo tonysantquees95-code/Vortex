@@ -82,7 +82,10 @@ public class MotorTeste {
         confere(!new File(solto, "Sonic (USA).md").exists() && new File(vortex, "Mega Drive / Genesis".replace("/", "-")).isDirectory(), "jogo foi para a pasta do console");
         confere(!new File(t, "fora.nes").exists() && !new File(vortex, "fora.nes").exists(), "zip malicioso não escapa");
         confere(new File(vortex, "Vortex").exists() == false, "sem pasta estranha");
-        confere(((JSONArray) run.apply("pastas", new JSONObject())).toString().contains(vortex.getPath()), "pasta do Vortex entrou na biblioteca");
+        JSONArray ps = (JSONArray) run.apply("pastas", new JSONObject());
+        boolean tem = false;
+        for (int i = 0; i < ps.length(); i++) if (ps.getString(i).equals(vortex.getPath())) tem = true;
+        confere(tem, "pasta do Vortex entrou na biblioteca");
         JSONObject d = (JSONObject) run.apply("organizar_desfazer", new JSONObject());
         confere(d.getInt("devolvidos") == 3 && new File(solto, "psx/Crash.bin").exists() && new File(solto, "Sonic (USA).md").exists(), "desfazer devolve os arquivos soltos (" + d.getInt("devolvidos") + ")");
         System.out.println(falhas == 0 ? "TUDO CERTO" : falhas + " FALHAS");
