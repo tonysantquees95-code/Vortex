@@ -175,6 +175,13 @@ public class MotorTeste {
         confere(rc.getJSONArray("conflitos").length() == 1 && new String(Files.readAllBytes(sB.toPath())).equals("do B"), "nuvem: mudou nos dois lados vira conflito e nada se perde");
         confere(Nuvem.sincronizar(falsa, dB, iB, "nuvem").getInt("baixados") == 1 && new String(Files.readAllBytes(sB.toPath())).equals("do A")
                 && new String(Files.readAllBytes(new File(sB.getPath() + ".antes-da-nuvem").toPath())).equals("do B"), "nuvem: escolher a nuvem guarda o save local ao lado");
+        Nuvem.Rede ponte = (metodo, caminho, token, corpo, base) -> caminho.startsWith("/vortex/fila?plataforma=android")
+                ? new Nuvem.Resposta(200, "{\"pedidos\":[{\"id\":\"aaaaaaaaaaaaaaaaaaaaaaaa\",\"comando\":\"abrir_jogo\",\"argumento\":\"Zelda\"}]}".getBytes(), -1)
+                : new Nuvem.Resposta(200, "{}".getBytes(), -1);
+        confere(Nuvem.fila(ponte, dA).getJSONArray("pedidos").getJSONObject(0).getString("argumento").equals("Zelda"), "ponte: busca o pedido da Vênus");
+        Nuvem.responder(ponte, dA, "aaaaaaaaaaaaaaaaaaaaaaaa", true, "Abri Zelda.");
+        boolean recusouId = false; try { Nuvem.responder(ponte, dA, "../x", true, ""); } catch (Exception e) { recusouId = true; }
+        confere(recusouId, "ponte: id estranho é recusado");
         Nuvem.sair(falsa, dB);
         confere(!Nuvem.estado(falsa, dB).getBoolean("logado"), "nuvem: sair apaga o login");
         System.out.println(falhas == 0 ? "TUDO CERTO" : falhas + " FALHAS");

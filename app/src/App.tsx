@@ -85,6 +85,47 @@ export function App() {
     } catch (e) { avisar(String(e)); }
   }, [motor, avisar]);
 
+  // ponte de voz: a Vênus pede ("abra o jogo X", "otimize o Vortex") e este aparelho executa
+  const jogosRef = useRef<Jogo[]>([]);
+  const jogarRef = useRef<(j: Jogo) => Promise<void>>(async () => {});
+  const recarregarRef = useRef<() => void>(() => {});
+  useEffect(() => { jogosRef.current = jogos; }, [jogos]);
+  useEffect(() => {
+    const conta = motor.conta;
+    if (!conta) return;
+    let ocupado = false;
+    const sem = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+    const achar = (pedido: string) => {
+      const q = sem(pedido);
+      const palavras = q.split(" ").filter(Boolean);
+      const pontos = (j: Jogo) => { const t = sem(j.titulo); return t === q ? 3 : t.includes(q) ? 2 : palavras.length && palavras.every((p) => t.includes(p)) ? 1 : 0; };
+      return [...jogosRef.current].map((j) => ({ j, p: pontos(j) })).filter((x) => x.p > 0).sort((a, b) => b.p - a.p || a.j.titulo.length - b.j.titulo.length)[0]?.j;
+    };
+    const executar = async (p: { id: string; comando: string; argumento: string }) => {
+      try {
+        if (p.comando === "abrir_jogo") {
+          const j = achar(p.argumento);
+          if (!j) { await conta.responder(p.id, false, `Não achei "${p.argumento}" na biblioteca do Vortex.`); return; }
+          await conta.responder(p.id, true, `Abrindo ${j.titulo}.`);
+          void jogarRef.current(j);
+        } else if (p.comando === "otimizar") {
+          const cfg = await motor.modoJogo();
+          await motor.modoJogo({ ...cfg, ligado: true });
+          const r = await motor.escanear();
+          await conta.responder(p.id, true, `Modo Jogo ligado e biblioteca conferida (${r.encontrados} jogos${r.novos ? `, ${r.novos} novos` : ""}).`);
+          recarregarRef.current();
+        } else await conta.responder(p.id, false, "Esse pedido eu não sei fazer ainda.");
+      } catch (e) { await conta.responder(p.id, false, String(e instanceof Error ? e.message : e)).catch(() => {}); }
+    };
+    const volta = async () => {
+      if (ocupado) return;
+      ocupado = true;
+      try { for (const p of await conta.fila()) await executar(p); } catch { /* sem conta, sem licença ou sem internet */ } finally { ocupado = false; }
+    };
+    const id = window.setInterval(volta, 5000);
+    return () => window.clearInterval(id);
+  }, [motor]);
+
   // saves na nuvem: confere ao abrir e sempre que a janela volta ao foco (por exemplo, ao fechar um jogo)
   useEffect(() => {
     const conta = motor.conta;
@@ -114,6 +155,7 @@ export function App() {
       window.setTimeout(recarregar, 1500);
     } catch (e) { avisar(String(e)); } finally { setLancando(null); }
   }, [motor, avisar, recarregar]);
+  useEffect(() => { jogarRef.current = jogar; recarregarRef.current = () => { void recarregar(); }; }, [jogar, recarregar]);
 
   const recentes = useMemo(() => [...jogos].sort((a, b) => b.adicionado - a.adicionado).slice(0, 14), [jogos]);
   const favoritos = useMemo(() => jogos.filter((j) => j.favorito), [jogos]);

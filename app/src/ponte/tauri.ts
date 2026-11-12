@@ -1,4 +1,4 @@
-import type { ContaVetorial, EstadoConta, RelatorioSaves, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, Oferta } from "./tipos";
+import type { PedidoDaVenus, ContaVetorial, EstadoConta, RelatorioSaves, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, Oferta } from "./tipos";
 
 /** Windows: fala com o motor em Rust pelo comando "motor" do Tauri (o Rust acrescenta o caminho da biblioteca). */
 export async function motorTauri(): Promise<Motor> {
@@ -10,6 +10,8 @@ export async function motorTauri(): Promise<Motor> {
     entrar: async (email, senha) => { await c("conta_entrar", { email, senha, aparelho: "Computador Windows" }); return c<EstadoConta>("conta_estado"); },
     sair: async () => { await c("conta_sair"); },
     sincronizar: (conflitos) => c<RelatorioSaves>("saves_sincronizar", conflitos ? { conflitos } : {}),
+    fila: async () => (await c<{ pedidos: PedidoDaVenus[] }>("ponte_fila")).pedidos ?? [],
+    responder: async (id, ok, resumo) => { await c("ponte_responder", { id, ok, resumo }); },
   };
   return {
     plataforma: "windows",

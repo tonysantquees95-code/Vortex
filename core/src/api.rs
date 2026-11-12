@@ -195,6 +195,16 @@ pub fn conta_e_saves(comando: &str, args: &Value, rede: &dyn nuvem::Rede) -> Res
             }
             para(nuvem::sincronizar(rede, &c.token, &itens, &dados.join("saves_estado.json"), politica)?)
         }
+        // ponte de voz: o Vortex aberto pergunta o que a Vênus pediu e responde
+        "ponte_fila" => {
+            let c = nuvem::conta_salva(&dados).ok_or("Sem conta.")?;
+            Ok(nuvem::fila(rede, &c.token, "windows")?)
+        }
+        "ponte_responder" => {
+            let c = nuvem::conta_salva(&dados).ok_or("Sem conta.")?;
+            nuvem::responder(rede, &c.token, texto(args, "id")?, args.get("ok").and_then(|x| x.as_bool()).unwrap_or(true), texto(args, "resumo").unwrap_or(""))?;
+            Ok(json!({ "ok": true }))
+        }
         _ => Err(format!("Comando desconhecido: {comando}")),
     }
 }
@@ -209,7 +219,7 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
     if comando == "preparar_jogo" {
         return preparar_jogo_com(args, &nucleos::baixar_da_libretro);
     }
-    if comando.starts_with("conta_") || comando == "saves_sincronizar" {
+    if comando.starts_with("conta_") || comando.starts_with("ponte_") || comando == "saves_sincronizar" {
         return conta_e_saves(comando, args, &nuvem::RedeReal);
     }
     if comando == "plataformas_catalogo" {

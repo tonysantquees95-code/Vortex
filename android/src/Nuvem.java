@@ -130,6 +130,23 @@ public final class Nuvem {
         }
     }
 
+    /** Ponte de voz: pedidos novos da Vênus (e aviso de que o Vortex está aberto). */
+    public static JSONObject fila(Rede rede, File dados) throws Exception {
+        JSONObject c = lerConta(dados);
+        if (c == null) throw new Exception("Sem conta.");
+        Resposta r = rede.pedir("GET", "/vortex/fila?plataforma=android", c.getString("token"), null, null);
+        if (r.status != 200) throw new Exception(mensagem(r));
+        return new JSONObject(r.texto());
+    }
+
+    public static void responder(Rede rede, File dados, String id, boolean ok, String resumo) throws Exception {
+        JSONObject c = lerConta(dados);
+        if (c == null) throw new Exception("Sem conta.");
+        if (!id.matches("[a-f0-9]{24}")) throw new Exception("Pedido inválido.");
+        Resposta r = rede.pedir("POST", "/vortex/pedidos/" + id + "/resultado", c.getString("token"), new JSONObject().put("ok", ok).put("resumo", resumo).toString().getBytes(StandardCharsets.UTF_8), null);
+        if (r.status != 200) throw new Exception(mensagem(r));
+    }
+
     /** politica: "perguntar", "local" ou "nuvem". */
     public static JSONObject sincronizar(Rede rede, File dados, List<Item> itens, String politica) throws Exception {
         JSONObject conta = lerConta(dados);

@@ -1,5 +1,5 @@
 import { registerPlugin } from "@capacitor/core";
-import type { ContaVetorial, EstadoConta, RelatorioSaves, Controles, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, Oferta } from "./tipos";
+import type { PedidoDaVenus, ContaVetorial, EstadoConta, RelatorioSaves, Controles, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, Oferta } from "./tipos";
 
 /** Mesmo contrato do Rust, implementado em Java (plugin "Vortex"). */
 interface PluginVortex {
@@ -27,6 +27,8 @@ export function motorAndroid(): Motor {
     entrar: async (email, senha) => { await c("conta_entrar", { email, senha, aparelho: "Celular Android" }); return c<EstadoConta>("conta_estado"); },
     sair: async () => { await c("conta_sair"); },
     sincronizar: (conflitos) => c<RelatorioSaves>("saves_sincronizar", conflitos ? { conflitos } : {}),
+    fila: async () => (await c<{ pedidos: PedidoDaVenus[] }>("ponte_fila")).pedidos ?? [],
+    responder: async (id, ok, resumo) => { await c("ponte_responder", { id, ok, resumo }); },
   };
   return {
     plataforma: "android",

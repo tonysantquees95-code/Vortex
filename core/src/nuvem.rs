@@ -139,6 +139,29 @@ pub fn estado(rede: &dyn Rede, dados: &Path) -> Value {
     }
 }
 
+// ------------------------------------------------------------------ ponte de voz (Vênus ↔ Vortex)
+
+/// Pedidos novos da Vênus para este aparelho: {"pedidos":[{id, comando, argumento}]}. Perguntar também avisa que o Vortex está aberto.
+pub fn fila(rede: &dyn Rede, token: &str, plataforma: &str) -> Result<Value, String> {
+    let r = rede.pedir("GET", &format!("/vortex/fila?plataforma={plataforma}"), Some(token), None, None)?;
+    if r.status != 200 {
+        return Err(mensagem(&r));
+    }
+    serde_json::from_slice(&r.corpo).map_err(|e| e.to_string())
+}
+
+pub fn responder(rede: &dyn Rede, token: &str, id: &str, ok: bool, resumo: &str) -> Result<(), String> {
+    if id.len() != 24 || !id.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err("Pedido inválido.".into());
+    }
+    let corpo = json!({ "ok": ok, "resumo": resumo });
+    let r = rede.pedir("POST", &format!("/vortex/pedidos/{id}/resultado"), Some(token), Some(corpo.to_string().as_bytes()), None)?;
+    if r.status != 200 {
+        return Err(mensagem(&r));
+    }
+    Ok(())
+}
+
 // ------------------------------------------------------------------ saves
 
 /// Nome do jogo igual em todos os aparelhos (o id da biblioteca depende do caminho): console + nome do arquivo.
@@ -366,6 +389,26 @@ mod testes {
         assert_eq!(r.baixados, 1);
         assert_eq!(std::fs::read(&b.caminho).unwrap(), b"do A");
         assert_eq!(std::fs::read(b.caminho.with_extension("antes-da-nuvem")).unwrap(), b"do B");
+    }
+
+    #[test]
+    fn ponte_busca_a_fila_e_responde_so_com_id_valido() {
+        struct P;
+        impl Rede for P {
+            fn pedir(&self, m: &str, c: &str, _t: Option<&str>, corpo: Option<&[u8]>, _b: Option<u64>) -> Result<Resposta, String> {
+                if m == "GET" && c.starts_with("/vortex/fila?plataforma=windows") {
+                    return Ok(Resposta { status: 200, corpo: json!({ "pedidos": [{ "id": "a".repeat(24), "comando": "abrir_jogo", "argumento": "Zelda" }] }).to_string().into_bytes(), versao: None });
+                }
+                assert!(c.ends_with("/resultado"));
+                let v: Value = serde_json::from_slice(corpo.unwrap()).unwrap();
+                assert_eq!(v["resumo"], "Abri Zelda.");
+                Ok(Resposta { status: 200, corpo: b"{}".to_vec(), versao: None })
+            }
+        }
+        let f = fila(&P, "t", "windows").unwrap();
+        assert_eq!(f["pedidos"][0]["argumento"], "Zelda");
+        responder(&P, "t", &"a".repeat(24), true, "Abri Zelda.").unwrap();
+        assert!(responder(&P, "t", "../x", true, "").is_err());
     }
 
     #[test]
