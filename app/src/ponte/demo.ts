@@ -36,6 +36,8 @@ export async function motorDemo(): Promise<Motor> {
   let loja: Oferta[] = [oferta("alter-ego", "Alter Ego", "nes", "Shiru"), oferta("streemerz", "Streemerz", "nes", "Faux Game Company"), oferta("apotris", "Apotris", "gba", "akouzoukos"), oferta("mazezam", "MazezaM Challenge", "gba", "Alekmaul")];
   return {
     plataforma: "demo",
+    permissoes: async () => [{ id: "arquivos", titulo: "Acesso a todos os arquivos", motivo: "Para achar os jogos no aparelho.", obrigatoria: true, concedida: false }],
+    pedirPermissao: async () => {},
     instalarAtualizacao: async () => { throw new Error("A atualização automática não funciona no modo demonstração."); },
     pastas: async () => pastas,
     escolherPasta: async () => "C:\\Jogos\\Novos",

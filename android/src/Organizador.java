@@ -37,10 +37,33 @@ public class Organizador {
 
     private static final Set<String> IGNORAR = new HashSet<String>(java.util.Arrays.asList("windows", "android", "appdata", "node_modules", "lost.dir"));
 
+    private static final Set<String> NOMES_DE_ROMS = new HashSet<String>(java.util.Arrays.asList("download", "downloads", "documents", "documentos", "roms", "rom", "games", "jogos", "emulation", "emulacao", "retro", "retroarch", "emulators", "emuladores", "retrogames", "gamesretro"));
+
+    private static boolean pareceDeJogos(String nome) {
+        String n = Motor.normalizar(nome);
+        if (NOMES_DE_ROMS.contains(n)) return true;
+        for (Plataformas.P p : Plataformas.TODAS) for (String f : p.pastas) if (Motor.normalizar(f).equals(n)) return true;
+        return false;
+    }
+
+    private static void achar(File dir, int nivel, List<File> saida) {
+        if (nivel > 3) return;
+        File[] fs = dir.listFiles();
+        if (fs == null) return;
+        for (File f : fs) {
+            if (!f.isDirectory() || f.getName().startsWith(".") || IGNORAR.contains(f.getName().toLowerCase(Locale.ROOT))) continue;
+            if (pareceDeJogos(f.getName())) {
+                boolean dentro = false;
+                for (File s : saida) if (f.getAbsolutePath().startsWith(s.getAbsolutePath() + File.separator)) dentro = true;
+                if (!dentro && !saida.contains(f)) saida.add(f);
+            } else achar(f, nivel + 1, saida);
+        }
+    }
+
+    /** Pastas onde jogos costumam ficar: as de sempre (Download, Roms…) e também as que o celular tem com nome de console ou de ROMs, até 3 níveis abaixo. */
     public static List<File> candidatos(List<String> raizes) {
-        String[] nomes = {"Download", "Downloads", "Documents", "Documentos", "Roms", "ROMs", "Games", "Jogos", "Emulation", "Emulacao", "Retro"};
         List<File> r = new ArrayList<File>();
-        for (String raiz : raizes) for (String n : nomes) { File f = new File(raiz, n); if (f.isDirectory() && !r.contains(f)) r.add(f); }
+        for (String raiz : raizes) achar(new File(raiz), 0, r);
         return r;
     }
 

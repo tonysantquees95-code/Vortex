@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMotor } from "./estado";
-import { focar, useNavegacao } from "./foco";
+import { focar, primeiroSemCampo, useNavegacao } from "./foco";
 import type { Estatisticas, Jogo, Ordem, ResumoPlataforma } from "./ponte";
-import { organizarAutomatico } from "./config";
+import { configurado, marcarConfigurado, organizarAutomatico } from "./config";
+import { aplicarTema, guardarTema, lerTema, type Tema } from "./tema";
+import { Abertura } from "./telas/Abertura";
+import { Configuracao } from "./telas/Configuracao";
 import { tempoJogado } from "./navegacao";
 import { Ajustes } from "./telas/Ajustes";
 import { Loja } from "./telas/Loja";
@@ -35,6 +38,11 @@ export function App() {
   const [ordem, setOrdem] = useState<Ordem>("titulo");
   const [carregado, setCarregado] = useState(false);
   const [hora, setHora] = useState(() => new Date());
+  const [tema, setTema] = useState<Tema>(lerTema);
+  const [abertura, setAbertura] = useState(() => lerTema().abertura && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+  const [config, setConfig] = useState(configurado);
+  useEffect(() => { aplicarTema(tema); guardarTema(tema); }, [tema]);
+  useEffect(() => { const f = () => setAbertura(true); window.addEventListener("vortex:abertura", f); return () => window.removeEventListener("vortex:abertura", f); }, []);
   const temporizador = useRef<number | undefined>(undefined);
 
   const avisar = useCallback((t: string) => {
@@ -55,8 +63,9 @@ export function App() {
     recarregar();
     // organização automática: acha jogos soltos, guarda por console na pasta do Vortex e mostra tudo na biblioteca
     if (organizarAutomatico()) {
-      motor.organizar().then((r) => {
-        if (r.organizados.length) { avisar(`${r.organizados.length} jogos organizados por console`); recarregar(); }
+      // sem a permissão de arquivos a busca não acharia nada (e abriria a tela do sistema toda vez): a configuração e os Ajustes pedem
+      motor.permissoes().then((l) => (l.some((p) => p.id === "arquivos" && !p.concedida) ? null : motor.organizar())).then((r) => {
+        if (r && r.organizados.length) { avisar(`${r.organizados.length} jogos organizados por console`); recarregar(); }
       }).catch(() => {});
     }
   }, [motor, recarregar, avisar]);
@@ -74,7 +83,7 @@ export function App() {
   }, [aberto, lancando]);
   // ao trocar de aba, o foco vai para o primeiro item da tela
   useEffect(() => {
-    const t = window.setTimeout(() => { const el = document.querySelector<HTMLElement>("main [data-foco]"); if (el && !aberto) focar(el); }, 120);
+    const t = window.setTimeout(() => { const el = primeiroSemCampo(Array.from(document.querySelectorAll<HTMLElement>("main [data-foco]"))); if (el && !aberto) focar(el); }, 120);
     return () => window.clearTimeout(t);
   }, [aba, carregado]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -175,24 +184,26 @@ export function App() {
   }, [jogos, favoritos, aba, busca, plat, ordem]);
 
   const vazio = carregado && !jogos.length;
-  if (!aceitou) return <Termos aoAceitar={() => { aceitarTermos(); setAceitou(true); }} />;
+  const intro = abertura ? <Abertura aoTerminar={() => setAbertura(false)} /> : null;
+  if (!aceitou) return <>{intro}<div className="fundo-tela"><div className="espiral" /><div className="espiral b" /></div><Termos aoAceitar={() => { aceitarTermos(); setAceitou(true); }} /></>;
   return (
     <>
-      <div className="fundo-tela" />
+      {intro}
+      <div className="fundo-tela"><div className="espiral" /><div className="espiral b" /></div>
       <div className="relative flex h-full flex-col">
-        <header className="flex flex-wrap items-center justify-between gap-3 px-10 py-5">
-          <div className="flex items-center gap-3">
-            <span className="titulo-neon text-3xl font-black tracking-[.18em]">VORTEX</span>
-            {motor.plataforma === "demo" && <span className="chip">demonstração</span>}
+        <header className="grid gap-2 px-6 pb-1 pt-4 sm:px-10">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <div className="flex items-center gap-3 text-sm text-slate-300">
+              <span title={controle ? "Controle conectado" : "Nenhum controle"} className={controle ? "text-cyan-300" : "text-slate-600"}>🎮</span>
+              <span className="font-semibold tabular-nums">{hora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+              {motor.plataforma === "demo" && <span className="chip">demonstração</span>}
+            </div>
+            <div className="text-center"><span className="marca"><span className="nome text-3xl sm:text-4xl">VORTEX</span></span></div>
+            <div className="flex justify-end text-sm text-slate-300">{stats && <span className="max-sm:hidden">{stats.jogos} jogos · {tempoJogado(stats.tempo_total_s)}</span>}</div>
           </div>
-          <nav className="flex gap-1" aria-label="Seções">
-            {ABAS.filter(([id]) => id !== "controles" || motor.controles).map(([id, nome]) => <button key={id} data-foco className="aba" data-ativa={aba === id} onClick={() => setAba(id)}>{nome}</button>)}
+          <nav className="rolagem flex justify-start gap-1 sm:justify-center" aria-label="Seções">
+            {ABAS.filter(([id]) => id !== "controles" || motor.controles).map(([id, nome]) => <button key={id} data-foco className="aba shrink-0" data-ativa={aba === id} onClick={() => setAba(id)}>{nome}</button>)}
           </nav>
-          <div className="flex items-center gap-4 text-sm text-slate-300">
-            {stats && <span className="max-md:hidden">{stats.jogos} jogos · {tempoJogado(stats.tempo_total_s)}</span>}
-            <span title={controle ? "Controle conectado" : "Nenhum controle"} className={controle ? "text-cyan-300" : "text-slate-600"}>🎮</span>
-            <span className="font-semibold tabular-nums">{hora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
-          </div>
         </header>
 
         <main className="rolagem min-h-0 flex-1 pb-10">
@@ -229,7 +240,7 @@ export function App() {
           ) : aba === "controles" && motor.controles ? (
             <Controles controles={motor.controles} avisar={avisar} />
           ) : aba === "ajustes" ? (
-            <Ajustes motor={motor} aoMudarBiblioteca={recarregar} avisar={avisar} atualizacao={atualizacao} />
+            <Ajustes motor={motor} aoMudarBiblioteca={recarregar} avisar={avisar} atualizacao={atualizacao} tema={tema} aoMudarTema={setTema} />
           ) : (
             <div className="entrar px-10">
               <div className="mb-5 flex flex-wrap items-center gap-3">
@@ -244,7 +255,7 @@ export function App() {
                 {plats.map((p) => <button key={p.id} data-foco className="chip" data-ativa={plat === p.id} onClick={() => setPlat(plat === p.id ? null : p.id)}>{p.nome} · {p.total}</button>)}
               </div>
               {filtrados.length ? (
-                <div className="grid gap-6 py-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
+                <div className="grid gap-6 py-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(var(--carta-min), 1fr))" }}>
                   {filtrados.map((j) => <Carta key={j.id} j={j} aoAbrir={setAberto} tamanho={0} />)}
                 </div>
               ) : <p className="py-16 text-center text-slate-400">{aba === "favoritos" ? "Nenhum favorito ainda. Abra um jogo e aperte Y (ou F) para favoritar." : "Nenhum jogo encontrado."}</p>}
@@ -255,6 +266,7 @@ export function App() {
 
       {aberto && <Detalhe jogo={aberto} aoJogar={jogar} aoFavoritar={favoritar} aoFechar={() => setAberto(null)} />}
       {lendoTermos && <Termos aoFechar={() => setLendoTermos(false)} />}
+      {!config && !abertura && <Configuracao motor={motor} tema={tema} aoMudarTema={setTema} avisar={avisar} aoMudarBiblioteca={recarregar} aoTerminar={() => { marcarConfigurado(); setConfig(true); recarregar(); }} />}
       {lancando && (
         <div data-camada className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-[#05060df2] backdrop-blur-xl">
           <div className="relative h-24 w-24">

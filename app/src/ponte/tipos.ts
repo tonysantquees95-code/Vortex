@@ -53,7 +53,7 @@ export interface ResultadoLancamento { pid: number; emulador: string; nucleo: st
 
 export interface RelatorioOrganizacao {
   organizados: { origem: string; destino: string; plataforma: string; extraido: boolean }[];
-  falhas: string[]; simulacao: boolean; pasta_vortex: string;
+  falhas: string[]; simulacao: boolean; pasta_vortex: string; origens?: string[];
 }
 
 export interface Oferta {
@@ -67,6 +67,10 @@ export interface Motor {
   controles?: Controles;
   /** Windows e Android: entrar com o Vetorial ID e sincronizar saves. */
   conta?: ContaVetorial;
+  /** Permissões do aparelho (no Windows não há nenhuma a pedir). */
+  permissoes(): Promise<Permissao[]>;
+  /** Abre a tela do sistema onde a pessoa libera a permissão. */
+  pedirPermissao(id: string): Promise<void>;
   /** Baixa o instalador da versão nova (só do GitHub, com SHA-256) e instala. */
   instalarAtualizacao(url: string, sha256: string): Promise<void>;
   pastas(): Promise<string[]>;
@@ -92,3 +96,6 @@ export interface Motor {
   organizar(simulacao?: boolean): Promise<RelatorioOrganizacao>;
   desfazerOrganizacao(): Promise<{ devolvidos: number; falhas: string[] }>;
 }
+
+/** Permissão do aparelho que o Vortex precisa (ou pode usar). */
+export interface Permissao { id: string; titulo: string; motivo: string; obrigatoria: boolean; concedida: boolean }

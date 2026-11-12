@@ -184,6 +184,20 @@ public class MotorTeste {
         confere(recusouId, "ponte: id estranho é recusado");
         Nuvem.sair(falsa, dB);
         confere(!Nuvem.estado(falsa, dB).getBoolean("logado"), "nuvem: sair apaga o login");
+        // busca de jogos no armazenamento: acha pastas de ROMs mesmo em lugares e nomes variados, sem entrar nas pastas de apps
+        File card = new File(t, "cartao");
+        new File(card, "Games/Retro/SNES").mkdirs();
+        new File(card, "Emuladores/ROMs").mkdirs();
+        new File(card, "Super Nintendo").mkdirs();
+        new File(card, "Android/data/app/roms").mkdirs();
+        new File(card, "Fotos/ferias").mkdirs();
+        java.util.List<File> cands = Organizador.candidatos(java.util.Arrays.asList(card.getPath()));
+        java.util.List<String> nomes = new java.util.ArrayList<String>();
+        for (File f : cands) nomes.add(card.toURI().relativize(f.toURI()).getPath());
+        confere(nomes.contains("Games/") && !nomes.contains("Games/Retro/") && !nomes.contains("Games/Retro/SNES/"), "acha a pasta Games sem repetir as de dentro (" + nomes + ")");
+        confere(nomes.contains("Emuladores/ROMs/") || nomes.contains("Emuladores/"), "acha a pasta de emuladores (" + nomes + ")");
+        confere(nomes.contains("Super Nintendo/"), "acha pasta com nome de console (" + nomes + ")");
+        confere(!nomes.toString().contains("Android") && !nomes.toString().contains("Fotos"), "ignora Android/data e pastas sem relação (" + nomes + ")");
         System.out.println(falhas == 0 ? "TUDO CERTO" : falhas + " FALHAS");
         System.exit(falhas == 0 ? 0 : 1);
     }

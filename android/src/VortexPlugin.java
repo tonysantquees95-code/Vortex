@@ -68,6 +68,12 @@ public class VortexPlugin extends Plugin {
                     JSONObject a = new JSONObject(args);
                     a.put("biblioteca", new File(getContext().getFilesDir(), "vortex/biblioteca.json").getAbsolutePath());
                     if (comando.startsWith("loja_")) a.put("catalogo_json", lerCatalogo());
+                    // sem “Acesso a todos os arquivos” o Android mostra as pastas vazias e a busca não acha nada: avisa em vez de falhar calada
+                    if ((comando.equals("organizar") || comando.equals("organizar_candidatos") || comando.equals("escanear") || comando.equals("adicionar_pasta")) && !temAcessoATudo()) {
+                        pedirAcessoATudo();
+                        call.reject("Para achar seus jogos o Vortex precisa de “Acesso a todos os arquivos”. Liberei a tela de permissão: ligue para o Vortex, volte e toque em procurar de novo.");
+                        return;
+                    }
                     Object r;
                     if (comando.equals("emuladores")) r = emuladores();
                     else if (comando.startsWith("controle_")) r = controle(comando, a);
@@ -352,6 +358,42 @@ public class VortexPlugin extends Plugin {
             Intent i = new Intent(Settings.ACTION_SECURITY_SETTINGS);
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getContext().startActivity(i);
+        }
+    }
+
+    private JSONObject permissao(String id, String titulo, String motivo, boolean obrigatoria, boolean concedida) throws Exception {
+        return new JSONObject().put("id", id).put("titulo", titulo).put("motivo", motivo).put("obrigatoria", obrigatoria).put("concedida", concedida);
+    }
+
+    @PluginMethod
+    public void permissoes(PluginCall call) {
+        try {
+            JSONArray l = new JSONArray();
+            l.put(permissao("arquivos", "Acesso a todos os arquivos", "Para achar os seus jogos retrô no aparelho (Roms, Download, cartão SD) e guardar cada um na pasta do console.", true, temAcessoATudo()));
+            l.put(permissao("controle", "Serviço de controle (acessibilidade)", "Opcional: transforma os botões do controle em toques na tela dos jogos de Android que não têm suporte a controle. Não lê o conteúdo da tela.", false, servicoAtivo()));
+            l.put(permissao("instalar", "Instalar apps desconhecidos", "Opcional: deixa o Vortex abrir a instalação das próprias atualizações.", false, podeInstalar()));
+            JSObject r = new JSObject();
+            r.put("lista", l);
+            call.resolve(r);
+        } catch (Exception e) {
+            call.reject(String.valueOf(e.getMessage()));
+        }
+    }
+
+    @PluginMethod
+    public void pedirPermissao(PluginCall call) {
+        String id = call.getString("id", "");
+        try {
+            if ("arquivos".equals(id)) pedirAcessoATudo();
+            else if ("instalar".equals(id)) pedirTelaInstalar();
+            else if ("controle".equals(id)) {
+                Intent i = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(i);
+            } else { call.reject("Permissão desconhecida."); return; }
+            call.resolve();
+        } catch (Exception e) {
+            call.reject(String.valueOf(e.getMessage()));
         }
     }
 

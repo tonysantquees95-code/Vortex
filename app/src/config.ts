@@ -25,3 +25,12 @@ export function ultimaConferencia(): number {
 export function anotarConferencia(t: number) {
   try { localStorage.setItem(CHAVE_CONFERIDO, String(t)); } catch { /* sem armazenamento */ }
 }
+
+const CHAVE_CONFIGURADO = "vortex:configurado";
+/** A configuração inicial (permissões, jogos, aparência, conta) já foi feita? */
+export function configurado(): boolean {
+  try { return localStorage.getItem(CHAVE_CONFIGURADO) === "1"; } catch { return false; }
+}
+export function marcarConfigurado() {
+  try { localStorage.setItem(CHAVE_CONFIGURADO, "1"); } catch { /* vale só nesta sessão */ }
+}

@@ -1,10 +1,12 @@
 import { registerPlugin } from "@capacitor/core";
-import type { PedidoDaVenus, ContaVetorial, EstadoConta, RelatorioSaves, Controles, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, Oferta } from "./tipos";
+import type { PedidoDaVenus, ContaVetorial, EstadoConta, RelatorioSaves, Controles, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, Oferta, Permissao } from "./tipos";
 
 /** Mesmo contrato do Rust, implementado em Java (plugin "Vortex"). */
 interface PluginVortex {
   motor(opcoes: { comando: string; args: string }): Promise<{ resultado: string }>;
   escolherPasta(): Promise<{ pasta: string | null }>;
+  permissoes(): Promise<{ lista: Permissao[] }>;
+  pedirPermissao(opcoes: { id: string }): Promise<void>;
   instalarAtualizacao(opcoes: { url: string; sha256: string }): Promise<void>;
 }
 const Vortex = registerPlugin<PluginVortex>("Vortex");
@@ -35,6 +37,8 @@ export function motorAndroid(): Motor {
     plataforma: "android",
     conta,
     controles,
+    permissoes: async () => (await Vortex.permissoes()).lista,
+    pedirPermissao: async (id) => { await Vortex.pedirPermissao({ id }); },
     instalarAtualizacao: async (url, sha256) => { await Vortex.instalarAtualizacao({ url, sha256 }); },
     pastas: () => c<string[]>("pastas"),
     escolherPasta: async () => (await Vortex.escolherPasta()).pasta,

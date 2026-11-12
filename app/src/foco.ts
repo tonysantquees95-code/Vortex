@@ -8,6 +8,11 @@ function focaveis(): HTMLElement[] {
   return Array.from(raiz.querySelectorAll<HTMLElement>("[data-foco]")).filter((e) => e.offsetParent !== null && !(e as HTMLButtonElement).disabled);
 }
 
+/** Primeiro item que não seja campo de texto (focar um campo abre o teclado do celular sem ninguém pedir). */
+export function primeiroSemCampo(lista: HTMLElement[]): HTMLElement | undefined {
+  return lista.find((e) => e.tagName !== "INPUT" && e.tagName !== "TEXTAREA") ?? undefined;
+}
+
 export function focar(el: HTMLElement) {
   el.focus({ preventScroll: true });
   el.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
@@ -17,7 +22,7 @@ export function mover(direcao: Direcao) {
   const lista = focaveis();
   if (!lista.length) return;
   const atual = document.activeElement as HTMLElement | null;
-  if (!atual || !lista.includes(atual)) { focar(lista[0]); return; }
+  if (!atual || !lista.includes(atual)) { focar(primeiroSemCampo(lista) ?? lista[0]); return; }
   const r = atual.getBoundingClientRect();
   const cands: Candidato[] = lista.filter((e) => e !== atual).map((e, i) => {
     e.dataset.idx = String(i);
