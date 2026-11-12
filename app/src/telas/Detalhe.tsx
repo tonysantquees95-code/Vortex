@@ -22,7 +22,8 @@ function useFicha(j: Jogo): { ficha: Ficha | null; buscando: boolean } {
   return { ficha, buscando };
 }
 
-export function Detalhe({ jogo, aoJogar, aoFavoritar, aoFechar, aoAbrirUrl }: { jogo: Jogo; aoJogar: (j: Jogo) => void; aoFavoritar: (j: Jogo) => void; aoFechar: () => void; aoAbrirUrl: (url: string) => void }) {
+export function Detalhe({ jogo, aoJogar, aoFavoritar, aoFechar, aoAbrirUrl, aoEsconder, aoTirar }: { jogo: Jogo; aoJogar: (j: Jogo) => void; aoFavoritar: (j: Jogo) => void; aoFechar: () => void; aoAbrirUrl: (url: string) => void; aoEsconder: (j: Jogo) => void; aoTirar: (j: Jogo) => void }) {
+  const [confirmar, setConfirmar] = useState<"esconder" | "fora" | null>(null);
   const { ficha, buscando } = useFicha(jogo);
   useEffect(() => {
     const voltar = () => aoFechar();
@@ -67,6 +68,19 @@ export function Detalhe({ jogo, aoJogar, aoFavoritar, aoFechar, aoAbrirUrl }: { 
             <button data-foco className="botao primario" disabled={!jogo.disponivel} onClick={() => aoJogar(jogo)}>▶ Jogar</button>
             <button data-foco className="botao" onClick={() => aoFavoritar(jogo)}>{jogo.favorito ? "★ Nos favoritos" : "☆ Favoritar"}</button>
             <button data-foco className="botao" onClick={aoFechar}>Voltar</button>
+          </div>
+          <div className="pt-4">
+            {confirmar ? (
+              <div className="grid gap-2 rounded-xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm">
+                <p>{confirmar === "esconder" ? "Esconder este jogo do Início? Ele continua na Biblioteca." : "Tirar este jogo da biblioteca? Ele some do Vortex, mas o arquivo continua na pasta. Dá para trazer de volta em Ajustes › Jogos."}</p>
+                <div className="flex flex-wrap gap-2"><button data-foco className="botao primario" onClick={() => (confirmar === "esconder" ? aoEsconder(jogo) : aoTirar(jogo))}>Sim, {confirmar === "esconder" ? "esconder" : "tirar"}</button><button data-foco className="botao" onClick={() => setConfirmar(null)}>Cancelar</button></div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <button data-foco className="chip" onClick={() => setConfirmar("esconder")}>🙈 Esconder</button>
+                <button data-foco className="chip" onClick={() => setConfirmar("fora")}>🗑 Tirar da biblioteca</button>
+              </div>
+            )}
           </div>
           <div className="pt-4">
             <p className="text-sm text-slate-500">Passar o jogo</p>

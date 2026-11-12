@@ -3,6 +3,7 @@ import type { Jogo, ResumoPlataforma } from "../ponte";
 import { tempoJogado } from "../navegacao";
 import { focar } from "../foco";
 import { capaConhecida, resolverCapa } from "../capas";
+import { registrarVoltar } from "../voltar";
 import { Capa } from "./pecas";
 import { Icone, IconeConsole } from "./Icones";
 
@@ -169,6 +170,7 @@ export function Inicio({ colecoes, inicial, aoFocar, aoFocarJogo, aoLembrar, aoJ
     window.addEventListener("vortex:voltar", voltar);
     return () => window.removeEventListener("vortex:voltar", voltar);
   }, [nivel, voltar]);
+  useEffect(() => { if (nivel !== 1) return; return registrarVoltar(2, () => { voltar(); return true; }); }, [nivel, voltar]);
   // Y/F favorita o jogo selecionado
   useEffect(() => {
     if (!jogoAtual) return;

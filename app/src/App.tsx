@@ -15,7 +15,8 @@ import { Termos } from "./telas/Termos";
 import { aceitarTermos, termosAceitos } from "./termos";
 import { Detalhe } from "./telas/Detalhe";
 import { InfoConsole } from "./telas/InfoConsole";
-import { aplicarFora, guardarOcultos, lerOcultos, mudarOculto, type Ocultos } from "./ocultos";
+import { aplicarFora, guardarOcultos, lerOcultos, mudarJogo, mudarOculto, paraOInicio, type Ocultos } from "./ocultos";
+import { instalarVoltar, registrarVoltar } from "./voltar";
 import { useAtualizacao } from "./useAtualizacao";
 import { Biblioteca } from "./telas/Biblioteca";
 import { Dock } from "./telas/Dock";
@@ -52,6 +53,7 @@ export function App() {
   const [tema, setTema] = useState<Tema>(lerTema);
   const [ocultos, setOcultos] = useState<Ocultos>(lerOcultos);
   const [infoDe, setInfoDe] = useState<Colecao | null>(null);
+  const mudarJogos = useCallback((id: string, como: "esconder" | "fora" | "mostrar") => setOcultos((o) => { const n = mudarJogo(o, id, como); guardarOcultos(n); return n; }), []);
   const mudarOcultos = useCallback((id: string, como: "esconder" | "fora" | "mostrar") => setOcultos((o) => { const n = mudarOculto(o, id, como); guardarOcultos(n); return n; }), []);
   const [abertura, setAbertura] = useState(() => lerTema().abertura && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
   const [config, setConfig] = useState(configurado);
@@ -262,9 +264,17 @@ export function App() {
   }, [motor, avisar, recarregar]);
   useEffect(() => { jogarRef.current = jogar; recarregarRef.current = () => { void recarregar(); }; }, [jogar, recarregar]);
 
+  // botão voltar do aparelho: fecha a janela aberta, volta de nível ou de aba; só depois de tudo pede um segundo toque para sair
+  useEffect(() => { instalarVoltar(() => avisar("Toque em voltar de novo para sair")); }, [avisar]);
+  useEffect(() => registrarVoltar(1, () => { if (aba !== "inicio") { setAba("inicio"); return true; } return false; }), [aba]);
+  useEffect(() => {
+    if (!infoDe && !aberto && !lendoTermos) return;
+    return registrarVoltar(3, () => { if (infoDe) setInfoDe(null); else if (aberto) setAberto(null); else setLendoTermos(false); return true; });
+  }, [infoDe, aberto, lendoTermos]);
+
   const todos = useMemo(() => aplicarFora([...jogos, ...apps], ocultos), [jogos, apps, ocultos]);
   const favoritos = useMemo(() => todos.filter((j) => j.favorito), [todos]);
-  const colecoes = useMemo(() => colecoesDe(todos, plats, ocultos.esconder), [todos, plats, ocultos.esconder]);
+  const colecoes = useMemo(() => colecoesDe(paraOInicio(todos, ocultos), plats, ocultos.esconder), [todos, plats, ocultos]);
 
   const vazio = carregado && !todos.length;
   const intro = abertura ? <Abertura aoTerminar={() => setAbertura(false)} /> : null;
@@ -297,7 +307,7 @@ export function App() {
           ) : aba === "controles" && motor.controles ? (
             <Controles controles={motor.controles} avisar={avisar} />
           ) : aba === "ajustes" ? (
-            <Ajustes motor={motor} aoMudarBiblioteca={recarregar} avisar={avisar} atualizacao={atualizacao} tema={tema} aoMudarTema={setTema} jogos={jogos} plats={plats} ocultos={ocultos} aoMostrarConsole={(id) => mudarOcultos(id, "mostrar")} />
+            <Ajustes motor={motor} aoMudarBiblioteca={recarregar} avisar={avisar} atualizacao={atualizacao} tema={tema} aoMudarTema={setTema} jogos={jogos} plats={plats} ocultos={ocultos} aoMostrarConsole={(id) => mudarOcultos(id, "mostrar")} aoMostrarJogo={(id) => mudarJogos(id, "mostrar")} />
           ) : aba === "biblioteca" ? (
             <Biblioteca jogos={todos} plats={plats} aoAbrir={setAberto} vazio="Nenhum jogo encontrado." />
           ) : (
@@ -320,7 +330,7 @@ export function App() {
       {infoDe && <InfoConsole c={infoDe} aoFechar={() => setInfoDe(null)}
         aoEsconder={() => { mudarOcultos(infoDe.id, "esconder"); avisar(`${infoDe.nome} escondido do Início`); setInfoDe(null); }}
         aoTirar={() => { mudarOcultos(infoDe.id, "fora"); avisar(`${infoDe.nome} saiu da biblioteca`); setInfoDe(null); }} />}
-      {aberto && <Detalhe jogo={aberto} aoJogar={jogar} aoFavoritar={favoritar} aoFechar={() => setAberto(null)} aoAbrirUrl={(u) => { motor.abrirUrl(u).catch(() => avisar("Não consegui abrir o navegador.")); }} />}
+      {aberto && <Detalhe jogo={aberto} aoJogar={jogar} aoFavoritar={favoritar} aoFechar={() => setAberto(null)} aoEsconder={(j) => { mudarJogos(j.id, "esconder"); avisar(`${j.titulo} escondido do Início`); setAberto(null); }} aoTirar={(j) => { mudarJogos(j.id, "fora"); avisar(`${j.titulo} saiu da biblioteca`); setAberto(null); }} aoAbrirUrl={(u) => { motor.abrirUrl(u).catch(() => avisar("Não consegui abrir o navegador.")); }} />}
       {lendoTermos && <Termos aoFechar={() => setLendoTermos(false)} />}
       {!config && !abertura && <Configuracao motor={motor} tema={tema} aoMudarTema={setTema} avisar={avisar} aoMudarBiblioteca={recarregar} aoTerminar={() => { marcarConfigurado(); setConfig(true); recarregar(); }} />}
       {lancando && (

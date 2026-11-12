@@ -138,7 +138,7 @@ export function TelaEmuladores({ motor }: { motor: Motor }) {
   );
 }
 
-export function TelaJogos({ motor, avisar, aoMudarBiblioteca, plats = [], ocultos = { esconder: [], fora: [] }, aoMostrarConsole }: { motor: Motor; avisar: Avisar; aoMudarBiblioteca: () => void; plats?: ResumoPlataforma[]; ocultos?: Ocultos; aoMostrarConsole?: (id: string) => void }) {
+export function TelaJogos({ motor, avisar, aoMudarBiblioteca, plats = [], ocultos = { esconder: [], fora: [], jogosEsconder: [], jogosFora: [] }, aoMostrarConsole, jogos = [], aoMostrarJogo }: { motor: Motor; avisar: Avisar; aoMudarBiblioteca: () => void; plats?: ResumoPlataforma[]; ocultos?: Ocultos; aoMostrarConsole?: (id: string) => void; jogos?: Jogo[]; aoMostrarJogo?: (id: string) => void }) {
   const [pastas, setPastas] = useState<string[]>([]);
   const [ocupado, setOcupado] = useState(false);
   const [auto, setAuto] = useState(organizarAutomatico);
@@ -226,13 +226,18 @@ export function TelaJogos({ motor, avisar, aoMudarBiblioteca, plats = [], oculto
           </div>
         )}
       </section>
-      {(ocultos.esconder.length > 0 || ocultos.fora.length > 0) && (
+      {(ocultos.esconder.length > 0 || ocultos.fora.length > 0 || ocultos.jogosEsconder.length > 0 || ocultos.jogosFora.length > 0) && (
         <section className="grid gap-3">
           <h3 className="text-lg font-bold text-cyan-100/90">Consoles escondidos</h3>
           <p className="text-sm text-slate-400">Escondidos somem do Início; os tirados da biblioteca somem de tudo. Seus arquivos continuam nas pastas.</p>
           {[...ocultos.esconder.map((id) => [id, "escondido do Início"] as const), ...ocultos.fora.map((id) => [id, "fora da biblioteca"] as const)].map(([id, estado]) => (
             <button key={id} data-foco className="linha" onClick={() => aoMostrarConsole?.(id)}>
               <span className="truncate">{plats.find((p) => p.id === id)?.nome.replace(/\s*\(.*\)\s*$/, "") ?? id.toUpperCase()} · <span className="text-slate-400">{estado}</span></span><span className="text-sm text-cyan-200">Mostrar de novo</span>
+            </button>
+          ))}
+          {[...ocultos.jogosEsconder.map((id) => [id, "escondido do Início"] as const), ...ocultos.jogosFora.map((id) => [id, "fora da biblioteca"] as const)].map(([id, estado]) => (
+            <button key={id} data-foco className="linha" onClick={() => aoMostrarJogo?.(id)}>
+              <span className="truncate">{jogos.find((j) => j.id === id)?.titulo ?? "Jogo que não está mais na pasta"} · <span className="text-slate-400">{estado}</span></span><span className="text-sm text-cyan-200">Mostrar de novo</span>
             </button>
           ))}
         </section>
@@ -396,7 +401,7 @@ type Tela = "conta" | "gamebar" | "jogos" | "aparencia" | "modo" | "permissoes" 
 interface Item { id: Tela; icone: string; nome: string; titulo: string; detalhe: string }
 
 /** Ajustes em seções: ícone grande + título no alto, dock para trocar de seção (o foco já troca) e o conteúdo logo abaixo. */
-export function Ajustes({ motor, aoMudarBiblioteca, avisar, atualizacao, tema, aoMudarTema, jogos, plats = [], ocultos, aoMostrarConsole }: { motor: Motor; aoMudarBiblioteca: () => void; avisar: Avisar; atualizacao: Atualizacao; tema: Tema; aoMudarTema: (t: Tema) => void; jogos: Jogo[]; plats?: ResumoPlataforma[]; ocultos?: Ocultos; aoMostrarConsole?: (id: string) => void }) {
+export function Ajustes({ motor, aoMudarBiblioteca, avisar, atualizacao, tema, aoMudarTema, jogos, plats = [], ocultos, aoMostrarConsole, aoMostrarJogo }: { motor: Motor; aoMudarBiblioteca: () => void; avisar: Avisar; atualizacao: Atualizacao; tema: Tema; aoMudarTema: (t: Tema) => void; jogos: Jogo[]; plats?: ResumoPlataforma[]; ocultos?: Ocultos; aoMostrarConsole?: (id: string) => void; aoMostrarJogo?: (id: string) => void }) {
   const itens: Item[] = [
     ...(motor.conta ? [{ id: "conta" as const, icone: "conta", nome: "Conta", titulo: "Conta e saves na nuvem", detalhe: "Vetorial ID, licença e sincronização dos saves." }] : []),
     { id: "jogos", icone: "jogos", nome: "Jogos", titulo: "Jogos e busca", detalhe: "Buscar jogos no aparelho, pastas, organização por console e faxina de repetidos." },
@@ -421,7 +426,7 @@ export function Ajustes({ motor, aoMudarBiblioteca, avisar, atualizacao, tema, a
       <Dock rotulo="Seções dos ajustes" itens={itens.map((i) => ({ id: i.id, nome: i.nome, icone: i.icone }))} ativo={atual.id} aoEscolher={(id) => setTela(id as Tela)} selecionarAoFocar />
       <div key={"c" + atual.id} className="entrar grid gap-6">
         {atual.id === "conta" && motor.conta && <ContaVetorial motor={motor} avisar={avisar} />}
-        {atual.id === "jogos" && <TelaJogos motor={motor} avisar={avisar} aoMudarBiblioteca={aoMudarBiblioteca} plats={plats} ocultos={ocultos} aoMostrarConsole={aoMostrarConsole} />}
+        {atual.id === "jogos" && <TelaJogos motor={motor} avisar={avisar} aoMudarBiblioteca={aoMudarBiblioteca} plats={plats} ocultos={ocultos} aoMostrarConsole={aoMostrarConsole} jogos={jogos} aoMostrarJogo={aoMostrarJogo} />}
         {atual.id === "aparencia" && <TelaAparencia tema={tema} aoMudar={aoMudarTema} jogos={jogos} avisar={avisar} botoesVirtuais={Boolean(motor.visualControles)} />}
         {atual.id === "permissoes" && <Permissoes motor={motor} avisar={avisar} />}
         {atual.id === "modo" && <TelaModoJogo motor={motor} avisar={avisar} />}
