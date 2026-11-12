@@ -124,6 +124,8 @@ jobs:
           sed -i 's#mavenCentral()#mavenCentral()\n        maven { url "https://jitpack.io" }#' android/build.gradle
           grep -n jitpack android/build.gradle
           sed -i "0,/dependencies {/s#dependencies {#dependencies {\n    implementation 'com.github.swordfish90:libretrodroid:0.14.0'#" android/app/build.gradle
+          sed -i "0,/dependencies {/s#dependencies {#dependencies {\n    implementation 'org.apache.commons:commons-compress:1.26.2'\n    implementation 'org.tukaani:xz:1.9'#" android/app/build.gradle
+          grep -n "commons-compress" android/app/build.gradle
           grep -n libretrodroid android/app/build.gradle
           # tela cheia e deitado, como um console
           sed -i 's#<activity#<activity android:screenOrientation="sensorLandscape"#' android/app/src/main/AndroidManifest.xml

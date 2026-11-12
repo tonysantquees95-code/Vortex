@@ -134,6 +134,45 @@ public class Organizador {
         return null;
     }
 
+    /** O console do que está dentro do .zip: pela extensão e, para .iso (GameCube/Wii), pela assinatura do disco. */
+    static Plataformas.P dentroDoZip(File zip) {
+        Plataformas.P x = dentroDoZip(nomesDoZip(zip));
+        if (x != null) return x;
+        try (ZipFile zf = new ZipFile(zip)) {
+            java.util.Enumeration<? extends ZipEntry> en = zf.entries();
+            while (en.hasMoreElements()) {
+                ZipEntry e = en.nextElement();
+                if (e.isDirectory() || !e.getName().toLowerCase(Locale.ROOT).endsWith(".iso")) continue;
+                try (InputStream in = zf.getInputStream(e)) {
+                    byte[] b = new byte[64];
+                    int n = 0, r;
+                    while (n < b.length && (r = in.read(b, n, b.length - n)) > 0) n += r;
+                    Plataformas.P h = Motor.plataformaDoCabecalho(b, n);
+                    if (h != null) return h;
+                }
+            }
+        } catch (Exception ignora) { }
+        return null;
+    }
+
+    // .7z: a biblioteca Apache Commons Compress só existe no app (no teste do computador esta parte fica de fora)
+    private static Object chamar7z(String metodo, Class<?>[] tipos, Object... args) throws Exception {
+        try {
+            return Class.forName("tech.vetorial.vortex.Arquivo7z").getMethod(metodo, tipos).invoke(null, args);
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            Throwable c = e.getCause() == null ? e : e.getCause();
+            throw new Exception(c instanceof OutOfMemoryError ? "Sem memória para abrir este .7z (use .zip ou um 7z com dicionário menor)." : String.valueOf(c.getMessage()));
+        }
+    }
+
+    static Plataformas.P identificarEm7z(File arquivo) {
+        try { return (Plataformas.P) chamar7z("identificar", new Class<?>[]{File.class}, arquivo); } catch (Throwable e) { return null; }
+    }
+
+    static File extrairDe7z(File arquivo, File pasta, Plataformas.P plat) throws Exception {
+        return (File) chamar7z("extrair", new Class<?>[]{File.class, File.class, Plataformas.P.class}, arquivo, pasta, plat);
+    }
+
     static File extrair(File zip, File pasta, Plataformas.P plat) throws Exception {
         try (ZipFile zf = new ZipFile(zip)) {
             int arquivos = 0;
@@ -189,9 +228,13 @@ public class Organizador {
                 String e = ext(arq);
                 Plataformas.P plat;
                 boolean doZip = false;
+                boolean sete = e.equals("7z");
                 if (e.equals("zip")) {
                     Plataformas.P pasta = Motor.plataformaDaPasta(arq, raiz);
-                    if (pasta != null && pasta.id.equals("arcade")) plat = pasta; else { plat = dentroDoZip(nomesDoZip(arq)); doZip = true; }
+                    if (pasta != null && pasta.id.equals("arcade")) plat = pasta; else { plat = dentroDoZip(arq); doZip = true; }
+                } else if (sete) {
+                    Plataformas.P pasta = Motor.plataformaDaPasta(arq, raiz);
+                    if (pasta != null && pasta.id.equals("arcade")) plat = pasta; else { plat = identificarEm7z(arq); doZip = true; }
                 } else plat = Motor.identificar(arq, raiz);
                 if (plat == null) continue;
                 File pasta = new File(vortex, nomeDePasta(plat));
@@ -199,7 +242,7 @@ public class Organizador {
                 try {
                     if (doZip) {
                         if (simulacao) { r.organizados.add(new Item(arq, pasta, plat.id, true)); continue; }
-                        File dest = extrair(arq, pasta, plat);
+                        File dest = sete ? extrairDe7z(arq, pasta, plat) : extrair(arq, pasta, plat);
                         arq.delete();
                         Item it = new Item(arq, dest, plat.id, true);
                         r.registro.add(it); r.organizados.add(it);

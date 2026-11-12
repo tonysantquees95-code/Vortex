@@ -26,8 +26,8 @@ public final class Plataformas {
         TODAS.add(p("gba", "Game Boy Advance", "portatil", new String[]{"gba", "agb"}, new String[]{"gba", "gameboyadvance"}, new String[]{"mgba_libretro", "vbanext_libretro"}, false));
         TODAS.add(p("nds", "Nintendo DS", "portatil", new String[]{"nds", "dsi"}, new String[]{"nds", "ds", "nintendods"}, new String[]{"melonds_libretro", "desmume_libretro"}, false));
         TODAS.add(p("3ds", "Nintendo 3DS", "portatil", new String[]{"3ds", "cia", "cxi", "cci"}, new String[]{"3ds", "nintendo3ds"}, new String[]{"citra_libretro"}, false));
-        TODAS.add(p("gamecube", "Nintendo GameCube", "console", new String[]{"gcm", "gcz", "rvz", "ciso"}, new String[]{"gc", "gamecube", "ngc"}, new String[]{"dolphin_libretro"}, false));
-        TODAS.add(p("wii", "Nintendo Wii", "console", new String[]{"wbfs", "wad", "rvz", "wia"}, new String[]{"wii"}, new String[]{"dolphin_libretro"}, false));
+        TODAS.add(p("gamecube", "Nintendo GameCube", "console", new String[]{"gcm", "gcz", "rvz", "ciso", "iso"}, new String[]{"gc", "gamecube", "ngc"}, new String[]{"dolphin_libretro"}, false));
+        TODAS.add(p("wii", "Nintendo Wii", "console", new String[]{"wbfs", "wad", "rvz", "wia", "iso"}, new String[]{"wii"}, new String[]{"dolphin_libretro"}, false));
         TODAS.add(p("switch", "Nintendo Switch", "console", new String[]{"nsp", "xci", "nca"}, new String[]{"switch", "nsw"}, new String[]{}, false));
         TODAS.add(p("virtualboy", "Virtual Boy", "portatil", new String[]{"vb", "vboy"}, new String[]{"virtualboy", "vb"}, new String[]{"mednafen_vb_libretro"}, false));
         TODAS.add(p("pokemini", "Pokémon Mini", "portatil", new String[]{"min"}, new String[]{"pokemini"}, new String[]{"pokemini_libretro"}, false));

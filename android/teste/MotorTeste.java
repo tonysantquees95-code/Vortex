@@ -15,6 +15,11 @@ public class MotorTeste {
     }
 
     public static void main(String[] a) throws Exception {
+        byte[] gc = new byte[64]; gc[0x1C] = (byte) 0xC2; gc[0x1D] = 0x33; gc[0x1E] = (byte) 0x9F; gc[0x1F] = 0x3D;
+        byte[] wii = new byte[64]; wii[0x18] = 0x5D; wii[0x19] = 0x1C; wii[0x1A] = (byte) 0x9E; wii[0x1B] = (byte) 0xA3;
+        confere(Motor.plataformaDoCabecalho(gc, 64) != null && Motor.plataformaDoCabecalho(gc, 64).id.equals("gamecube"), "disco com assinatura do GameCube é GameCube");
+        confere(Motor.plataformaDoCabecalho(wii, 64) != null && Motor.plataformaDoCabecalho(wii, 64).id.equals("wii"), "disco com assinatura do Wii é Wii");
+        confere(Motor.plataformaDoCabecalho(new byte[64], 64) == null, "disco sem assinatura continua ambíguo");
         File t = Files.createTempDirectory("vortex").toFile();
         new File(t, "roms/snes").mkdirs();
         new File(t, "roms/psx").mkdirs();

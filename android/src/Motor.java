@@ -379,12 +379,30 @@ public class Motor {
         return null;
     }
 
+    /** GameCube e Wii (.iso) têm uma assinatura no começo do disco: é a única forma de separar de PlayStation, Saturn etc. */
+    public static Plataformas.P plataformaDoCabecalho(byte[] c, int n) {
+        if (c == null) return null;
+        if (n >= 0x20 && (c[0x1C] & 0xff) == 0xC2 && (c[0x1D] & 0xff) == 0x33 && (c[0x1E] & 0xff) == 0x9F && (c[0x1F] & 0xff) == 0x3D) return Plataformas.porId("gamecube");
+        if (n >= 0x1C && (c[0x18] & 0xff) == 0x5D && (c[0x19] & 0xff) == 0x1C && (c[0x1A] & 0xff) == 0x9E && (c[0x1B] & 0xff) == 0xA3) return Plataformas.porId("wii");
+        return null;
+    }
+
+    static Plataformas.P plataformaDoArquivo(File f) {
+        try (java.io.FileInputStream in = new java.io.FileInputStream(f)) {
+            byte[] b = new byte[64];
+            int n = 0, r;
+            while (n < b.length && (r = in.read(b, n, b.length - n)) > 0) n += r;
+            return plataformaDoCabecalho(b, n);
+        } catch (Exception e) { return null; }
+    }
+
     /** Pela pasta (mais perto do arquivo primeiro) ou, se ninguém reclama a extensão, pela extensão. */
     public static Plataformas.P identificar(File arquivo, File raiz) {
         String nome = arquivo.getName();
         int ponto = nome.lastIndexOf('.');
         if (ponto < 0) return null;
         String ext = nome.substring(ponto + 1).toLowerCase(Locale.ROOT);
+        if (ext.equals("iso") || ext.equals("gcm")) { Plataformas.P h = plataformaDoArquivo(arquivo); if (h != null) return h; }
         List<Plataformas.P> aceitam = new ArrayList<Plataformas.P>();
         for (Plataformas.P p : Plataformas.TODAS) for (String e : p.extensoes) if (e.equals(ext)) aceitam.add(p);
         if (aceitam.isEmpty()) return null;
