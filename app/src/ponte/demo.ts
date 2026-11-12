@@ -50,6 +50,8 @@ export async function motorDemo(): Promise<Motor> {
       return { pid: 0, emulador: "RetroArch (demonstração)", nucleo: null, modo_jogo: modo.ligado };
     },
     modoJogo: async (nova) => { if (nova) modo = nova; return modo; },
+    organizar: async (simulacao = false) => ({ organizados: [{ origem: "C:\\Downloads\\Contra.zip", destino: "C:\\Vortex\\Jogos\\Nintendo 8 bits\\Contra (USA).nes", plataforma: "nes", extraido: true }], falhas: [], simulacao, pasta_vortex: "C:\\Vortex\\Jogos" }),
+    desfazerOrganizacao: async () => ({ devolvidos: 0, falhas: [] }),
     recuperarModoJogo: async () => {},
   };
 }

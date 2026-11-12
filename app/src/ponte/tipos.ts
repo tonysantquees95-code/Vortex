@@ -19,6 +19,11 @@ export interface ModoJogoConfig {
 export interface EmuladoresInfo { instalados: { id: string; nome: string; plataformas: string[] }[] }
 export interface ResultadoLancamento { pid: number; emulador: string; nucleo: string | null; modo_jogo: boolean }
 
+export interface RelatorioOrganizacao {
+  organizados: { origem: string; destino: string; plataforma: string; extraido: boolean }[];
+  falhas: string[]; simulacao: boolean; pasta_vortex: string;
+}
+
 export interface Motor {
   plataforma: "windows" | "android" | "demo";
   pastas(): Promise<string[]>;
@@ -35,4 +40,7 @@ export interface Motor {
   lancar(id: string): Promise<ResultadoLancamento>;
   modoJogo(nova?: ModoJogoConfig): Promise<ModoJogoConfig>;
   recuperarModoJogo(): Promise<void>;
+  /** Procura jogos soltos no aparelho, identifica o console, descompacta e guarda na pasta do Vortex (uma pasta por console). */
+  organizar(simulacao?: boolean): Promise<RelatorioOrganizacao>;
+  desfazerOrganizacao(): Promise<{ devolvidos: number; falhas: string[] }>;
 }

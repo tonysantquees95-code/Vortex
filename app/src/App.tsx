@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMotor } from "./estado";
 import { focar, useNavegacao } from "./foco";
 import type { Estatisticas, Jogo, Ordem, ResumoPlataforma } from "./ponte";
+import { organizarAutomatico } from "./config";
 import { tempoJogado } from "./navegacao";
 import { Ajustes } from "./telas/Ajustes";
 import { Detalhe } from "./telas/Detalhe";
@@ -43,7 +44,16 @@ export function App() {
     } catch (e) { avisar(String(e)); } finally { setCarregado(true); }
   }, [motor, avisar]);
 
-  useEffect(() => { motor.recuperarModoJogo().catch(() => {}); recarregar(); }, [motor, recarregar]);
+  useEffect(() => {
+    motor.recuperarModoJogo().catch(() => {});
+    recarregar();
+    // organização automática: acha jogos soltos, guarda por console na pasta do Vortex e mostra tudo na biblioteca
+    if (organizarAutomatico()) {
+      motor.organizar().then((r) => {
+        if (r.organizados.length) { avisar(`${r.organizados.length} jogos organizados por console`); recarregar(); }
+      }).catch(() => {});
+    }
+  }, [motor, recarregar, avisar]);
   useEffect(() => { const t = window.setInterval(() => setHora(new Date()), 20000); return () => window.clearInterval(t); }, []);
   useEffect(() => {
     const c = (e: Event) => setControle(Boolean((e as CustomEvent).detail));

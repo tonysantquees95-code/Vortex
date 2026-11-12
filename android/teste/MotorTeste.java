@@ -59,6 +59,32 @@ public class MotorTeste {
         confere(Motor.titulo("Sonic_the_Hedgehog_2_(World).md").equals("Sonic the Hedgehog 2"), "título de nome com sublinhado");
         confere(Motor.caminhoDaArvore("primary:Roms/SNES").equals("/storage/emulated/0/Roms/SNES"), "pasta do armazenamento interno");
         confere(Motor.caminhoDaArvore("1A2B-3C4D:Jogos").equals("/storage/1A2B-3C4D/Jogos"), "pasta do cartão");
+        // organizador automático
+        File solto = new File(t, "Download");
+        solto.mkdirs();
+        Files.write(new File(solto, "Sonic (USA).md").toPath(), "x".getBytes());
+        try (java.util.zip.ZipOutputStream z = new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(new File(solto, "Contra.zip")))) {
+            z.putNextEntry(new java.util.zip.ZipEntry("Contra (USA).nes")); z.write("b".getBytes()); z.closeEntry();
+        }
+        try (java.util.zip.ZipOutputStream z = new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(new File(solto, "mau.zip")))) {
+            z.putNextEntry(new java.util.zip.ZipEntry("../fora.nes")); z.write("b".getBytes()); z.closeEntry();
+            z.putNextEntry(new java.util.zip.ZipEntry("ok.nes")); z.write("b".getBytes()); z.closeEntry();
+        }
+        new File(solto, "psx").mkdirs();
+        Files.write(new File(solto, "psx/Crash.cue").toPath(), "FILE \"Crash.bin\" BINARY\n".getBytes());
+        Files.write(new File(solto, "psx/Crash.bin").toPath(), "e".getBytes());
+        File vortex = new File(t, "Vortex/Jogos");
+        JSONObject sim = (JSONObject) run.apply("organizar", new JSONObject().put("origens", new JSONArray().put(solto.getPath())).put("pasta_vortex", vortex.getPath()).put("simulacao", true));
+        confere(sim.getJSONArray("organizados").length() == 4, "simulação acha 4 jogos (achou " + sim.getJSONArray("organizados").length() + ")");
+        confere(new File(solto, "Sonic (USA).md").exists(), "simulação não mexe em nada");
+        JSONObject org = (JSONObject) run.apply("organizar", new JSONObject().put("origens", new JSONArray().put(solto.getPath())).put("pasta_vortex", vortex.getPath()));
+        confere(org.getJSONArray("organizados").length() == 4 && org.getJSONArray("falhas").length() == 0, "organizou 4 sem falhas");
+        confere(!new File(solto, "Sonic (USA).md").exists() && new File(vortex, "Mega Drive / Genesis".replace("/", "-")).isDirectory(), "jogo foi para a pasta do console");
+        confere(!new File(t, "fora.nes").exists() && !new File(vortex, "fora.nes").exists(), "zip malicioso não escapa");
+        confere(new File(vortex, "Vortex").exists() == false, "sem pasta estranha");
+        confere(((JSONArray) run.apply("pastas", new JSONObject())).toString().contains(vortex.getPath()), "pasta do Vortex entrou na biblioteca");
+        JSONObject d = (JSONObject) run.apply("organizar_desfazer", new JSONObject());
+        confere(d.getInt("devolvidos") == 3 && new File(solto, "psx/Crash.bin").exists() && new File(solto, "Sonic (USA).md").exists(), "desfazer devolve os arquivos soltos (" + d.getInt("devolvidos") + ")");
         System.out.println(falhas == 0 ? "TUDO CERTO" : falhas + " FALHAS");
         System.exit(falhas == 0 ? 0 : 1);
     }

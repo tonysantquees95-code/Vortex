@@ -2,6 +2,7 @@
 //! Todo comando recebe `biblioteca` (caminho do arquivo JSON da biblioteca) e devolve JSON.
 use crate::biblioteca::{Biblioteca, Filtro, OpcoesEscaneamento};
 use crate::modo_jogo::{self, SistemaReal, Sistema};
+use crate::organizador;
 use crate::emuladores::{self, Ambiente, Configuracao, Lancamento, Preferido};
 use crate::plataformas::PLATAFORMAS;
 use serde_json::{json, Value};
@@ -209,6 +210,45 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
             // chamado quando o Vortex abre: se ele fechou no meio de um jogo, devolve o computador ao normal
             Ok(json!({ "desfeito": modo_jogo::desativar(&SistemaReal::novo(), &pasta_de_dados(&arquivo)) }))
         }
+        "organizar_candidatos" => {
+            let amb = Ambiente::atual();
+            para(organizador::candidatos(&amb.casa, amb.so == emuladores::So::Windows))
+        }
+        "organizar" => {
+            // procura jogos soltos, guarda cada um na pasta do console dentro da pasta do Vortex e põe essa pasta na biblioteca
+            let amb = Ambiente::atual();
+            let simulacao = args.get("simulacao").and_then(|x| x.as_bool()).unwrap_or(false);
+            let pasta_vortex = args.get("pasta_vortex").and_then(|x| x.as_str()).filter(|s| !s.trim().is_empty()).map(PathBuf::from).unwrap_or_else(|| amb.casa.join("Documents").join("Vortex").join("Jogos"));
+            let origens: Vec<PathBuf> = match args.get("origens").and_then(|x| x.as_array()) {
+                Some(l) => l.iter().filter_map(|x| x.as_str()).map(PathBuf::from).collect(),
+                None => organizador::candidatos(&amb.casa, amb.so == emuladores::So::Windows),
+            };
+            let (rel, reg) = organizador::organizar(&origens, &pasta_vortex, simulacao);
+            if !simulacao {
+                let arq_reg = arquivo.with_file_name("organizador.json");
+                let mut todo: organizador::Registro = std::fs::read_to_string(&arq_reg).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default();
+                todo.movimentos.extend(reg.movimentos);
+                if let Ok(t) = serde_json::to_string_pretty(&todo) {
+                    let _ = std::fs::create_dir_all(pasta_de_dados(&arquivo));
+                    let _ = std::fs::write(&arq_reg, t);
+                }
+                std::fs::create_dir_all(&pasta_vortex).map_err(|e| format!("Não consegui criar a pasta do Vortex: {e}"))?;
+                b.adicionar_pasta(&pasta_vortex)?;
+                b.limpar_sessoes_velhas(t);
+                b.escanear(t, OpcoesEscaneamento::default());
+                mudou = true;
+            }
+            Ok(json!({ "organizados": rel.organizados, "ja_no_lugar": rel.ja_no_lugar, "falhas": rel.falhas, "simulacao": rel.simulacao, "pasta_vortex": pasta_vortex, "origens": origens }))
+        }
+        "organizar_desfazer" => {
+            let arq_reg = arquivo.with_file_name("organizador.json");
+            let reg: organizador::Registro = std::fs::read_to_string(&arq_reg).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default();
+            let (n, falhas) = organizador::desfazer(&reg);
+            let _ = std::fs::remove_file(&arq_reg);
+            b.escanear(t, OpcoesEscaneamento::default());
+            mudou = true;
+            Ok(json!({ "devolvidos": n, "falhas": falhas }))
+        }
         "historico" => {
             let n = args.get("limite").and_then(|x| x.as_u64()).unwrap_or(50) as usize;
             para(b.historico.iter().rev().take(n).collect::<Vec<_>>())
@@ -293,6 +333,28 @@ mod testes {
         assert!(executar("modo_jogo_simular", &json!({ "biblioteca": bib })).unwrap()["alvos"].is_array());
         assert!(executar("modo_jogo_pendente", &json!({ "biblioteca": bib })).unwrap().is_null());
         assert_eq!(executar("modo_jogo_recuperar", &json!({ "biblioteca": bib })).unwrap()["desfeito"], false);
+    }
+
+    #[test]
+    fn organizar_pela_api_poe_a_pasta_na_biblioteca() {
+        let t = tempfile::tempdir().unwrap();
+        let solto = t.path().join("solto");
+        fs::create_dir_all(&solto).unwrap();
+        fs::write(solto.join("Sonic (USA).md"), "x").unwrap();
+        fs::write(solto.join("Zelda (USA).sfc"), "y").unwrap();
+        let bib = t.path().join("dados/biblioteca.json").to_string_lossy().to_string();
+        let vortex = t.path().join("Vortex/Jogos");
+        let a = |sim: bool| json!({ "biblioteca": bib, "agora": 5, "origens": [solto], "pasta_vortex": vortex, "simulacao": sim });
+        let sim = executar("organizar", &a(true)).unwrap();
+        assert_eq!(sim["organizados"].as_array().unwrap().len(), 2);
+        assert!(solto.join("Sonic (USA).md").exists() && executar("pastas", &a(true)).unwrap().as_array().unwrap().is_empty());
+        executar("organizar", &a(false)).unwrap();
+        assert!(!solto.join("Sonic (USA).md").exists());
+        assert_eq!(executar("pastas", &a(false)).unwrap().as_array().unwrap().len(), 1, "pasta do Vortex entra sozinha");
+        assert_eq!(executar("listar", &a(false)).unwrap().as_array().unwrap().len(), 2, "jogos já aparecem na biblioteca");
+        let d = executar("organizar_desfazer", &a(false)).unwrap();
+        assert_eq!(d["devolvidos"], 2);
+        assert!(solto.join("Zelda (USA).sfc").exists());
     }
 
     #[cfg(unix)]

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { EmuladoresInfo, ModoJogoConfig, Motor } from "../ponte";
+import { definirOrganizarAutomatico, organizarAutomatico } from "../config";
 import { Interruptor } from "./pecas";
 
 const OPCOES: [keyof ModoJogoConfig, string, string][] = [
@@ -19,6 +20,7 @@ export function Ajustes({ motor, aoMudarBiblioteca, avisar }: { motor: Motor; ao
   const [modo, setModo] = useState<ModoJogoConfig | null>(null);
   const [emu, setEmu] = useState<EmuladoresInfo | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  const [auto, setAuto] = useState(organizarAutomatico);
 
   useEffect(() => {
     motor.pastas().then(setPastas).catch(() => {});
@@ -42,6 +44,24 @@ export function Ajustes({ motor, aoMudarBiblioteca, avisar }: { motor: Motor; ao
   const remover = async (p: string) => {
     try { await motor.removerPasta(p); setPastas(await motor.pastas()); aoMudarBiblioteca(); } catch (e) { avisar(String(e)); }
   };
+  const organizarAgora = async () => {
+    setOcupado(true);
+    try {
+      const r = await motor.organizar();
+      avisar(r.organizados.length ? `${r.organizados.length} jogos organizados em ${r.pasta_vortex}` : "Nenhum jogo solto encontrado.");
+      if (r.falhas.length) avisar(`${r.organizados.length} organizados · ${r.falhas.length} com problema`);
+      setPastas(await motor.pastas());
+      aoMudarBiblioteca();
+    } catch (e) { avisar(String(e)); } finally { setOcupado(false); }
+  };
+  const desfazer = async () => {
+    setOcupado(true);
+    try {
+      const r = await motor.desfazerOrganizacao();
+      avisar(`${r.devolvidos} arquivos devolvidos ao lugar de origem`);
+      aoMudarBiblioteca();
+    } catch (e) { avisar(String(e)); } finally { setOcupado(false); }
+  };
   const mudar = async (campo: keyof ModoJogoConfig, v: boolean) => {
     if (!modo) return;
     try { setModo(await motor.modoJogo({ ...modo, [campo]: v })); } catch (e) { avisar(String(e)); }
@@ -49,6 +69,16 @@ export function Ajustes({ motor, aoMudarBiblioteca, avisar }: { motor: Motor; ao
 
   return (
     <div className="entrar mx-auto grid max-w-4xl gap-8 px-10 pb-16">
+      <section>
+        <h3 className="mb-3 text-lg font-bold text-cyan-100/90">Organização automática</h3>
+        <div className="grid gap-3">
+          <Interruptor ligado={auto} rotulo="Achar e organizar jogos sozinho" detalhe="Ao abrir, o Vortex procura jogos retrô soltos (Downloads, Documentos, pastas de ROMs), descompacta e guarda cada um na pasta do console." aoMudar={(v) => { setAuto(v); definirOrganizarAutomatico(v); }} />
+          <div className="flex flex-wrap gap-3">
+            <button data-foco className="botao primario" disabled={ocupado} onClick={organizarAgora}>⚡ Organizar agora</button>
+            <button data-foco className="botao" disabled={ocupado} onClick={desfazer}>↶ Desfazer a organização</button>
+          </div>
+        </div>
+      </section>
       <section>
         <h3 className="mb-3 text-lg font-bold text-cyan-100/90">Pastas de jogos</h3>
         <div className="grid gap-3">

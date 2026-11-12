@@ -1,5 +1,5 @@
 import { registerPlugin } from "@capacitor/core";
-import type { EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento } from "./tipos";
+import type { EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao } from "./tipos";
 
 /** Mesmo contrato do Rust, implementado em Java (plugin "Vortex"). */
 interface PluginVortex {
@@ -25,6 +25,8 @@ export function motorAndroid(): Motor {
     emuladores: () => c<EmuladoresInfo>("emuladores"),
     lancar: (id) => c<ResultadoLancamento>("lancar", { id }),
     modoJogo: (nova) => c<ModoJogoConfig>("modo_jogo_config", nova ? { configuracao: nova } : {}),
+    organizar: (simulacao = false) => c<RelatorioOrganizacao>("organizar", { simulacao }),
+    desfazerOrganizacao: () => c<{ devolvidos: number; falhas: string[] }>("organizar_desfazer"),
     recuperarModoJogo: async () => {},
   };
 }

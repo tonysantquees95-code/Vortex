@@ -130,9 +130,58 @@ public class Motor {
                 }
                 return c;
             }
+            case "organizar_candidatos": {
+                JSONArray r = new JSONArray();
+                for (File f : Organizador.candidatos(raizesDoArmazenamento(args))) r.put(f.getPath());
+                return r;
+            }
+            case "organizar": {
+                boolean sim = args.optBoolean("simulacao", false);
+                File vortex = new File(args.optString("pasta_vortex", "/storage/emulated/0/Vortex/Jogos"));
+                List<File> origens = new ArrayList<File>();
+                if (args.has("origens")) { JSONArray o = args.getJSONArray("origens"); for (int i = 0; i < o.length(); i++) origens.add(new File(o.getString(i))); }
+                else origens = Organizador.candidatos(raizesDoArmazenamento(args));
+                Organizador.Resultado res = Organizador.organizar(origens, vortex, sim);
+                JSONArray org = new JSONArray();
+                for (Organizador.Item it : res.organizados) org.put(it.json());
+                if (!sim) {
+                    File reg = new File(arquivo.getParentFile(), "organizador.json");
+                    JSONArray todos = reg.exists() ? new JSONObject(new String(Files.readAllBytes(reg.toPath()), StandardCharsets.UTF_8)).optJSONArray("movimentos") : null;
+                    if (todos == null) todos = new JSONArray();
+                    for (Organizador.Item it : res.registro) todos.put(it.json());
+                    gravar(reg, new JSONObject().put("movimentos", todos).toString());
+                    vortex.mkdirs();
+                    if (!contem(bib.getJSONArray("pastas"), vortex.getPath())) bib.getJSONArray("pastas").put(vortex.getPath());
+                    escanear(bib, t);
+                    salvar(arquivo, bib);
+                }
+                return new JSONObject().put("organizados", org).put("ja_no_lugar", 0).put("falhas", new JSONArray(res.falhas)).put("simulacao", sim).put("pasta_vortex", vortex.getPath()).put("origens", new JSONArray(pathsDe(origens)));
+            }
+            case "organizar_desfazer": {
+                File reg = new File(arquivo.getParentFile(), "organizador.json");
+                JSONArray mov = reg.exists() ? new JSONObject(new String(Files.readAllBytes(reg.toPath()), StandardCharsets.UTF_8)).optJSONArray("movimentos") : new JSONArray();
+                JSONObject r = Organizador.desfazer(mov == null ? new JSONArray() : mov);
+                reg.delete();
+                escanear(bib, t);
+                salvar(arquivo, bib);
+                return r;
+            }
             case "modo_jogo_recuperar": return new JSONObject().put("desfeito", false);
             default: throw new Exception("Comando desconhecido: " + comando);
         }
+    }
+
+    private static List<String> pathsDe(List<File> l) { List<String> r = new ArrayList<String>(); for (File f : l) r.add(f.getPath()); return r; }
+
+    /** Raízes onde procurar: o armazenamento interno e os cartões (/storage/XXXX-XXXX). Nos testes, `raizes` vem nos argumentos. */
+    private static List<String> raizesDoArmazenamento(JSONObject args) {
+        List<String> r = new ArrayList<String>();
+        JSONArray dados = args.optJSONArray("raizes");
+        if (dados != null) { for (int i = 0; i < dados.length(); i++) r.add(dados.optString(i)); return r; }
+        r.add("/storage/emulated/0");
+        File[] vs = new File("/storage").listFiles();
+        if (vs != null) for (File v : vs) if (v.isDirectory() && !v.getName().equals("emulated") && !v.getName().equals("self")) r.add(v.getPath());
+        return r;
     }
 
     static JSONObject padraoModoJogo() throws JSONException {
@@ -209,8 +258,28 @@ public class Motor {
         return n.replaceAll("[^a-z0-9]", "");
     }
 
+    public static Plataformas.P unicaPelaExtensao(String ext) {
+        if (ext.equals("zip") || ext.equals("7z")) return null;
+        Plataformas.P achada = null;
+        int n = 0;
+        for (Plataformas.P p : Plataformas.TODAS) for (String e : p.extensoes) if (e.equals(ext)) { achada = p; n++; }
+        return n == 1 && !achada.exigePasta ? achada : null;
+    }
+
+    public static Plataformas.P plataformaDaPasta(File arquivo, File raiz) {
+        File pasta = arquivo.getParentFile();
+        String base = raiz.getAbsolutePath();
+        while (pasta != null && pasta.getAbsolutePath().startsWith(base)) {
+            String n = normalizar(pasta.getName());
+            for (Plataformas.P p : Plataformas.TODAS) { if (p.id.equals(n)) return p; for (String f : p.pastas) if (f.equals(n)) return p; }
+            if (pasta.getAbsolutePath().equals(base)) break;
+            pasta = pasta.getParentFile();
+        }
+        return null;
+    }
+
     /** Pela pasta (mais perto do arquivo primeiro) ou, se ninguém reclama a extensão, pela extensão. */
-    static Plataformas.P identificar(File arquivo, File raiz) {
+    public static Plataformas.P identificar(File arquivo, File raiz) {
         String nome = arquivo.getName();
         int ponto = nome.lastIndexOf('.');
         if (ponto < 0) return null;

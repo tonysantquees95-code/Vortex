@@ -8,3 +8,4 @@ pub mod biblioteca;
 pub mod api;
 pub mod emuladores;
 pub mod modo_jogo;
+pub mod organizador;

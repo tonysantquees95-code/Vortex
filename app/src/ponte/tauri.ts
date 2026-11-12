@@ -1,4 +1,4 @@
-import type { EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento } from "./tipos";
+import type { EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao } from "./tipos";
 
 /** Windows: fala com o motor em Rust pelo comando "motor" do Tauri (o Rust acrescenta o caminho da biblioteca). */
 export async function motorTauri(): Promise<Motor> {
@@ -23,6 +23,8 @@ export async function motorTauri(): Promise<Motor> {
     emuladores: () => c<EmuladoresInfo>("emuladores"),
     lancar: (id) => c<ResultadoLancamento>("lancar", { id }),
     modoJogo: (nova) => c<ModoJogoConfig>("modo_jogo_config", nova ? { configuracao: nova } : {}),
+    organizar: (simulacao = false) => c<RelatorioOrganizacao>("organizar", { simulacao }),
+    desfazerOrganizacao: () => c<{ devolvidos: number; falhas: string[] }>("organizar_desfazer"),
     recuperarModoJogo: async () => { await c("modo_jogo_recuperar"); },
   };
 }
