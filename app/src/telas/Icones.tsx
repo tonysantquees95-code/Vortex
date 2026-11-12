@@ -19,11 +19,15 @@ const DESENHOS: Record<string, ReactNode> = {
   emuladores: <><rect x="6.5" y="6.5" width="11" height="11" rx="2" /><rect x="9.5" y="9.5" width="5" height="5" rx=".8" /><path d="M9 3v3.5M15 3v3.5M9 17.5V21M15 17.5V21M3 9h3.5M3 15h3.5M17.5 9H21M17.5 15H21" /></>,
   atualizacoes: <><path d="M12 19V6" /><path d="m6.5 11.5 5.5-5.5 5.5 5.5" /><path d="M5 20h14" /></>,
   sobre: <><circle cx="12" cy="12" r="8.5" /><path d="M12 11v5.5" /><circle cx="12" cy="7.8" r=".5" /></>,
+  arquivos: <><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2V17.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z" /></>,
+  atualizar: <><path d="M20 12a8 8 0 1 1-2.6-5.9" /><path d="M20 4v4.6h-4.6" /></>,
+  wifi: <><path d="M3.5 9.5a12 12 0 0 1 17 0M6.5 12.8a8 8 0 0 1 11 0M9.4 16a4 4 0 0 1 5.2 0" /><circle cx="12" cy="19" r=".6" /></>,
+  semrede: <><path d="M3.5 9.5a12 12 0 0 1 17 0M6.5 12.8a8 8 0 0 1 11 0" opacity=".45" /><path d="m5 5 14 14" /></>,
   nuvem: <path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 9.5a4 4 0 0 1-.5 8.5H7Z" />,
 };
 
 export function Icone({ nome, className = "size-6" }: { nome: string; className?: string }) {
-  return <svg viewBox="0 0 24 24" className={className} aria-hidden {...tracos}>{DESENHOS[nome] ?? DESENHOS.sobre}</svg>;
+  return <svg viewBox="0 0 24 24" className={`ico ${className}`} aria-hidden {...tracos}>{DESENHOS[nome] ?? DESENHOS.sobre}</svg>;
 }
 
 /** Ícone grande com cara de objeto 3D: placa de vidro inclinada, camadas de sombra e brilho na cor do tema. */
@@ -49,7 +53,7 @@ export function IconeConsole({ id, tamanho = 96, sigla = true }: { id: string; t
   const m = matizDoTexto(id);
   return (
     <div className="selo" style={{ width: tamanho, height: tamanho, ["--m" as string]: String(m), ["--t" as string]: `${tamanho}px` }} aria-hidden>
-      <svg viewBox="0 0 24 24" className="size-[52%]" {...tracos}>{SILHUETAS[info.tipo]}</svg>
+      <svg viewBox="0 0 24 24" className="ico size-[52%]" {...tracos}>{SILHUETAS[info.tipo]}</svg>
       {sigla && <span className="sigla">{info.curto}</span>}
     </div>
   );

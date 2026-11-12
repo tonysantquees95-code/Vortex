@@ -275,14 +275,10 @@ export function App() {
       <FundoDaTela tema={abertura ? { ...tema, fundo: "liso" } : tema} imagem={fundoImg} />
       <div className="relative flex h-full flex-col">
         <header className="cabeca grid gap-2 pb-1">
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 max-sm:grid-cols-1 max-sm:justify-items-center">
-            <BarraStatus hora={hora} controle={controle} demo={motor.plataforma === "demo"} />
-            <div className="text-center max-sm:order-first"><span className="marca"><span className="nome text-2xl sm:text-4xl">VORTEX</span></span></div>
-            <div className="flex items-center justify-end gap-2 text-sm text-slate-300">
-              {stats && <span className="max-lg:hidden">{todos.length} jogos · {tempoJogado(stats.tempo_total_s)}</span>}
-              {motor.abrirNoVindex && <button data-foco className="botao botao-topo" onClick={() => void abrirArquivos()} title="Abrir a pasta dos jogos no Vindex" aria-label="Arquivos">📁<span className="max-md:hidden">Arquivos</span></button>}
-              <button data-foco className="botao botao-topo" disabled={atualizandoBib} onClick={() => void atualizarBiblioteca(true)} title="Procurar os jogos de novo e tirar os que foram apagados" aria-label="Atualizar biblioteca"><span className={atualizandoBib ? "orbita inline-block" : "inline-block"}>↻</span><span className="max-md:hidden">{atualizandoBib ? "Atualizando…" : "Atualizar"}</span></button>
-            </div>
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+            <BarraStatus lado="esquerda" hora={hora} controle={controle} demo={motor.plataforma === "demo"} />
+            <div className="text-center"><span className="marca"><span className="nome text-2xl sm:text-4xl">VORTEX</span></span></div>
+            <BarraStatus lado="direita" hora={hora} controle={controle} demo={motor.plataforma === "demo"} />
           </div>
         </header>
 
@@ -310,7 +306,13 @@ export function App() {
         </main>
 
         <footer className="rodape-dock">
-          <Dock rotulo="Seções" itens={ABAS.filter(([id]) => id !== "controles" || motor.controles).map(([id, nome, icone]) => ({ id, nome, icone }))} ativo={aba} aoEscolher={(id) => setAba(id as Aba)} />
+          <Dock rotulo="Seções" ativo={aba}
+            itens={[
+              ...ABAS.filter(([id]) => id !== "controles" || motor.controles).map(([id, nome, icone]) => ({ id, nome, icone })),
+              ...(motor.abrirNoVindex ? [{ id: "arquivos", nome: "Arquivos", icone: "arquivos", acao: true }] : []),
+              ...(aba === "inicio" || aba === "biblioteca" || aba === "loja" ? [{ id: "atualizar", nome: atualizandoBib ? "Atualizando…" : "Atualizar biblioteca", icone: "atualizar", acao: true, girando: atualizandoBib, desligado: atualizandoBib }] : []),
+            ]}
+            aoEscolher={(id) => { if (id === "arquivos") void abrirArquivos(); else if (id === "atualizar") void atualizarBiblioteca(true); else setAba(id as Aba); }} />
           <div className="dicas max-md:hidden" aria-hidden><span><b>A</b> Abrir</span><span><b>B</b> Voltar</span><span><b>LB</b>/<b>RB</b> Abas</span></div>
         </footer>
       </div>

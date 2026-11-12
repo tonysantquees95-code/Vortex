@@ -17,6 +17,9 @@ export type Fundo = "console" | "aurora" | "grade" | "circuito" | "pontos" | "li
 export const FUNDOS_VALIDOS: Fundo[] = ["console", "aurora", "grade", "circuito", "pontos", "liso", "foto", "capa"];
 export type Formato = "futurista" | "redondo";
 export type TamanhoCartas = "pequeno" | "medio" | "grande";
+/** Espessura do traço de todos os ícones do Vortex. */
+export type Traco = "fino" | "medio" | "grosso";
+export const TRACOS: Record<Traco, number> = { fino: 1.3, medio: 1.8, grosso: 2.5 };
 /** Modelo dos botões virtuais na tela do jogo (Android). */
 export type ModeloBotoes = "circulo" | "quadrado" | "neon" | "vidro";
 export const MODELOS_BOTOES: ModeloBotoes[] = ["circulo", "quadrado", "neon", "vidro"];
@@ -27,6 +30,7 @@ export interface Tema {
   fundo: Fundo;
   formato: Formato;
   cartas: TamanhoCartas;
+  icones: Traco;          // espessura dos ícones
   botoes: ModeloBotoes;   // formato dos botões virtuais
   tamanhoBotoes: TamanhoCartas; // tamanho dos botões virtuais
   opacidadeBotoes: number; // 30 a 100
@@ -36,7 +40,7 @@ export interface Tema {
   capaFundo: string | null; // fundo "capa": endereço da capa escolhida
 }
 
-export const TEMA_PADRAO: Tema = { cor: "vermelho", brilho: 70, fundo: "console", formato: "futurista", cartas: "medio", botoes: "circulo", tamanhoBotoes: "medio", opacidadeBotoes: 85, animacoes: true, abertura: true, foto: null, capaFundo: null };
+export const TEMA_PADRAO: Tema = { cor: "vermelho", brilho: 70, fundo: "console", formato: "futurista", cartas: "medio", icones: "medio", botoes: "circulo", tamanhoBotoes: "medio", opacidadeBotoes: 85, animacoes: true, abertura: true, foto: null, capaFundo: null };
 
 const CHAVE = "vortex:tema";
 
@@ -53,6 +57,7 @@ export function limparTema(bruto: unknown): Tema {
     fundo: FUNDOS_VALIDOS.includes(o.fundo as Fundo) ? (o.fundo as Fundo) : TEMA_PADRAO.fundo, // "vortex" (antigo) cai no padrão
     formato: o.formato === "redondo" || o.formato === "futurista" ? o.formato : TEMA_PADRAO.formato,
     cartas: o.cartas === "pequeno" || o.cartas === "grande" || o.cartas === "medio" ? o.cartas : TEMA_PADRAO.cartas,
+    icones: o.icones === "fino" || o.icones === "grosso" || o.icones === "medio" ? o.icones : TEMA_PADRAO.icones,
     botoes: MODELOS_BOTOES.includes(o.botoes as ModeloBotoes) ? (o.botoes as ModeloBotoes) : TEMA_PADRAO.botoes,
     tamanhoBotoes: o.tamanhoBotoes === "pequeno" || o.tamanhoBotoes === "grande" || o.tamanhoBotoes === "medio" ? o.tamanhoBotoes : TEMA_PADRAO.tamanhoBotoes,
     opacidadeBotoes: Number.isFinite(Number(o.opacidadeBotoes)) && o.opacidadeBotoes !== null ? Math.max(30, Math.min(100, Math.round(Number(o.opacidadeBotoes)))) : TEMA_PADRAO.opacidadeBotoes,
@@ -107,6 +112,7 @@ export function aplicarTema(t: Tema, raiz: HTMLElement = document.documentElemen
   s.setProperty("--sobre-neon", textoSobre(principal));
   s.setProperty("--brilho", String(t.brilho / 100));
   s.setProperty("--carta-min", t.cartas === "pequeno" ? "130px" : t.cartas === "grande" ? "200px" : "160px");
+  s.setProperty("--traco", String(TRACOS[t.icones]));
   raiz.dataset.fundo = t.fundo;
   raiz.dataset.formato = t.formato;
   raiz.dataset.animacoes = t.animacoes ? "1" : "0";

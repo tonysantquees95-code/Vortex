@@ -371,6 +371,11 @@ export function TelaAparencia({ tema, aoMudar, jogos = [], avisar, botoesVirtuai
         <div className="flex flex-wrap gap-2">{FORMATOS.map(([id, nome]) => <button key={id} data-foco className="chip" data-ativa={tema.formato === id} onClick={() => m({ formato: id })}>{nome}</button>)}</div>
       </section>
       <section className="grid gap-2">
+        <h3 className="text-lg font-bold text-cyan-100/90">Ícones</h3>
+        <div className="flex flex-wrap gap-2">{([["fino", "Finos"], ["medio", "Médios"], ["grosso", "Grossos"]] as const).map(([id, nome]) => <button key={id} data-foco className="chip" data-ativa={tema.icones === id} onClick={() => m({ icones: id })}>{nome}</button>)}</div>
+        <p className="text-sm text-slate-400">Vale para todos os ícones, inclusive hora, bateria e internet no topo.</p>
+      </section>
+      <section className="grid gap-2">
         <h3 className="text-lg font-bold text-cyan-100/90">Tamanho das capas</h3>
         <div className="flex flex-wrap gap-2">{CARTAS.map(([id, nome]) => <button key={id} data-foco className="chip" data-ativa={tema.cartas === id} onClick={() => m({ cartas: id })}>{nome}</button>)}</div>
       </section>

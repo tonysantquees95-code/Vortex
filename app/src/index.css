@@ -40,6 +40,7 @@ html[data-secao="aj-modo"] { --giro: 55deg; } html[data-secao="aj-emuladores"] {
 main.rolagem { padding-left: max(.5rem, env(safe-area-inset-left)); padding-right: max(.5rem, env(safe-area-inset-right)); padding-top: .5rem; }
 .cabeca { padding-top: max(.75rem, env(safe-area-inset-top)); padding-left: max(1.5rem, calc(env(safe-area-inset-left) + .75rem)); padding-right: max(1.5rem, calc(env(safe-area-inset-right) + .75rem)); }
 .rodape-dock { padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1rem, env(safe-area-inset-right)); }
+.ico { stroke-width: var(--traco, 1.8); }
 .status-topo { display: flex; align-items: center; gap: .85rem; font-size: .85rem; color: #cbd5f5; white-space: nowrap; }
 .status-topo .item { display: inline-flex; align-items: center; gap: .3rem; }
 .status-topo .apagado { color: #475069; }
