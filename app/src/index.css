@@ -191,3 +191,5 @@ html[data-formato="futurista"] .cascata-item { border-radius: 4px; }
   .ajustes-cab h2 { font-size: 1.6rem; }
   .rodape-dock { padding-top: .2rem; }
 }
+
+.botao-topo { padding: .4rem .8rem; gap: .4rem; font-size: .85rem; white-space: nowrap; }

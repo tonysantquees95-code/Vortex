@@ -80,6 +80,7 @@ public class VortexPlugin extends Plugin {
                     else if (comando.startsWith("conta_") || comando.startsWith("ponte_") || comando.equals("saves_sincronizar")) r = contaESaves(comando, a);
                     else if (comando.equals("preparar_jogo")) r = preparar(a);
                     else if (comando.equals("lancar")) r = lancar(a);
+                    else if (comando.equals("abrir_pasta")) r = abrirPasta(a);
                     else if (comando.equals("gamebar")) r = a.has("definir") ? GameBar.gravar(getContext(), a.getJSONObject("definir")) : GameBar.ler(getContext());
                     else r = motor.executar(comando, a);
                     JSObject saida = new JSObject();
@@ -114,6 +115,19 @@ public class VortexPlugin extends Plugin {
     private File arquivoPerfis() { return ControleService.arquivoDePerfis(getContext()); }
 
     private boolean servicoAtivo() { return ControleService.instancia != null; }
+
+    /** Abre o Vindex (gerenciador de arquivos da Vetorial) direto numa pasta. Sem o Vindex instalado, devolve vindex=false. */
+    private Object abrirPasta(JSONObject a) throws Exception {
+        String pasta = a.optString("pasta", "");
+        if (pasta.isEmpty()) throw new Exception("Qual pasta abrir?");
+        new File(pasta).mkdirs();
+        Intent i = getContext().getPackageManager().getLaunchIntentForPackage("tech.vetorial.vindex");
+        if (i == null) return new JSONObject().put("vindex", false);
+        i.putExtra("vindex_pasta", pasta);
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(i);
+        return new JSONObject().put("vindex", true);
+    }
 
     /** Jogos nativos de Android e perfis de controle (modelos, salvar, ativar, posicionar os botões na tela do jogo). */
     private Object controle(String comando, JSONObject a) throws Exception {

@@ -64,7 +64,7 @@ export function App() {
     try {
       const [l, c, p, s, ps] = await Promise.all([motor.listar({ ordem: "titulo" }), motor.continuar(12), motor.plataformas(), motor.estatisticas(), motor.pastas()]);
       if (motor.appsAndroid) motor.appsAndroid().then((a) => setApps(androidParaJogos(a))).catch(() => {});
-      setJogos(l); setContinuar(c); setPlats(p); setStats(s); setPasta(ps.length > 0);
+      setJogos(l.filter((j) => j.disponivel)); setContinuar(c.filter((j) => j.disponivel)); setPlats(p); setStats(s); setPasta(ps.length > 0);
     } catch (e) { avisar(String(e)); } finally { setCarregado(true); }
   }, [motor, avisar]);
 
@@ -84,6 +84,39 @@ export function App() {
       }).catch(() => {});
     }
   }, [motor, recarregar, avisar]);
+  // Atualizar a biblioteca: procura tudo de novo; o que foi apagado ou movido sai (e o console some se ficou sem jogos).
+  const atualizando = useRef(false);
+  const [atualizandoBib, setAtualizandoBib] = useState(false);
+  const atualizarBiblioteca = useCallback(async (manual: boolean) => {
+    if (atualizando.current) return;
+    atualizando.current = true; if (manual) setAtualizandoBib(true);
+    try {
+      // sem a permissão de arquivos a busca veria pastas vazias e esvaziaria a biblioteca à toa
+      if ((await motor.permissoes()).some((p) => p.id === "arquivos" && !p.concedida)) { if (manual) avisar("Libere o acesso a todos os arquivos em Ajustes › Permissões para atualizar."); return; }
+      const org = manual && organizarAutomatico() ? (await motor.organizar()).organizados.length : 0;
+      const r = await motor.escanear();
+      const f = manual ? await faxinaAutomatica(motor) : null;
+      if (manual || r.removidos || r.novos || org || f) await recarregar();
+      if (manual) avisar(`Biblioteca atualizada: ${r.encontrados} jogos${r.novos ? ` · ${r.novos} novos` : ""}${r.removidos ? ` · ${r.removidos} saíram` : ""}${org ? ` · ${org} organizados` : ""}${f ? ` · ${resumoDaFaxina(f)}` : ""}`);
+      else if (r.removidos) avisar(`${r.removidos} ${r.removidos === 1 ? "jogo saiu" : "jogos saíram"} da biblioteca (arquivo apagado ou movido)`);
+    } catch (e) { if (manual) avisar(String(e instanceof Error ? e.message : e)); }
+    finally { atualizando.current = false; setAtualizandoBib(false); }
+  }, [motor, recarregar, avisar]);
+  // sozinho: ao abrir e sempre que o Vortex volta para a frente (por exemplo, depois de apagar uma pasta no Vindex)
+  useEffect(() => {
+    let ultimo = 0;
+    const ver = () => { if (document.visibilityState === "hidden" || Date.now() - ultimo < 15_000 || lancando) return; ultimo = Date.now(); void atualizarBiblioteca(false); };
+    const t = window.setTimeout(ver, 2500);
+    document.addEventListener("visibilitychange", ver); window.addEventListener("focus", ver);
+    return () => { window.clearTimeout(t); document.removeEventListener("visibilitychange", ver); window.removeEventListener("focus", ver); };
+  }, [atualizarBiblioteca, lancando]);
+  const abrirArquivos = useCallback(async () => {
+    try {
+      const ps = await motor.pastas();
+      const pasta = ps.find((p) => /vortex/i.test(p)) ?? ps[0] ?? "/storage/emulated/0/Vortex/Jogos";
+      if (!(await motor.abrirNoVindex?.(pasta))) avisar("Para ver a pasta, instale o Vindex (gerenciador de arquivos da Vetorial).");
+    } catch (e) { avisar(String(e instanceof Error ? e.message : e)); }
+  }, [motor, avisar]);
   useEffect(() => { const t = window.setInterval(() => setHora(new Date()), 20000); return () => window.clearInterval(t); }, []);
   useEffect(() => {
     const c = (e: Event) => setControle(Boolean((e as CustomEvent).detail));
@@ -234,7 +267,11 @@ export function App() {
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 max-sm:grid-cols-1 max-sm:justify-items-center">
             <BarraStatus hora={hora} controle={controle} demo={motor.plataforma === "demo"} />
             <div className="text-center max-sm:order-first"><span className="marca"><span className="nome text-2xl sm:text-4xl">VORTEX</span></span></div>
-            <div className="flex justify-end text-sm text-slate-300">{stats && <span className="max-sm:hidden">{todos.length} jogos · {tempoJogado(stats.tempo_total_s)}</span>}</div>
+            <div className="flex items-center justify-end gap-2 text-sm text-slate-300">
+              {stats && <span className="max-lg:hidden">{todos.length} jogos · {tempoJogado(stats.tempo_total_s)}</span>}
+              {motor.abrirNoVindex && <button data-foco className="botao botao-topo" onClick={() => void abrirArquivos()} title="Abrir a pasta dos jogos no Vindex" aria-label="Arquivos">📁<span className="max-md:hidden">Arquivos</span></button>}
+              <button data-foco className="botao botao-topo" disabled={atualizandoBib} onClick={() => void atualizarBiblioteca(true)} title="Procurar os jogos de novo e tirar os que foram apagados" aria-label="Atualizar biblioteca"><span className={atualizandoBib ? "orbita inline-block" : "inline-block"}>↻</span><span className="max-md:hidden">{atualizandoBib ? "Atualizando…" : "Atualizar"}</span></button>
+            </div>
           </div>
         </header>
 

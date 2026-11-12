@@ -77,6 +77,8 @@ export interface Motor {
   appsAndroid?(): Promise<AppAndroid[]>;
   /** Só no Android: abre um app/jogo instalado. */
   abrirApp?(pacote: string): Promise<void>;
+  /** Só no Android: abre o Vindex direto numa pasta. false = o Vindex não está instalado. */
+  abrirNoVindex?(pasta: string): Promise<boolean>;
   /** Só no Android: Game Bar. */
   gameBar?(definir?: Partial<ConfigGameBar>): Promise<ConfigGameBar>;
   /** Só no Android: controle para jogos que não têm suporte. */

@@ -59,6 +59,7 @@ export function motorAndroid(): Motor {
     isolar: async (id) => { await c("isolar", { id }); },
     appsAndroid: () => c<AppAndroid[]>("apps_android"),
     abrirApp: async (pacote) => { await c("controle_jogar", { pacote }); },
+    abrirNoVindex: async (pasta) => (await c<{ vindex: boolean }>("abrir_pasta", { pasta })).vindex,
     gameBar: (definir) => c<ConfigGameBar>("gamebar", definir ? { definir } : {}),
     limpar: (simulacao = false) => c<RelatorioLimpeza>("limpar", { simulacao }),
     organizar: (simulacao = false) => c<RelatorioOrganizacao>("organizar", { simulacao }),
