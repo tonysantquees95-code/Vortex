@@ -65,6 +65,7 @@ export function Ajustes({ motor, aoMudarBiblioteca, avisar }: { motor: Motor; ao
       </section>
       <section>
         <h3 className="mb-3 text-lg font-bold text-cyan-100/90">Modo Jogo</h3>
+        {motor.plataforma === "android" && <p className="mb-3 text-sm text-slate-400">No Android o Modo Jogo ainda não mexe no aparelho; as opções ficam guardadas para quando o recurso chegar.</p>}
         <div className="grid gap-3">{modo ? OPCOES.map(([k, r, d]) => <Interruptor key={k} ligado={Boolean(modo[k])} rotulo={r} detalhe={d} aoMudar={(v) => mudar(k, v)} />) : <p className="text-slate-400">Carregando…</p>}</div>
       </section>
       <section>

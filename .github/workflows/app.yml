@@ -1,7 +1,7 @@
 name: App (interface e Windows)
 
 # Tudo roda em máquina Windows do GitHub. Verifica a interface, testa o motor e o app, gera o instalador (Tauri)
-# e publica uma release "1.N" com VortexSetup.exe. O APK do Android entra no módulo 4b.
+# e o APK do Android (Capacitor + plugin Java), e publica uma release "1.N" com VortexSetup.exe e Vortex.apk.
 on:
   push:
     branches: [main]
@@ -61,8 +61,69 @@ jobs:
           path: target/release/bundle/nsis/*.exe
           if-no-files-found: error
 
+  android:
+    needs: verificar
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm install --no-audit --no-fund
+        working-directory: app
+      - name: Testar o motor do Android (sem o Android)
+        run: |
+          curl -fsSL -o json.jar https://repo1.maven.org/maven2/org/json/json/20240303/json-20240303.jar
+          mkdir -p saida
+          javac -cp json.jar -d saida android/src/Plataformas.java android/src/Motor.java android/teste/MotorTeste.java
+          java -cp "json.jar;saida" tech.vetorial.vortex.MotorTeste
+      - name: Preparar o projeto Android
+        working-directory: app
+        run: |
+          npm run build
+          npx cap add android
+          D=android/app/src/main/java/tech/vetorial/vortex
+          mkdir -p $D
+          cp ../android/src/*.java $D/
+          # permissões: arquivos (liberada pela pessoa), apps instalados (achar emuladores) e controle
+          PERMS='<uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />\n    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />'
+          sed -i "s#<application#$PERMS\n    <application#" android/app/src/main/AndroidManifest.xml
+          grep -c "uses-permission" android/app/src/main/AndroidManifest.xml
+          # entregar a ROM ao emulador por FileProvider (o Capacitor já declara o ".fileprovider"; aqui liberamos os caminhos)
+          grep -q 'fileprovider' android/app/src/main/AndroidManifest.xml
+          mkdir -p android/app/src/main/res/xml
+          printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<paths xmlns:android="http://schemas.android.com/apk/res/android">' '    <root-path name="raiz" path="." />' '    <cache-path name="cache" path="." />' '</paths>' > android/app/src/main/res/xml/file_paths.xml
+          # tela cheia e deitado, como um console
+          sed -i 's#<activity#<activity android:screenOrientation="sensorLandscape"#' android/app/src/main/AndroidManifest.xml
+          npx capacitor-assets generate --android --iconBackgroundColor '#05060D' --iconBackgroundColorDark '#05060D' --splashBackgroundColor '#05060D' --splashBackgroundColorDark '#05060D'
+          npx cap sync android
+      - name: Compilar o APK
+        working-directory: app/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+      # A chave de assinatura fica guardada (cifrada) no servidor da Vênus: cada versão instala por cima da anterior.
+      - name: Assinar o APK
+        run: bash .github/assinar-apk.sh app/android/app/build/outputs/apk/debug/app-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vortex-android
+          path: app/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
   publicar:
-    needs: windows
+    needs: [windows, android]
     runs-on: windows-latest
     defaults:
       run:
@@ -74,9 +135,14 @@ jobs:
         with:
           name: vortex-windows
           path: pacote
+      - uses: actions/download-artifact@v4
+        with:
+          name: vortex-android
+          path: pacote
       - name: Publicar a versão
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          cp pacote/app-debug.apk pacote/Vortex.apk
           cp "$(ls pacote/*.exe | head -n 1)" pacote/VortexSetup.exe
-          gh release create "1.${{ github.run_number }}" pacote/VortexSetup.exe --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Vortex 1.${{ github.run_number }}" --notes "VortexSetup.exe (Windows)."
+          gh release create "1.${{ github.run_number }}" pacote/Vortex.apk pacote/VortexSetup.exe --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Vortex 1.${{ github.run_number }}" --notes "Vortex.apk (Android) e VortexSetup.exe (Windows)."

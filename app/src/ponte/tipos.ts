@@ -20,7 +20,7 @@ export interface EmuladoresInfo { instalados: { id: string; nome: string; plataf
 export interface ResultadoLancamento { pid: number; emulador: string; nucleo: string | null; modo_jogo: boolean }
 
 export interface Motor {
-  plataforma: "windows" | "demo";
+  plataforma: "windows" | "android" | "demo";
   pastas(): Promise<string[]>;
   escolherPasta(): Promise<string | null>;
   adicionarPasta(pasta: string): Promise<string[]>;
