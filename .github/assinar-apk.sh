@@ -6,13 +6,13 @@ set -u
 APK="$1"
 URL="https://venus-servidor.tonysantquees95.workers.dev/ci/assinatura"
 KS="assinatura.keystore"
-aviso() { echo "::warning::$1 O APK sai com a chave de teste e NÃO atualiza por cima do instalado."; exit 0; }
+aviso() { echo "::error::$1 Sem a chave permanente o APK não atualizaria por cima do instalado; compilação interrompida."; exit 1; }
 
 [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] || aviso "Faltou a permissão id-token neste trabalho."
-TK=$(curl -fsS -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=venus-assinatura" | jq -r .value) || aviso "Não consegui o token do GitHub."
+TK=$(curl -fsS --retry 5 --retry-delay 10 -m 60 -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=venus-assinatura" | jq -r .value) || aviso "Não consegui o token do GitHub."
 
 pegar() {
-  local r; r=$(curl -fsS -H "Authorization: Bearer $TK" "$URL") || return 1
+  local r; r=$(curl -fsS --retry 6 --retry-delay 15 --retry-all-errors -m 60 -H "Authorization: Bearer $TK" "$URL") || return 1
   [ "$(echo "$r" | jq -r .existe)" = "true" ] || return 2
   echo "$r" | jq -r .keystore | base64 -d > "$KS"
   SENHA=$(echo "$r" | jq -r .senha)
