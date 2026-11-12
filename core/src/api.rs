@@ -225,6 +225,10 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
     if comando == "plataformas_catalogo" {
         return para(PLATAFORMAS);
     }
+    if comando == "abrir_url" {
+        let url = texto(args, "url")?;
+        return abrir_url(&url).map(|_| json!({ "aberto": true }));
+    }
     let arquivo = arquivo_da_biblioteca(args)?;
     let _g = BLOQUEIO.lock().unwrap_or_else(|e| e.into_inner());
     let mut b = Biblioteca::carregar(&arquivo);
@@ -586,5 +590,35 @@ mod testes {
         assert!(executar("adicionar_pasta", &json!({ "biblioteca": bib, "pasta": "/nao/existe" })).is_err());
         assert!(executar("listar", &json!({ "biblioteca": bib, "filtro": { "ordem": "inventada" } })).unwrap_err().contains("Filtro"));
         assert!(!t.path().join("b.json").exists()); // erro não cria arquivo
+    }
+}
+
+
+/// Abre um endereço https no navegador do sistema (só https, sem espaços nem aspas: nada de comando disfarçado).
+pub fn url_segura(url: &str) -> bool {
+    url.starts_with("https://") && url.len() < 600 && !url.chars().any(|c| c.is_whitespace() || c.is_control() || "\"'<>^`{}|\\".contains(c))
+}
+
+fn abrir_url(url: &str) -> Result<(), String> {
+    if !url_segura(url) {
+        return Err("Endereço inválido.".into());
+    }
+    #[cfg(windows)]
+    let r = Command::new("rundll32").args(["url.dll,FileProtocolHandler", url]).spawn();
+    #[cfg(not(windows))]
+    let r = Command::new("xdg-open").arg(url).spawn();
+    r.map(|_| ()).map_err(|e| format!("Não consegui abrir o navegador: {e}"))
+}
+
+#[cfg(test)]
+mod testes_url {
+    use super::url_segura;
+    #[test]
+    fn so_aceita_https_limpo() {
+        assert!(url_segura("https://www.youtube.com/results?search_query=zelda+guia"));
+        assert!(!url_segura("http://x.com"));
+        assert!(!url_segura("https://x.com/a b"));
+        assert!(!url_segura("https://x.com/\"&calc"));
+        assert!(!url_segura("file:///c:/x"));
     }
 }

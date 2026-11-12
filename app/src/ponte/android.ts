@@ -60,6 +60,8 @@ export function motorAndroid(): Motor {
     appsAndroid: () => c<AppAndroid[]>("apps_android"),
     abrirApp: async (pacote) => { await c("controle_jogar", { pacote }); },
     abrirNoVindex: async (pasta) => (await c<{ vindex: boolean }>("abrir_pasta", { pasta })).vindex,
+    abrirUrl: async (url) => { await c("abrir_url", { url }); },
+    visualControles: async (v) => { await c("visual_controles", { ...v }); },
     gameBar: (definir) => c<ConfigGameBar>("gamebar", definir ? { definir } : {}),
     limpar: (simulacao = false) => c<RelatorioLimpeza>("limpar", { simulacao }),
     organizar: (simulacao = false) => c<RelatorioOrganizacao>("organizar", { simulacao }),

@@ -66,6 +66,7 @@ export async function motorDemo(): Promise<Motor> {
     },
     modoJogo: async (nova) => { if (nova) modo = nova; return modo; },
     isolar: async () => {},
+    abrirUrl: async (url) => { window.open(url, "_blank", "noopener"); },
     limpar: async (simulacao = false) => ({ duplicados: simulacao ? ["C:\\Jogos\\Contra (Japan).nes"] : [], corrompidos: [], falhas: [], simulacao }),
     organizar: async (simulacao = false) => ({ organizados: [{ origem: "C:\\Downloads\\Contra.zip", destino: "C:\\Vortex\\Jogos\\Nintendo 8 bits\\Contra (USA).nes", plataforma: "nes", extraido: true }], falhas: [], simulacao, pasta_vortex: "C:\\Vortex\\Jogos" }),
     desfazerOrganizacao: async () => ({ devolvidos: 0, falhas: [] }),

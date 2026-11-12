@@ -81,6 +81,8 @@ public class VortexPlugin extends Plugin {
                     else if (comando.equals("preparar_jogo")) r = preparar(a);
                     else if (comando.equals("lancar")) r = lancar(a);
                     else if (comando.equals("abrir_pasta")) r = abrirPasta(a);
+                    else if (comando.equals("abrir_url")) r = abrirUrl(a);
+                    else if (comando.equals("visual_controles")) r = JogoActivity.gravarVisual(getContext(), a);
                     else if (comando.equals("gamebar")) r = a.has("definir") ? GameBar.gravar(getContext(), a.getJSONObject("definir")) : GameBar.ler(getContext());
                     else r = motor.executar(comando, a);
                     JSObject saida = new JSObject();
@@ -115,6 +117,16 @@ public class VortexPlugin extends Plugin {
     private File arquivoPerfis() { return ControleService.arquivoDePerfis(getContext()); }
 
     private boolean servicoAtivo() { return ControleService.instancia != null; }
+
+    /** Abre um endereço https no navegador. */
+    private Object abrirUrl(JSONObject a) throws Exception {
+        String url = a.optString("url", "");
+        if (!url.startsWith("https://") || url.length() > 600) throw new Exception("Endereço inválido.");
+        Intent i = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url));
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(i);
+        return new JSONObject().put("aberto", true);
+    }
 
     /** Abre o Vindex (gerenciador de arquivos da Vetorial) direto numa pasta. Sem o Vindex instalado, devolve vindex=false. */
     private Object abrirPasta(JSONObject a) throws Exception {

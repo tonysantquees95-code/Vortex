@@ -3,7 +3,7 @@ import { useMotor } from "./estado";
 import { focar, primeiroSemCampo, useNavegacao } from "./foco";
 import type { Estatisticas, Jogo, ResumoPlataforma } from "./ponte";
 import { configurado, marcarConfigurado, organizarAutomatico } from "./config";
-import { aplicarTema, guardarTema, lerTema, type Tema } from "./tema";
+import { aplicarTema, coresDoTema, guardarTema, lerTema, type Tema } from "./tema";
 import { Abertura } from "./telas/Abertura";
 import { FundoDaTela } from "./telas/FundoDaTela";
 import { Configuracao } from "./telas/Configuracao";
@@ -14,6 +14,8 @@ import { Controles } from "./telas/Controles";
 import { Termos } from "./telas/Termos";
 import { aceitarTermos, termosAceitos } from "./termos";
 import { Detalhe } from "./telas/Detalhe";
+import { InfoConsole } from "./telas/InfoConsole";
+import { aplicarFora, guardarOcultos, lerOcultos, mudarOculto, type Ocultos } from "./ocultos";
 import { useAtualizacao } from "./useAtualizacao";
 import { Biblioteca } from "./telas/Biblioteca";
 import { Dock } from "./telas/Dock";
@@ -48,9 +50,18 @@ export function App() {
   const [carregado, setCarregado] = useState(false);
   const [hora, setHora] = useState(() => new Date());
   const [tema, setTema] = useState<Tema>(lerTema);
+  const [ocultos, setOcultos] = useState<Ocultos>(lerOcultos);
+  const [infoDe, setInfoDe] = useState<Colecao | null>(null);
+  const mudarOcultos = useCallback((id: string, como: "esconder" | "fora" | "mostrar") => setOcultos((o) => { const n = mudarOculto(o, id, como); guardarOcultos(n); return n; }), []);
   const [abertura, setAbertura] = useState(() => lerTema().abertura && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
   const [config, setConfig] = useState(configurado);
   useEffect(() => { aplicarTema(tema); guardarTema(tema); }, [tema]);
+  // os botões virtuais da tela do jogo (Java) seguem a cor do sistema e o modelo escolhido
+  useEffect(() => {
+    if (!motor.visualControles) return;
+    const c = coresDoTema(tema);
+    void motor.visualControles({ cor: c.principal, cor2: c.segunda, modelo: tema.botoes, tamanho: tema.tamanhoBotoes, opacidade: tema.opacidadeBotoes }).catch(() => {});
+  }, [motor, tema.cor, tema.botoes, tema.tamanhoBotoes, tema.opacidadeBotoes]);
   useEffect(() => { const f = () => setAbertura(true); window.addEventListener("vortex:abertura", f); return () => window.removeEventListener("vortex:abertura", f); }, []);
   const temporizador = useRef<number | undefined>(undefined);
 
@@ -251,9 +262,9 @@ export function App() {
   }, [motor, avisar, recarregar]);
   useEffect(() => { jogarRef.current = jogar; recarregarRef.current = () => { void recarregar(); }; }, [jogar, recarregar]);
 
-  const todos = useMemo(() => [...jogos, ...apps], [jogos, apps]);
+  const todos = useMemo(() => aplicarFora([...jogos, ...apps], ocultos), [jogos, apps, ocultos]);
   const favoritos = useMemo(() => todos.filter((j) => j.favorito), [todos]);
-  const colecoes = useMemo(() => colecoesDe(todos, plats), [todos, plats]);
+  const colecoes = useMemo(() => colecoesDe(todos, plats, ocultos.esconder), [todos, plats, ocultos.esconder]);
 
   const vazio = carregado && !todos.length;
   const intro = abertura ? <Abertura aoTerminar={() => setAbertura(false)} /> : null;
@@ -284,13 +295,13 @@ export function App() {
             </div>
           ) : aba === "inicio" ? (
             <Inicio colecoes={colecoes} inicial={ultimaColecao} aoFocar={setFocada} aoFocarJogo={setFocadoJogo} aoLembrar={setUltimaColecao}
-              aoJogar={jogar} aoDetalhes={setAberto} aoFavoritar={favoritar} jogoParaContinuar={continuar[0] ?? null} aoContinuar={jogar} />
+              aoJogar={jogar} aoDetalhes={setAberto} aoFavoritar={favoritar} jogoParaContinuar={continuar.find((j) => !ocultos.fora.includes(j.plataforma)) ?? null} aoContinuar={jogar} aoInfoConsole={setInfoDe} />
           ) : aba === "loja" ? (
             <Loja motor={motor} aoInstalar={recarregar} avisar={avisar} aoJogar={(id) => { const j = jogos.find((x) => x.id === id); if (j) jogar(j); else avisar("O jogo ainda está aparecendo na biblioteca. Tente de novo em instantes."); }} />
           ) : aba === "controles" && motor.controles ? (
             <Controles controles={motor.controles} avisar={avisar} />
           ) : aba === "ajustes" ? (
-            <Ajustes motor={motor} aoMudarBiblioteca={recarregar} avisar={avisar} atualizacao={atualizacao} tema={tema} aoMudarTema={setTema} jogos={jogos} />
+            <Ajustes motor={motor} aoMudarBiblioteca={recarregar} avisar={avisar} atualizacao={atualizacao} tema={tema} aoMudarTema={setTema} jogos={jogos} plats={plats} ocultos={ocultos} aoMostrarConsole={(id) => mudarOcultos(id, "mostrar")} />
           ) : aba === "biblioteca" ? (
             <Biblioteca jogos={todos} plats={plats} aoAbrir={setAberto} vazio="Nenhum jogo encontrado." />
           ) : (
@@ -304,7 +315,10 @@ export function App() {
         </footer>
       </div>
 
-      {aberto && <Detalhe jogo={aberto} aoJogar={jogar} aoFavoritar={favoritar} aoFechar={() => setAberto(null)} />}
+      {infoDe && <InfoConsole c={infoDe} aoFechar={() => setInfoDe(null)}
+        aoEsconder={() => { mudarOcultos(infoDe.id, "esconder"); avisar(`${infoDe.nome} escondido do Início`); setInfoDe(null); }}
+        aoTirar={() => { mudarOcultos(infoDe.id, "fora"); avisar(`${infoDe.nome} saiu da biblioteca`); setInfoDe(null); }} />}
+      {aberto && <Detalhe jogo={aberto} aoJogar={jogar} aoFavoritar={favoritar} aoFechar={() => setAberto(null)} aoAbrirUrl={(u) => { motor.abrirUrl(u).catch(() => avisar("Não consegui abrir o navegador.")); }} />}
       {lendoTermos && <Termos aoFechar={() => setLendoTermos(false)} />}
       {!config && !abertura && <Configuracao motor={motor} tema={tema} aoMudarTema={setTema} avisar={avisar} aoMudarBiblioteca={recarregar} aoTerminar={() => { marcarConfigurado(); setConfig(true); recarregar(); }} />}
       {lancando && (

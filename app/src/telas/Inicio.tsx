@@ -9,7 +9,7 @@ import { Icone, IconeConsole } from "./Icones";
 export interface Colecao { id: string; nome: string; total: number; tipo: "todos" | "android" | "favoritos" | "recentes" | "console"; jogos: Jogo[] }
 
 /** Monta a lista da cascata: Todos, Android (jogos instalados no aparelho), coleções especiais e um item por console (só os que têm jogos). */
-export function colecoesDe(jogos: Jogo[], plats: ResumoPlataforma[]): Colecao[] {
+export function colecoesDe(jogos: Jogo[], plats: ResumoPlataforma[], escondidos: string[] = []): Colecao[] {
   const fav = jogos.filter((j) => j.favorito);
   const jogados = jogos.filter((j) => j.ultimo_jogo > 0).sort((a, b) => b.ultimo_jogo - a.ultimo_jogo);
   const apps = jogos.filter((j) => j.plataforma === "android");
@@ -18,7 +18,7 @@ export function colecoesDe(jogos: Jogo[], plats: ResumoPlataforma[]): Colecao[] 
   if (fav.length) l.push({ id: "favoritos", nome: "Favoritos", total: fav.length, tipo: "favoritos", jogos: fav });
   if (jogados.length) l.push({ id: "recentes", nome: "Jogados há pouco", total: jogados.length, tipo: "recentes", jogos: jogados.slice(0, 30) });
   for (const p of plats) {
-    if (p.id === "android") continue;
+    if (p.id === "android" || escondidos.includes(p.id)) continue;
     const js = jogos.filter((j) => j.plataforma === p.id);
     if (js.length) l.push({ id: p.id, nome: p.nome.replace(/\s*\(.*\)\s*$/, ""), total: js.length, tipo: "console", jogos: js });
   }
@@ -128,10 +128,11 @@ export interface PropsInicio {
   aoFocar: (c: Colecao) => void; aoFocarJogo: (j: Jogo | null) => void; aoLembrar: (id: string) => void;
   aoJogar: (j: Jogo) => void; aoDetalhes: (j: Jogo) => void; aoFavoritar: (j: Jogo) => void;
   jogoParaContinuar: Jogo | null; aoContinuar: (j: Jogo) => void;
+  aoInfoConsole: (c: Colecao) => void;
 }
 
 /** Início: consoles em cascata; clicar abre, ao lado, a lista dos jogos do console (um de cada vez), sem trocar de tela. B volta. */
-export function Inicio({ colecoes, inicial, aoFocar, aoFocarJogo, aoLembrar, aoJogar, aoDetalhes, aoFavoritar, jogoParaContinuar, aoContinuar }: PropsInicio) {
+export function Inicio({ colecoes, inicial, aoFocar, aoFocarJogo, aoLembrar, aoJogar, aoDetalhes, aoFavoritar, jogoParaContinuar, aoContinuar, aoInfoConsole }: PropsInicio) {
   const [selC, setSelC] = useState(() => Math.max(0, colecoes.findIndex((c) => c.id === inicial)));
   const [selJ, setSelJ] = useState(0);
   const [nivel, setNivel] = useState<0 | 1>(0);
@@ -183,7 +184,7 @@ export function Inicio({ colecoes, inicial, aoFocar, aoFocarJogo, aoLembrar, aoJ
         passo={passo} aoClicar={abrir} desenho={(c, d) => <ItemConsole c={c} d={d} estreito={nivel === 1} passo={passo} />} />
       {nivel === 1 && (
         <div className="coluna-jogos entrar">
-          <div className="coluna-jogos-cab"><button data-foco className="botao" onClick={voltar} aria-label="Voltar para os consoles">‹ {atual.nome}</button><span className="text-sm text-slate-300">{plural(atual.total)}</span></div>
+          <div className="coluna-jogos-cab"><button data-foco className="botao" onClick={voltar} aria-label="Voltar para os consoles">‹ {atual.nome}</button><span className="text-sm text-slate-300">{plural(atual.total)}</span>{atual.tipo === "console" && <button data-foco className="botao botao-topo" onClick={() => aoInfoConsole(atual)} aria-label="Informações do console" title="Informações do console">ⓘ</button>}</div>
           <Cascata nome="jogos" rotulo={`Jogos de ${atual.nome}`} itens={jogos} sel={Math.min(selJ, jogos.length - 1)} aoSel={setSelJ} chaveDe={(j) => j.id} passo={passo}
             aoClicar={aoJogar} desenho={(j, d) => <ItemJogo j={j} d={d} passo={passo} />} />
         </div>
@@ -209,6 +210,7 @@ export function Inicio({ colecoes, inicial, aoFocar, aoFocarJogo, aoLembrar, aoJ
           <div className="previa-capas" aria-hidden>
             {atual.jogos.slice(0, 4).map((j) => <div key={j.id} className="mini-capa"><Capa j={j} /></div>)}
           </div>
+          {atual.tipo === "console" && <button data-foco className="botao mt-2 w-fit" onClick={() => aoInfoConsole(atual)}>ⓘ Informações do console</button>}
           {jogoParaContinuar && <button data-foco className="botao continuar mt-2" onClick={() => aoContinuar(jogoParaContinuar)}>▶ Continuar: {jogoParaContinuar.titulo}</button>}
         </div>
       )}

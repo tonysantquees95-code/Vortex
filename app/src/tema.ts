@@ -17,6 +17,9 @@ export type Fundo = "console" | "aurora" | "grade" | "circuito" | "pontos" | "li
 export const FUNDOS_VALIDOS: Fundo[] = ["console", "aurora", "grade", "circuito", "pontos", "liso", "foto", "capa"];
 export type Formato = "futurista" | "redondo";
 export type TamanhoCartas = "pequeno" | "medio" | "grande";
+/** Modelo dos botões virtuais na tela do jogo (Android). */
+export type ModeloBotoes = "circulo" | "quadrado" | "neon" | "vidro";
+export const MODELOS_BOTOES: ModeloBotoes[] = ["circulo", "quadrado", "neon", "vidro"];
 
 export interface Tema {
   cor: string;            // id de uma cor pronta ou "#rrggbb" personalizada
@@ -24,13 +27,16 @@ export interface Tema {
   fundo: Fundo;
   formato: Formato;
   cartas: TamanhoCartas;
+  botoes: ModeloBotoes;   // formato dos botões virtuais
+  tamanhoBotoes: TamanhoCartas; // tamanho dos botões virtuais
+  opacidadeBotoes: number; // 30 a 100
   animacoes: boolean;
   abertura: boolean;      // animação de entrada no vórtex
   foto: string | null;    // fundo "foto": imagem reduzida guardada no aparelho (data:image/...)
   capaFundo: string | null; // fundo "capa": endereço da capa escolhida
 }
 
-export const TEMA_PADRAO: Tema = { cor: "vermelho", brilho: 70, fundo: "console", formato: "futurista", cartas: "medio", animacoes: true, abertura: true, foto: null, capaFundo: null };
+export const TEMA_PADRAO: Tema = { cor: "vermelho", brilho: 70, fundo: "console", formato: "futurista", cartas: "medio", botoes: "circulo", tamanhoBotoes: "medio", opacidadeBotoes: 85, animacoes: true, abertura: true, foto: null, capaFundo: null };
 
 const CHAVE = "vortex:tema";
 
@@ -47,6 +53,9 @@ export function limparTema(bruto: unknown): Tema {
     fundo: FUNDOS_VALIDOS.includes(o.fundo as Fundo) ? (o.fundo as Fundo) : TEMA_PADRAO.fundo, // "vortex" (antigo) cai no padrão
     formato: o.formato === "redondo" || o.formato === "futurista" ? o.formato : TEMA_PADRAO.formato,
     cartas: o.cartas === "pequeno" || o.cartas === "grande" || o.cartas === "medio" ? o.cartas : TEMA_PADRAO.cartas,
+    botoes: MODELOS_BOTOES.includes(o.botoes as ModeloBotoes) ? (o.botoes as ModeloBotoes) : TEMA_PADRAO.botoes,
+    tamanhoBotoes: o.tamanhoBotoes === "pequeno" || o.tamanhoBotoes === "grande" || o.tamanhoBotoes === "medio" ? o.tamanhoBotoes : TEMA_PADRAO.tamanhoBotoes,
+    opacidadeBotoes: Number.isFinite(Number(o.opacidadeBotoes)) && o.opacidadeBotoes !== null ? Math.max(30, Math.min(100, Math.round(Number(o.opacidadeBotoes)))) : TEMA_PADRAO.opacidadeBotoes,
     animacoes: typeof o.animacoes === "boolean" ? o.animacoes : TEMA_PADRAO.animacoes,
     abertura: typeof o.abertura === "boolean" ? o.abertura : TEMA_PADRAO.abertura,
     foto: typeof o.foto === "string" && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(o.foto) && o.foto.length < 2_500_000 ? o.foto : null,

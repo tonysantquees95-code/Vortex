@@ -71,6 +71,8 @@ export interface Oferta {
   url: string; sha256: string; bytes: number; instalado: boolean; jogo_id: string | null;
 }
 
+export interface VisualControles { cor: string; cor2: string; modelo: string; tamanho: string; opacidade: number }
+
 export interface Motor {
   plataforma: "windows" | "android" | "demo";
   /** Só no Android: jogos instalados no aparelho (biblioteca "Android"). */
@@ -79,6 +81,10 @@ export interface Motor {
   abrirApp?(pacote: string): Promise<void>;
   /** Só no Android: abre o Vindex direto numa pasta. false = o Vindex não está instalado. */
   abrirNoVindex?(pasta: string): Promise<boolean>;
+  /** Abre um endereço https no navegador do sistema. */
+  abrirUrl(url: string): Promise<void>;
+  /** Só no Android: aparência dos botões virtuais da tela do jogo (cor do sistema, modelo, tamanho). */
+  visualControles?(v: VisualControles): Promise<void>;
   /** Só no Android: Game Bar. */
   gameBar?(definir?: Partial<ConfigGameBar>): Promise<ConfigGameBar>;
   /** Só no Android: controle para jogos que não têm suporte. */

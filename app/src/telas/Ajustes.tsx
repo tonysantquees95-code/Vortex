@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ConfigGameBar, EmuladoresInfo, EstadoConta, Jogo, ModoDesempenho, ModoJogoConfig, Motor, PosicaoGameBar, RelatorioLimpeza } from "../ponte";
+import type { ConfigGameBar, EmuladoresInfo, EstadoConta, Jogo, ModoDesempenho, ModoJogoConfig, Motor, PosicaoGameBar, RelatorioLimpeza, ResumoPlataforma } from "../ponte";
+import type { Ocultos } from "../ocultos";
 import { atualizarSozinho, definirAtualizarSozinho, definirLimparSozinho, definirOrganizarAutomatico, limparSozinho, organizarAutomatico } from "../config";
 import { faxinaAutomatica, resumoDaFaxina } from "../faxina";
 import { capaConhecida } from "../capas";
 import { BUILD } from "../atualizacao";
 import type { Atualizacao } from "../useAtualizacao";
-import { CORES, TEMA_PADRAO, hexValido, type Fundo, type Tema } from "../tema";
+import { CORES, TEMA_PADRAO, coresDoTema, hexValido, type Fundo, type ModeloBotoes, type Tema } from "../tema";
 import { Interruptor } from "./pecas";
 import { SeletorDeCor } from "./SeletorDeCor";
 import { Dock } from "./Dock";
@@ -137,7 +138,7 @@ export function TelaEmuladores({ motor }: { motor: Motor }) {
   );
 }
 
-export function TelaJogos({ motor, avisar, aoMudarBiblioteca }: { motor: Motor; avisar: Avisar; aoMudarBiblioteca: () => void }) {
+export function TelaJogos({ motor, avisar, aoMudarBiblioteca, plats = [], ocultos = { esconder: [], fora: [] }, aoMostrarConsole }: { motor: Motor; avisar: Avisar; aoMudarBiblioteca: () => void; plats?: ResumoPlataforma[]; ocultos?: Ocultos; aoMostrarConsole?: (id: string) => void }) {
   const [pastas, setPastas] = useState<string[]>([]);
   const [ocupado, setOcupado] = useState(false);
   const [auto, setAuto] = useState(organizarAutomatico);
@@ -225,6 +226,17 @@ export function TelaJogos({ motor, avisar, aoMudarBiblioteca }: { motor: Motor; 
           </div>
         )}
       </section>
+      {(ocultos.esconder.length > 0 || ocultos.fora.length > 0) && (
+        <section className="grid gap-3">
+          <h3 className="text-lg font-bold text-cyan-100/90">Consoles escondidos</h3>
+          <p className="text-sm text-slate-400">Escondidos somem do Início; os tirados da biblioteca somem de tudo. Seus arquivos continuam nas pastas.</p>
+          {[...ocultos.esconder.map((id) => [id, "escondido do Início"] as const), ...ocultos.fora.map((id) => [id, "fora da biblioteca"] as const)].map(([id, estado]) => (
+            <button key={id} data-foco className="linha" onClick={() => aoMostrarConsole?.(id)}>
+              <span className="truncate">{plats.find((p) => p.id === id)?.nome.replace(/\s*\(.*\)\s*$/, "") ?? id.toUpperCase()} · <span className="text-slate-400">{estado}</span></span><span className="text-sm text-cyan-200">Mostrar de novo</span>
+            </button>
+          ))}
+        </section>
+      )}
       <section className="grid gap-3">
         <h3 className="text-lg font-bold text-cyan-100/90">Pastas de jogos</h3>
         {pastas.map((p) => (
@@ -280,8 +292,40 @@ async function reduzirFoto(arq: File): Promise<string> {
 const FORMATOS: [Tema["formato"], string][] = [["futurista", "Futurista"], ["redondo", "Arredondado"]];
 const CARTAS: [Tema["cartas"], string][] = [["pequeno", "Pequenas"], ["medio", "Médias"], ["grande", "Grandes"]];
 
+const MODELOS: [ModeloBotoes, string][] = [["circulo", "Redondo"], ["quadrado", "Quadrado"], ["neon", "Neon"], ["vidro", "Vidro"]];
+
+/** Estilo de um botão de exemplo (igual ao que o jogo desenha), na cor do sistema. */
+function estiloExemplo(modelo: ModeloBotoes, cor: string, opac: number, apertado = false): React.CSSProperties {
+  const a = opac / 100;
+  const base: React.CSSProperties = { width: 52, height: 52, display: "grid", placeItems: "center", fontWeight: 700, color: modelo === "neon" ? cor : "#fff", borderRadius: modelo === "circulo" ? "50%" : modelo === "quadrado" ? 12 : modelo === "neon" ? 10 : 18, opacity: a };
+  if (apertado) return { ...base, background: cor, border: "2px solid #fff", opacity: 1 };
+  if (modelo === "neon") return { ...base, background: `${cor}2e`, border: `3px solid ${cor}`, boxShadow: `0 0 10px ${cor}` };
+  if (modelo === "vidro") return { ...base, background: "rgba(255,255,255,.27)", border: "1px solid rgba(255,255,255,.6)" };
+  return { ...base, background: "rgba(14,18,40,.7)", border: `2px solid ${cor}` };
+}
+
+/** Modelos, tamanho e transparência dos botões virtuais da tela do jogo (a cor vem da cor do sistema). */
+function BotoesVirtuais({ tema, m }: { tema: Tema; m: (p: Partial<Tema>) => void }) {
+  const cor = coresDoTema(tema).principal;
+  const esc = tema.tamanhoBotoes === "pequeno" ? 0.85 : tema.tamanhoBotoes === "grande" ? 1.2 : 1;
+  return (
+    <section className="grid gap-3">
+      <h3 className="text-lg font-bold text-cyan-100/90">Botões na tela do jogo</h3>
+      <p className="text-sm text-slate-400">Aparecem quando não há controle conectado e seguem a cor do sistema.</p>
+      <div className="flex flex-wrap gap-2">{MODELOS.map(([id, nome]) => <button key={id} data-foco className="chip" data-ativa={tema.botoes === id} onClick={() => m({ botoes: id })}>{nome}</button>)}</div>
+      <div className="flex flex-wrap gap-2">{([["pequeno", "Pequeno"], ["medio", "Médio"], ["grande", "Grande"]] as const).map(([id, nome]) => <button key={id} data-foco className="chip" data-ativa={tema.tamanhoBotoes === id} onClick={() => m({ tamanhoBotoes: id })}>{nome}</button>)}</div>
+      <label className="grid gap-1 text-sm text-slate-300">Transparência: {tema.opacidadeBotoes}%
+        <input data-foco type="range" min={30} max={100} step={5} value={tema.opacidadeBotoes} onChange={(e) => m({ opacidadeBotoes: Number(e.target.value) })} className="barra" aria-label="Opacidade dos botões" />
+      </label>
+      <div className="vidro flex items-center justify-center gap-4 bg-black p-4" style={{ background: "#05060d" }} aria-hidden>
+        {["A", "B", "X", "Y"].map((t, i) => <div key={t} style={{ ...estiloExemplo(tema.botoes, cor, tema.opacidadeBotoes, i === 1), transform: `scale(${esc})` }}>{t}</div>)}
+      </div>
+    </section>
+  );
+}
+
 /** Personalização completa: cor, brilho, fundo, formato, tamanho das cartas, animações e a abertura. */
-export function TelaAparencia({ tema, aoMudar, jogos = [], avisar }: { tema: Tema; aoMudar: (t: Tema) => void; jogos?: Jogo[]; avisar?: (t: string) => void }) {
+export function TelaAparencia({ tema, aoMudar, jogos = [], avisar, botoesVirtuais = false }: { tema: Tema; aoMudar: (t: Tema) => void; jogos?: Jogo[]; avisar?: (t: string) => void; botoesVirtuais?: boolean }) {
   const m = (parte: Partial<Tema>) => aoMudar({ ...tema, ...parte });
   const [escolhendoCapa, setEscolhendoCapa] = useState(false);
   const capas = useMemo(() => jogos.map((j) => capaConhecida(j.id)).filter((u): u is string => Boolean(u)).slice(0, 36), [jogos, escolhendoCapa]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -330,6 +374,7 @@ export function TelaAparencia({ tema, aoMudar, jogos = [], avisar }: { tema: Tem
         <h3 className="text-lg font-bold text-cyan-100/90">Tamanho das capas</h3>
         <div className="flex flex-wrap gap-2">{CARTAS.map(([id, nome]) => <button key={id} data-foco className="chip" data-ativa={tema.cartas === id} onClick={() => m({ cartas: id })}>{nome}</button>)}</div>
       </section>
+      {botoesVirtuais && <BotoesVirtuais tema={tema} m={m} />}
       <section className="grid gap-3">
         <Interruptor ligado={tema.animacoes} rotulo="Animações" detalhe="Brilhos pulsando, fundo em movimento e transições. Desligue para poupar bateria." aoMudar={(v) => m({ animacoes: v })} />
         <Interruptor ligado={tema.abertura} rotulo="Abertura no vórtex" detalhe="A animação de entrada, como se você fosse puxado para dentro de um vórtex, toda vez que abre o Vortex." aoMudar={(v) => m({ abertura: v })} />
@@ -346,11 +391,11 @@ type Tela = "conta" | "gamebar" | "jogos" | "aparencia" | "modo" | "permissoes" 
 interface Item { id: Tela; icone: string; nome: string; titulo: string; detalhe: string }
 
 /** Ajustes em seções: ícone grande + título no alto, dock para trocar de seção (o foco já troca) e o conteúdo logo abaixo. */
-export function Ajustes({ motor, aoMudarBiblioteca, avisar, atualizacao, tema, aoMudarTema, jogos }: { motor: Motor; aoMudarBiblioteca: () => void; avisar: Avisar; atualizacao: Atualizacao; tema: Tema; aoMudarTema: (t: Tema) => void; jogos: Jogo[] }) {
+export function Ajustes({ motor, aoMudarBiblioteca, avisar, atualizacao, tema, aoMudarTema, jogos, plats = [], ocultos, aoMostrarConsole }: { motor: Motor; aoMudarBiblioteca: () => void; avisar: Avisar; atualizacao: Atualizacao; tema: Tema; aoMudarTema: (t: Tema) => void; jogos: Jogo[]; plats?: ResumoPlataforma[]; ocultos?: Ocultos; aoMostrarConsole?: (id: string) => void }) {
   const itens: Item[] = [
     ...(motor.conta ? [{ id: "conta" as const, icone: "conta", nome: "Conta", titulo: "Conta e saves na nuvem", detalhe: "Vetorial ID, licença e sincronização dos saves." }] : []),
     { id: "jogos", icone: "jogos", nome: "Jogos", titulo: "Jogos e busca", detalhe: "Buscar jogos no aparelho, pastas, organização por console e faxina de repetidos." },
-    { id: "aparencia", icone: "aparencia", nome: "Visual", titulo: "Personalização", detalhe: "Cor, brilho neon, fundo (foto, capa ou modelos), formato e abertura." },
+    { id: "aparencia", icone: "aparencia", nome: "Visual", titulo: "Personalização", detalhe: "Cor, brilho neon, fundo (foto, capa ou modelos), formato, botões do jogo e abertura." },
     { id: "permissoes", icone: "permissoes", nome: "Permissões", titulo: "Permissões", detalhe: "O que o Vortex precisa liberar no aparelho e por quê." },
     { id: "modo", icone: "modo", nome: "Modo Jogo", titulo: "Modo Jogo", detalhe: "Desempenho máximo enquanto você joga." },
     ...(motor.gameBar ? [{ id: "gamebar" as const, icone: "controles", nome: "Game Bar", titulo: "Game Bar", detalhe: "Barra com FPS, CPU, GPU e temperatura por cima do jogo, e modos Turbo, Normal e Econômico." }] : []),
@@ -371,8 +416,8 @@ export function Ajustes({ motor, aoMudarBiblioteca, avisar, atualizacao, tema, a
       <Dock rotulo="Seções dos ajustes" itens={itens.map((i) => ({ id: i.id, nome: i.nome, icone: i.icone }))} ativo={atual.id} aoEscolher={(id) => setTela(id as Tela)} selecionarAoFocar />
       <div key={"c" + atual.id} className="entrar grid gap-6">
         {atual.id === "conta" && motor.conta && <ContaVetorial motor={motor} avisar={avisar} />}
-        {atual.id === "jogos" && <TelaJogos motor={motor} avisar={avisar} aoMudarBiblioteca={aoMudarBiblioteca} />}
-        {atual.id === "aparencia" && <TelaAparencia tema={tema} aoMudar={aoMudarTema} jogos={jogos} avisar={avisar} />}
+        {atual.id === "jogos" && <TelaJogos motor={motor} avisar={avisar} aoMudarBiblioteca={aoMudarBiblioteca} plats={plats} ocultos={ocultos} aoMostrarConsole={aoMostrarConsole} />}
+        {atual.id === "aparencia" && <TelaAparencia tema={tema} aoMudar={aoMudarTema} jogos={jogos} avisar={avisar} botoesVirtuais={Boolean(motor.visualControles)} />}
         {atual.id === "permissoes" && <Permissoes motor={motor} avisar={avisar} />}
         {atual.id === "modo" && <TelaModoJogo motor={motor} avisar={avisar} />}
         {atual.id === "gamebar" && <TelaGameBar motor={motor} avisar={avisar} />}
