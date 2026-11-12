@@ -22,6 +22,7 @@ export function App() {
   const [pasta, setPasta] = useState(true);
   const [aberto, setAberto] = useState<Jogo | null>(null);
   const [lancando, setLancando] = useState<Jogo | null>(null);
+  const [etapa, setEtapa] = useState("Preparando o jogo…");
   const [aviso, setAviso] = useState("");
   const [controle, setControle] = useState(false);
   const [busca, setBusca] = useState("");
@@ -83,9 +84,13 @@ export function App() {
   }, [motor, avisar]);
 
   const jogar = useCallback(async (j: Jogo) => {
-    setAberto(null); setLancando(j);
+    setAberto(null); setLancando(j); setEtapa("Preparando o jogo…");
     const minimo = new Promise((r) => setTimeout(r, 1600));
     try {
+      // primeira vez de cada console: o Vortex baixa o motor sozinho (sem a pessoa instalar nada)
+      const dica = window.setTimeout(() => setEtapa("Preparando o motor deste console (só na primeira vez)…"), 1500);
+      await motor.preparar(j.id).finally(() => window.clearTimeout(dica));
+      setEtapa("Abrindo o jogo…");
       const [r] = await Promise.all([motor.lancar(j.id), minimo]);
       avisar(`${j.titulo} aberto no ${r.emulador}${r.modo_jogo ? " · Modo Jogo ligado" : ""}`);
       window.setTimeout(recarregar, 1500);
@@ -182,7 +187,7 @@ export function App() {
             <div className="orbita absolute inset-0 rounded-full border-4 border-transparent border-t-cyan-300 border-r-violet-400" />
             <div className="pulso absolute inset-4 rounded-full bg-gradient-to-br from-violet-500 to-cyan-300 blur-sm" />
           </div>
-          <div className="text-center"><div className="titulo-neon text-3xl font-black">{lancando.titulo}</div><div className="pulso mt-2 text-slate-300">Preparando o jogo…</div></div>
+          <div className="text-center"><div className="titulo-neon text-3xl font-black">{lancando.titulo}</div><div className="pulso mt-2 text-slate-300">{etapa}</div></div>
         </div>
       )}
       {aviso && <div className="entrar fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-full border border-cyan-300/40 bg-[#0b1226ee] px-6 py-3 text-sm shadow-[0_0_30px_rgba(25,227,255,.3)]" role="status">{aviso}</div>}

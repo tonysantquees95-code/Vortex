@@ -2,6 +2,7 @@
 //! Todo comando recebe `biblioteca` (caminho do arquivo JSON da biblioteca) e devolve JSON.
 use crate::biblioteca::{Biblioteca, Filtro, OpcoesEscaneamento};
 use crate::modo_jogo::{self, SistemaReal, Sistema};
+use crate::nucleos;
 use crate::organizador;
 use crate::emuladores::{self, Ambiente, Configuracao, Lancamento, Preferido};
 use crate::plataformas::PLATAFORMAS;
@@ -95,7 +96,29 @@ fn para<T: serde::Serialize>(x: T) -> Result<Value, String> {
     serde_json::to_value(x).map_err(|e| e.to_string())
 }
 
+/// Garante o motor embutido (RetroArch portátil + núcleo) do console do jogo. Pode demorar na primeira vez, por isso roda sem segurar a biblioteca.
+fn preparar_jogo_com(args: &Value, baixar: nucleos::Baixar) -> Result<Value, String> {
+    let arquivo = arquivo_da_biblioteca(args)?;
+    let id = texto(args, "id")?;
+    let b = Biblioteca::carregar(&arquivo);
+    let j = b.jogos.get(id).ok_or("Esse jogo não está mais na biblioteca.")?;
+    let pl = crate::plataformas::por_id(&j.plataforma).ok_or("Console desconhecido.")?;
+    let dados = pasta_de_dados(&arquivo);
+    let r = nucleos::preparar(&dados, pl, baixar)?;
+    // o RetroArch embutido vira o preferido, a não ser que a pessoa já tenha escolhido outro
+    let ca = arquivo_de_configuracao(&arquivo);
+    let mut c = Configuracao::carregar(&ca);
+    if c.retroarch.is_none() {
+        c.retroarch = Some(nucleos::pasta_do_motor(&dados));
+        c.salvar(&ca)?;
+    }
+    Ok(json!({ "nucleo": r.nucleo, "baixou": r.baixou }))
+}
+
 pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
+    if comando == "preparar_jogo" {
+        return preparar_jogo_com(args, &nucleos::baixar_da_libretro);
+    }
     if comando == "plataformas_catalogo" {
         return para(PLATAFORMAS);
     }
@@ -355,6 +378,36 @@ mod testes {
         let d = executar("organizar_desfazer", &a(false)).unwrap();
         assert_eq!(d["devolvidos"], 2);
         assert!(solto.join("Zelda (USA).sfc").exists());
+    }
+
+    #[test]
+    fn preparar_jogo_usa_o_motor_embutido() {
+        let t = tempfile::tempdir().unwrap();
+        fs::create_dir_all(t.path().join("roms/snes")).unwrap();
+        fs::write(t.path().join("roms/snes/Zelda.sfc"), "y").unwrap();
+        let bib = t.path().join("dados/biblioteca.json").to_string_lossy().to_string();
+        let a = json!({ "biblioteca": bib, "agora": 1, "pasta": t.path().join("roms") });
+        executar("adicionar_pasta", &a).unwrap();
+        executar("escanear", &a).unwrap();
+        let id = executar("listar", &a).unwrap()[0]["id"].as_str().unwrap().to_string();
+        let falso = |url: &str, dest: &Path| -> Result<(), String> {
+            if url.ends_with(".7z") {
+                let o = tempfile::tempdir().unwrap();
+                fs::write(o.path().join("retroarch.exe"), "x").unwrap();
+                sevenz_rust::compress_to_path(o.path(), dest).map_err(|e| e.to_string())
+            } else {
+                use std::io::Write;
+                let mut w = zip::ZipWriter::new(fs::File::create(dest).unwrap());
+                w.start_file("snes9x_libretro.dll", zip::write::SimpleFileOptions::default()).unwrap();
+                w.write_all(b"d").unwrap();
+                w.finish().map(|_| ()).map_err(|e| e.to_string())
+            }
+        };
+        let r = preparar_jogo_com(&json!({ "biblioteca": bib, "id": id }), &falso).unwrap();
+        assert_eq!(r["nucleo"], "snes9x_libretro");
+        assert_eq!(r["baixou"], true);
+        let cfg = Configuracao::carregar(&arquivo_de_configuracao(Path::new(&bib)));
+        assert!(cfg.retroarch.is_some(), "motor embutido vira o RetroArch do Vortex");
     }
 
     #[cfg(unix)]

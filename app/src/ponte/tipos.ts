@@ -37,6 +37,8 @@ export interface Motor {
   estatisticas(): Promise<Estatisticas>;
   favoritar(id: string, favorito: boolean): Promise<void>;
   emuladores(): Promise<EmuladoresInfo>;
+  /** Garante o motor do console (baixa só na primeira vez). */
+  preparar(id: string): Promise<{ nucleo: string; baixou: boolean }>;
   lancar(id: string): Promise<ResultadoLancamento>;
   modoJogo(nova?: ModoJogoConfig): Promise<ModoJogoConfig>;
   recuperarModoJogo(): Promise<void>;

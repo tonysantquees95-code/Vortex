@@ -45,6 +45,7 @@ export async function motorDemo(): Promise<Motor> {
     estatisticas: async () => ({ jogos: jogos.length, plataformas: new Set(jogos.map((j) => j.plataforma)).size, favoritos: jogos.filter((j) => j.favorito).length, tempo_total_s: jogos.reduce((s, j) => s + j.tempo_total_s, 0), sessoes: jogos.reduce((s, j) => s + j.sessoes, 0) }),
     favoritar: async (id, fav) => { jogos = jogos.map((j) => (j.id === id ? { ...j, favorito: fav } : j)); },
     emuladores: async () => ({ instalados: [{ id: "retroarch", nome: "RetroArch", plataformas: Object.keys(NOMES) }] }),
+    preparar: async () => { await new Promise((r) => setTimeout(r, 800)); return { nucleo: "snes9x_libretro", baixou: false }; },
     lancar: async (id) => {
       jogos = jogos.map((j) => (j.id === id ? { ...j, ultimo_jogo: Date.now() / 1000, sessoes: j.sessoes + 1 } : j));
       return { pid: 0, emulador: "RetroArch (demonstração)", nucleo: null, modo_jogo: modo.ligado };
