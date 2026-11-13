@@ -242,6 +242,7 @@ public class VortexPlugin extends Plugin {
         Plataformas.P p = Plataformas.porId(j.getString("plataforma"));
         if (p == null || p.nucleos.length == 0) throw new Exception("Esse console ainda não tem motor embutido no Vortex.");
         boolean baixou = NucleosAndroid.garantir(getContext(), p.nucleos[0]);
+        if (NucleosAndroid.garantirSistema(getContext(), p.nucleos[0])) baixou = true;
         return new JSONObject().put("nucleo", p.nucleos[0]).put("baixou", baixou);
     }
 
@@ -253,9 +254,7 @@ public class VortexPlugin extends Plugin {
         if (!rom.isFile()) throw new Exception("O arquivo deste jogo não foi encontrado.");
         Plataformas.P p = Plataformas.porId(plat);
         // preferência: o motor embutido do próprio Vortex (sem instalar emulador)
-        // GameCube e Wii: o núcleo do Dolphin não roda dentro do motor embutido (abre e fica tudo preto); eles abrem no app Dolphin
-        boolean soEmuladorProprio = p != null && (p.id.equals("gamecube") || p.id.equals("wii"));
-        if (p != null && !soEmuladorProprio && p.nucleos.length > 0 && NucleosAndroid.arquivo(getContext(), p.nucleos[0]).isFile()) {
+        if (p != null && p.nucleos.length > 0 && NucleosAndroid.arquivo(getContext(), p.nucleos[0]).isFile()) {
             Intent jogo = new Intent(getContext(), JogoActivity.class);
             jogo.putExtra("rom", rom.getAbsolutePath()).putExtra("nucleo", p.nucleos[0]).putExtra("id", j.getString("id"));
             jogo.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -272,7 +271,6 @@ public class VortexPlugin extends Plugin {
             pacote = instalado(e);
             if (pacote != null) { escolhido = e; break; }
         }
-        if (escolhido == null && soEmuladorProprio) throw new Exception("O " + p.nome + " abre no emulador Dolphin, que não está instalado. Instale o Dolphin (dolphin-emu.org) e abra o jogo de novo.");
         if (escolhido == null && p != null && p.nucleos.length > 0) {
             pacote = instalado(EMULADORES[0]);
             if (pacote != null) escolhido = EMULADORES[0];

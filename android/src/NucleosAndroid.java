@@ -60,4 +60,35 @@ public final class NucleosAndroid {
         so.setReadOnly(); // o Android recusa carregar código gravável baixado depois da instalação
         return true;
     }
+
+    /** Arquivos de sistema que alguns núcleos exigem (o Dolphin precisa da pasta "dolphin-emu/Sys"; sem ela o jogo abre e fica tudo preto). Devolve true se baixou agora. */
+    public static boolean garantirSistema(Context c, String nucleo) throws Exception {
+        if (!nucleo.startsWith("dolphin")) return false;
+        File sistema = new File(c.getFilesDir(), "system");
+        File sys = new File(sistema, "dolphin-emu/Sys");
+        if (new File(sys, "GC").isDirectory() && new File(sys, "Wii").isDirectory()) return false;
+        sistema.mkdirs();
+        HttpURLConnection h = (HttpURLConnection) new URL("https://buildbot.libretro.com/assets/system/Dolphin.zip").openConnection();
+        h.setConnectTimeout(20000);
+        h.setReadTimeout(60000);
+        if (h.getResponseCode() != 200) throw new Exception("Não consegui baixar os arquivos de sistema do GameCube/Wii (erro " + h.getResponseCode() + "). Confira a internet e tente de novo.");
+        String raiz = sistema.getCanonicalPath() + File.separator;
+        int arquivos = 0;
+        try (ZipInputStream z = new ZipInputStream(h.getInputStream())) {
+            ZipEntry e;
+            while ((e = z.getNextEntry()) != null) {
+                File alvo = new File(sistema, e.getName());
+                if (!alvo.getCanonicalPath().startsWith(raiz)) continue; // nunca grava fora da pasta de sistema
+                if (e.isDirectory()) { alvo.mkdirs(); continue; }
+                alvo.getParentFile().mkdirs();
+                try (OutputStream out = new FileOutputStream(alvo)) {
+                    byte[] buf = new byte[65536]; int n;
+                    while ((n = z.read(buf)) > 0) out.write(buf, 0, n);
+                }
+                arquivos++;
+            }
+        } finally { h.disconnect(); }
+        if (arquivos == 0 || !new File(sys, "GC").isDirectory()) throw new Exception("Os arquivos de sistema do GameCube/Wii vieram incompletos. Tente de novo.");
+        return true;
+    }
 }
