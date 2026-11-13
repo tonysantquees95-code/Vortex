@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Jogo } from "../ponte";
 import { tempoJogado } from "../navegacao";
 import { focar } from "../foco";
 import { atalhosDeGuia, fichaConhecida, resolverFicha, type Ficha } from "../ficha";
 import { Camada, Capa } from "./pecas";
+import { TrocarCapa } from "./TrocarCapa";
 
 /** Junta o que o arquivo já traz com o que se achou na internet (o do arquivo vale mais). */
 function useFicha(j: Jogo): { ficha: Ficha | null; buscando: boolean } {
@@ -24,9 +25,12 @@ function useFicha(j: Jogo): { ficha: Ficha | null; buscando: boolean } {
 
 export function Detalhe({ jogo, aoJogar, aoFavoritar, aoFechar, aoAbrirUrl, aoEsconder, aoTirar }: { jogo: Jogo; aoJogar: (j: Jogo) => void; aoFavoritar: (j: Jogo) => void; aoFechar: () => void; aoAbrirUrl: (url: string) => void; aoEsconder: (j: Jogo) => void; aoTirar: (j: Jogo) => void }) {
   const [confirmar, setConfirmar] = useState<"esconder" | "fora" | null>(null);
+  const [trocandoCapa, setTrocandoCapa] = useState(false);
+  const trocandoRef = useRef(false);
+  trocandoRef.current = trocandoCapa;
   const { ficha, buscando } = useFicha(jogo);
   useEffect(() => {
-    const voltar = () => aoFechar();
+    const voltar = () => { if (!trocandoRef.current) aoFechar(); };
     const fav = () => aoFavoritar(jogo);
     window.addEventListener("vortex:voltar", voltar);
     window.addEventListener("vortex:favorito", fav);
@@ -67,6 +71,7 @@ export function Detalhe({ jogo, aoJogar, aoFavoritar, aoFechar, aoAbrirUrl, aoEs
           <div className="mt-auto flex flex-wrap gap-3 pt-6">
             <button data-foco className="botao primario" disabled={!jogo.disponivel} onClick={() => aoJogar(jogo)}>▶ Jogar</button>
             <button data-foco className="botao" onClick={() => aoFavoritar(jogo)}>{jogo.favorito ? "★ Nos favoritos" : "☆ Favoritar"}</button>
+            <button data-foco className="botao" onClick={() => setTrocandoCapa(true)}>🖼 Trocar capa</button>
             <button data-foco className="botao" onClick={aoFechar}>Voltar</button>
           </div>
           <div className="pt-4">
@@ -90,6 +95,7 @@ export function Detalhe({ jogo, aoJogar, aoFavoritar, aoFechar, aoAbrirUrl, aoEs
           </div>
         </div>
       </div>
+      {trocandoCapa && <TrocarCapa jogo={jogo} aoFechar={() => setTrocandoCapa(false)} />}
     </Camada>
   );
 }

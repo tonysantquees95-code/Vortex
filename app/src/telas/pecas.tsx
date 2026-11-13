@@ -16,6 +16,11 @@ export function useCapa(j: Jogo, ativo = true): { ref: RefObject<HTMLDivElement 
     return () => o.disconnect();
   }, [ativo]);
   useEffect(() => {
+    const trocou = (e: Event) => { if ((e as CustomEvent<string>).detail === j.id) { setUrl(capaConhecida(j.id)); if (!capaConhecida(j.id)) void resolverCapa(j).then((u) => setUrl(u)); } };
+    window.addEventListener("vortex:capa", trocou);
+    return () => window.removeEventListener("vortex:capa", trocou);
+  }, [j.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
     setUrl(capaConhecida(j.id));
     if (!visivel || !ativo || capaConhecida(j.id)) return;
     let vivo = true;

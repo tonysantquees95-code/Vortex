@@ -179,3 +179,46 @@ export function resolverCapa(j: DadosDaCapa & { id: string }): Promise<string | 
   emAndamento.set(j.id, p);
   return p;
 }
+
+// ---- troca manual da capa (quando a busca automática não acha o jogo)
+const avisar = (id: string) => window.dispatchEvent(new CustomEvent("vortex:capa", { detail: id }));
+
+/** Procura nomes na lista real da Libretro: todas as palavras digitadas precisam aparecer no nome. */
+export async function buscarCapas(plataforma: string, texto: string): Promise<{ nome: string; url: string }[]> {
+  const sistema = infoDoConsole(plataforma).libretro;
+  if (!sistema) return [];
+  const ind = await indiceDe(sistema);
+  if (!ind) return [];
+  const palavras = chaveDeNome(texto).split(" ").filter((x) => x.length >= 2);
+  if (!palavras.length) return [];
+  const achados: { nome: string; url: string; nota: number }[] = [];
+  for (const [chave, nomes] of ind) {
+    if (!palavras.every((p) => chave.includes(p))) continue;
+    for (const nome of nomes) achados.push({ nome, url: `${BASE}/${encodeURIComponent(sistema)}/Named_Boxarts/${encodeURIComponent(nome)}.png`, nota: chave.length });
+  }
+  return achados.sort((a, b) => a.nota - b.nota).slice(0, 24);
+}
+
+/** Fixa a capa escolhida pelo usuário (endereço ou imagem já reduzida). */
+export function definirCapa(id: string, url: string) { memoria()[id] = { u: url }; guardar(); avisar(id); }
+
+/** Esquece a capa e deixa a busca automática tentar de novo. */
+export function refazerCapa(id: string) { delete memoria()[id]; guardar(); avisar(id); }
+
+/** Imagem da galeria → JPEG pequeno (cabe no armazenamento do app). */
+export function reduzirImagem(arquivo: File): Promise<string> {
+  return new Promise((ok, erro) => {
+    const url = URL.createObjectURL(arquivo);
+    const img = new Image();
+    img.onload = () => {
+      const f = Math.min(1, 420 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(img.naturalWidth * f)); c.height = Math.max(1, Math.round(img.naturalHeight * f));
+      c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      ok(c.toDataURL("image/jpeg", 0.82));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); erro(new Error("imagem inválida")); };
+    img.src = url;
+  });
+}
