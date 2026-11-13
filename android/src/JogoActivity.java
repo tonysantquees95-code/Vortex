@@ -63,7 +63,7 @@ public class JogoActivity extends AppCompatActivity {
         new File(dados.getSystemDirectory()).mkdirs();
         nucleoAtual = nucleo == null ? "" : nucleo;
         // modo de teste do GameCube/Wii: desenho por software (lento, mas mostra se o problema é a placa de vídeo)
-        if (nucleoAtual.startsWith("dolphin")) ajustesDeImagemDolphin(dados);
+        if (nucleoAtual.startsWith("dolphin")) { ajustesDeImagemDolphin(dados); definirVariaveis(dados, variaveisDeQualidade(qualidadeDaImagem())); }
         if (getIntent().getBooleanExtra("software", false) && nucleoAtual.startsWith("dolphin")) definirVariavel(dados, "dolphin_renderer", "Software");
         try { if (srm.isFile()) dados.setSaveRAMState(Files.readAllBytes(srm.toPath())); } catch (Exception ignora) { }
 
@@ -79,6 +79,8 @@ public class JogoActivity extends AppCompatActivity {
         // só depois que o motor subiu (antes disso ele ainda não existe)
         retro.postDelayed(new Runnable() { public void run() {
             aplicarTamanhoDaTela(tamanhoDaTela());
+            aplicarFormatoDaTela(formatoDaTela());
+            if (nucleoAtual.startsWith("dolphin") && qualidadeDaImagem() >= 1) aplicarQualidadeAoVivo(qualidadeDaImagem());
             if (nucleoAtual.startsWith("dolphin")) { try { retro.setControllerType(0, 1); } catch (Throwable ignora) { } }
         } }, 2500);
         retro.setFocusable(true);
@@ -104,6 +106,22 @@ public class JogoActivity extends AppCompatActivity {
                 aplicarTamanhoDaTela(pct);
             }
         };
+        gameBar.formatoAtual = formatoDaTela();
+        gameBar.aoTrocarFormato = new GameBar.AoTrocar() {
+            public void definir(int f) {
+                getSharedPreferences("vortex_visual", MODE_PRIVATE).edit().putInt("formato", f).apply();
+                aplicarFormatoDaTela(f);
+            }
+        };
+        if (nucleoAtual.startsWith("dolphin")) {
+            gameBar.qualidadeAtual = qualidadeDaImagem();
+            gameBar.aoTrocarQualidade = new GameBar.AoTrocar() {
+                public void definir(int q) {
+                    getSharedPreferences("vortex_visual", MODE_PRIVATE).edit().putInt("qualidade", q).apply();
+                    aplicarQualidadeAoVivo(q);
+                }
+            };
+        }
         gameBar.iniciar();
         if (nucleoAtual.startsWith("dolphin")) mostrarBotaoDiagnostico();
     }
@@ -115,6 +133,70 @@ public class JogoActivity extends AppCompatActivity {
         if (retro == null) return;
         float h = Math.max(50, Math.min(200, pct)) / 200f;
         try { retro.setViewport(new android.graphics.RectF(0.5f - h, 0.5f - h, 0.5f + h, 0.5f + h)); } catch (Throwable ignora) { }
+    }
+
+
+    // ---------------------------------------------------------------- formato da tela e qualidade da imagem
+
+    private int formatoDaTela() { return getSharedPreferences("vortex_visual", MODE_PRIVATE).getInt("formato", 0); }
+    private int qualidadeDaImagem() { return getSharedPreferences("vortex_visual", MODE_PRIVATE).getInt("qualidade", 0); }
+
+    /** Proporção da imagem original de cada sistema (largura / altura). */
+    private float proporcaoDoJogo() {
+        String n = nucleoAtual;
+        if (n.startsWith("ppsspp")) return 16f / 9f;
+        if (n.startsWith("mgba") || n.startsWith("gpsp") || n.startsWith("vba")) return 3f / 2f;
+        if (n.startsWith("gambatte") || n.startsWith("sameboy")) return 10f / 9f;
+        return 4f / 3f;
+    }
+
+    /** 0 = original (barras pretas dos lados), 1 = ampliado (estica metade), 2 = tela cheia (preenche tudo, esticando a imagem). */
+    private void aplicarFormatoDaTela(int f) {
+        if (retro == null) return;
+        final int w0 = retro.getWidth(), h0 = retro.getHeight();
+        final int largura = w0 > 0 ? w0 : getResources().getDisplayMetrics().widthPixels;
+        final int altura = h0 > 0 ? h0 : getResources().getDisplayMetrics().heightPixels;
+        final float tela = (float) largura / altura, jogo = proporcaoDoJogo();
+        try {
+            if (f <= 0 || tela <= jogo) { retro.getHolder().setSizeFromLayout(); return; }
+            float parte = f == 1 ? 0.5f : 1f;
+            float alvo = jogo + parte * (tela - jogo);
+            // o desenho do jogo continua sem deformar dentro dessa área; o Android é quem estica a área até a tela
+            retro.getHolder().setFixedSize(Math.round(altura * alvo), altura);
+        } catch (Throwable ignora) { }
+    }
+
+    /** GameCube/Wii: Padrão = como estava; Alta e Máxima aumentam a resolução interna e a nitidez das texturas (pedem mais do aparelho). */
+    private static String[][] variaveisDeQualidade(int q) {
+        if (q >= 2) return new String[][] { { "dolphin_efb_scale", "x3 (1920 x 1584)" }, { "dolphin_max_anisotropy", "16x" } };
+        if (q == 1) return new String[][] { { "dolphin_efb_scale", "x2 (1280 x 1056)" }, { "dolphin_max_anisotropy", "4x" } };
+        return new String[][] { { "dolphin_efb_scale", "x1 (640 x 528)" }, { "dolphin_max_anisotropy", "1x" } };
+    }
+
+    private static void definirVariaveis(GLRetroViewData dados, String[][] pares) {
+        try {
+            Class<?> k = Class.forName("com.swordfish.libretrodroid.Variable");
+            Object arr = java.lang.reflect.Array.newInstance(k, pares.length);
+            for (int i = 0; i < pares.length; i++) java.lang.reflect.Array.set(arr, i, k.getConstructor(String.class, String.class).newInstance(pares[i][0], pares[i][1]));
+            dados.getClass().getMethod("setVariables", arr.getClass()).invoke(dados, arr);
+        } catch (Throwable ignora) { }
+    }
+
+    private void aplicarQualidadeAoVivo(int q) {
+        if (retro == null) return;
+        try {
+            String[][] pares = variaveisDeQualidade(q);
+            Class<?> k = Class.forName("com.swordfish.libretrodroid.Variable");
+            Object arr = java.lang.reflect.Array.newInstance(k, pares.length);
+            for (int i = 0; i < pares.length; i++) java.lang.reflect.Array.set(arr, i, k.getConstructor(String.class, String.class).newInstance(pares[i][0], pares[i][1]));
+            retro.getClass().getMethod("updateVariables", arr.getClass()).invoke(retro, arr);
+        } catch (Throwable ignora) { }
+        // imagem mais suave (bilinear) nas qualidades altas; "nítido" no padrão
+        try {
+            Class<?> k = Class.forName(q >= 1 ? "com.swordfish.libretrodroid.ShaderConfig$Default" : "com.swordfish.libretrodroid.ShaderConfig$Sharp");
+            Object cfg = k.getField("INSTANCE").get(null);
+            for (java.lang.reflect.Method m : retro.getClass().getMethods()) if (m.getName().equals("setShader") && m.getParameterTypes().length == 1) { m.invoke(retro, cfg); break; }
+        } catch (Throwable ignora) { }
     }
 
     private String nucleoAtual = "";

@@ -83,6 +83,9 @@ public final class GameBar {
     public AoTrocarVelocidade aoTrocarVelocidade;
     private int velocidade = 1;
     public interface AoTrocarTamanho { void definir(int pct); }
+    public interface AoTrocar { void definir(int valor); }
+    public AoTrocar aoTrocarFormato, aoTrocarQualidade;
+    public int formatoAtual = 0, qualidadeAtual = 0;
     public AoTrocarTamanho aoTrocarTamanho;
     public int tamanhoAtual = 100;
 
@@ -153,6 +156,24 @@ public final class GameBar {
                 for (int x = 1; x <= 4; x++) vel.addView(botaoVelocidade(x));
                 barra.addView(vel);
             }
+            if (aoTrocarFormato != null) {
+                barra.addView(titulo("FORMATO DA TELA"));
+                LinearLayout fm = new LinearLayout(act);
+                fm.setOrientation(LinearLayout.HORIZONTAL);
+                fm.addView(botaoOpcao("Original", formatoAtual == 0, 0, true));
+                fm.addView(botaoOpcao("Ampliado", formatoAtual == 1, 1, true));
+                fm.addView(botaoOpcao("Tela cheia", formatoAtual == 2, 2, true));
+                barra.addView(fm);
+            }
+            if (aoTrocarQualidade != null) {
+                barra.addView(titulo("QUALIDADE DA IMAGEM"));
+                LinearLayout ql = new LinearLayout(act);
+                ql.setOrientation(LinearLayout.HORIZONTAL);
+                ql.addView(botaoOpcao("Padrão", qualidadeAtual == 0, 0, false));
+                ql.addView(botaoOpcao("Alta", qualidadeAtual == 1, 1, false));
+                ql.addView(botaoOpcao("Máxima", qualidadeAtual == 2, 2, false));
+                barra.addView(ql);
+            }
             if (aoTrocarTamanho != null) {
                 barra.addView(titulo("TAMANHO DA TELA"));
                 LinearLayout tam = new LinearLayout(act);
@@ -219,6 +240,21 @@ public final class GameBar {
         t.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
             if (aoTrocarVelocidade != null && aoTrocarVelocidade.definir(x)) velocidade = x;
             else android.widget.Toast.makeText(act, "Este jogo não aceitou trocar a velocidade.", android.widget.Toast.LENGTH_SHORT).show();
+            desenhar();
+        } });
+        return t;
+    }
+
+    private TextView botaoOpcao(String rotulo, boolean ativa, final int valor, final boolean formato) {
+        TextView t = botaoModo(rotulo, "");
+        GradientDrawable g = new GradientDrawable();
+        g.setCornerRadius(dp(8));
+        g.setColor(ativa ? Color.argb(230, 25, 227, 255) : Color.argb(90, 255, 255, 255));
+        t.setBackground(g);
+        t.setTextColor(ativa ? Color.BLACK : Color.WHITE);
+        t.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
+            if (formato) { formatoAtual = valor; if (aoTrocarFormato != null) aoTrocarFormato.definir(valor); }
+            else { qualidadeAtual = valor; if (aoTrocarQualidade != null) aoTrocarQualidade.definir(valor); }
             desenhar();
         } });
         return t;
