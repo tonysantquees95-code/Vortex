@@ -63,6 +63,7 @@ public final class GameBar {
     private final FrameLayout raiz;
     private final Handler h = new Handler(Looper.getMainLooper());
     private LinearLayout barra, modos;
+    private android.widget.ScrollView rolagem;
     private TextView texto;
     private View alca;
     private JSONObject cfg;
@@ -84,8 +85,8 @@ public final class GameBar {
     private int velocidade = 1;
     public interface AoTrocarTamanho { void definir(int pct); }
     public interface AoTrocar { void definir(int valor); }
-    public AoTrocar aoTrocarFormato, aoTrocarQualidade;
-    public int formatoAtual = 0, qualidadeAtual = 0;
+    public AoTrocar aoTrocarFormato, aoTrocarQualidade, aoTrocarCorrecao;
+    public int formatoAtual = 0, qualidadeAtual = 0, correcaoAtual = 0;
     public AoTrocarTamanho aoTrocarTamanho;
     public int tamanhoAtual = 100;
 
@@ -114,6 +115,7 @@ public final class GameBar {
     public void recarregar() { parar(); iniciar(); }
 
     private void desenhar() {
+        if (rolagem != null) { raiz.removeView(rolagem); rolagem = null; }
         if (barra != null) raiz.removeView(barra);
         if (alca != null) raiz.removeView(alca);
         barra = null; alca = null;
@@ -160,19 +162,26 @@ public final class GameBar {
                 barra.addView(titulo("FORMATO DA TELA"));
                 LinearLayout fm = new LinearLayout(act);
                 fm.setOrientation(LinearLayout.HORIZONTAL);
-                fm.addView(botaoOpcao("Original", formatoAtual == 0, 0, true));
-                fm.addView(botaoOpcao("Ampliado", formatoAtual == 1, 1, true));
-                fm.addView(botaoOpcao("Tela cheia", formatoAtual == 2, 2, true));
+                fm.addView(botaoOpcao("Original", formatoAtual == 0, 0, 0));
+                fm.addView(botaoOpcao("Ampliado", formatoAtual == 1, 1, 0));
+                fm.addView(botaoOpcao("Tela cheia", formatoAtual == 2, 2, 0));
                 barra.addView(fm);
             }
             if (aoTrocarQualidade != null) {
                 barra.addView(titulo("QUALIDADE DA IMAGEM"));
                 LinearLayout ql = new LinearLayout(act);
                 ql.setOrientation(LinearLayout.HORIZONTAL);
-                ql.addView(botaoOpcao("Padrão", qualidadeAtual == 0, 0, false));
-                ql.addView(botaoOpcao("Alta", qualidadeAtual == 1, 1, false));
-                ql.addView(botaoOpcao("Máxima", qualidadeAtual == 2, 2, false));
+                ql.addView(botaoOpcao("Padrão", qualidadeAtual == 0, 0, 1));
+                ql.addView(botaoOpcao("Alta", qualidadeAtual == 1, 1, 1));
+                ql.addView(botaoOpcao("Máxima", qualidadeAtual == 2, 2, 1));
                 barra.addView(ql);
+            }
+            if (aoTrocarCorrecao != null) {
+                barra.addView(titulo("CORES QUEBRADAS? TESTE 1 A 4"));
+                LinearLayout cr = new LinearLayout(act);
+                cr.setOrientation(LinearLayout.HORIZONTAL);
+                for (int c = 0; c < 4; c++) cr.addView(botaoOpcao(String.valueOf(c + 1), correcaoAtual == c, c, 2));
+                barra.addView(cr);
             }
             if (aoTrocarTamanho != null) {
                 barra.addView(titulo("TAMANHO DA TELA"));
@@ -200,7 +209,13 @@ public final class GameBar {
         }
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2, grav);
         lp.setMargins(dp(mx), dp(my), dp(mx), dp(my));
-        raiz.addView(barra, lp);
+        if (expandida) {
+            // com tantas opções o painel passa da altura da tela: ele rola dentro de uma moldura que cabe na tela
+            rolagem = new android.widget.ScrollView(act);
+            rolagem.addView(barra);
+            lp.height = Math.max(dp(160), act.getResources().getDisplayMetrics().heightPixels - dp(my * 2 + 16));
+            raiz.addView(rolagem, lp);
+        } else raiz.addView(barra, lp);
         atualizar();
     }
 
@@ -245,7 +260,7 @@ public final class GameBar {
         return t;
     }
 
-    private TextView botaoOpcao(String rotulo, boolean ativa, final int valor, final boolean formato) {
+    private TextView botaoOpcao(String rotulo, boolean ativa, final int valor, final int tipo) {
         TextView t = botaoModo(rotulo, "");
         GradientDrawable g = new GradientDrawable();
         g.setCornerRadius(dp(8));
@@ -253,8 +268,9 @@ public final class GameBar {
         t.setBackground(g);
         t.setTextColor(ativa ? Color.BLACK : Color.WHITE);
         t.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
-            if (formato) { formatoAtual = valor; if (aoTrocarFormato != null) aoTrocarFormato.definir(valor); }
-            else { qualidadeAtual = valor; if (aoTrocarQualidade != null) aoTrocarQualidade.definir(valor); }
+            if (tipo == 0) { formatoAtual = valor; if (aoTrocarFormato != null) aoTrocarFormato.definir(valor); }
+            else if (tipo == 1) { qualidadeAtual = valor; if (aoTrocarQualidade != null) aoTrocarQualidade.definir(valor); }
+            else { correcaoAtual = valor; if (aoTrocarCorrecao != null) aoTrocarCorrecao.definir(valor); }
             desenhar();
         } });
         return t;

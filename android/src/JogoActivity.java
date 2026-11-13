@@ -15,6 +15,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.Toast;
 import android.widget.FrameLayout;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -63,7 +64,7 @@ public class JogoActivity extends AppCompatActivity {
         new File(dados.getSystemDirectory()).mkdirs();
         nucleoAtual = nucleo == null ? "" : nucleo;
         // modo de teste do GameCube/Wii: desenho por software (lento, mas mostra se o problema é a placa de vídeo)
-        if (nucleoAtual.startsWith("dolphin")) { ajustesDeImagemDolphin(dados); definirVariaveis(dados, variaveisDeQualidade(qualidadeDaImagem())); }
+        if (nucleoAtual.startsWith("dolphin")) { ajustesDeImagemDolphin(dados); definirVariaveis(dados, juntar(variaveisDeQualidade(qualidadeDaImagem()), variaveisDeCorrecao(correcaoDeCores()))); }
         if (getIntent().getBooleanExtra("software", false) && nucleoAtual.startsWith("dolphin")) definirVariavel(dados, "dolphin_renderer", "Software");
         try { if (srm.isFile()) dados.setSaveRAMState(Files.readAllBytes(srm.toPath())); } catch (Exception ignora) { }
 
@@ -114,6 +115,13 @@ public class JogoActivity extends AppCompatActivity {
             }
         };
         if (nucleoAtual.startsWith("dolphin")) {
+            gameBar.correcaoAtual = correcaoDeCores();
+            gameBar.aoTrocarCorrecao = new GameBar.AoTrocar() {
+                public void definir(int c) {
+                    getSharedPreferences("vortex_visual", MODE_PRIVATE).edit().putInt("correcao", c).apply();
+                    aplicarVariaveisAoVivo(juntar(variaveisDeQualidade(qualidadeDaImagem()), variaveisDeCorrecao(c)), true);
+                }
+            };
             gameBar.qualidadeAtual = qualidadeDaImagem();
             gameBar.aoTrocarQualidade = new GameBar.AoTrocar() {
                 public void definir(int q) {
@@ -168,12 +176,29 @@ public class JogoActivity extends AppCompatActivity {
 
     /** GameCube/Wii: Padrão = como estava; Alta e Máxima aumentam a resolução interna e a nitidez das texturas (pedem mais do aparelho). */
     private static String[][] variaveisDeQualidade(int q) {
-        // "Safe" no cache de texturas corrige as cores quebradas (manchas amarelas, vermelhas e azuis em céu, placas e carros)
-        String cache = "Safe";
-        if (q >= 2) return new String[][] { { "dolphin_texture_cache_accuracy", cache }, { "dolphin_gpu_texture_decoding", "OFF" }, { "dolphin_efb_scale", "x3 (1920 x 1584)" }, { "dolphin_max_anisotropy", "16x" } };
-        if (q == 1) return new String[][] { { "dolphin_texture_cache_accuracy", cache }, { "dolphin_gpu_texture_decoding", "OFF" }, { "dolphin_efb_scale", "x2 (1280 x 1056)" }, { "dolphin_max_anisotropy", "4x" } };
-        return new String[][] { { "dolphin_texture_cache_accuracy", cache }, { "dolphin_gpu_texture_decoding", "OFF" }, { "dolphin_efb_scale", "x1 (640 x 528)" }, { "dolphin_max_anisotropy", "1x" } };
+        if (q >= 2) return new String[][] { { "dolphin_efb_scale", "x3 (1920 x 1584)" }, { "dolphin_max_anisotropy", "16x" } };
+        if (q == 1) return new String[][] { { "dolphin_efb_scale", "x2 (1280 x 1056)" }, { "dolphin_max_anisotropy", "4x" } };
+        return new String[][] { { "dolphin_efb_scale", "x1 (640 x 528)" }, { "dolphin_max_anisotropy", "1x" } };
     }
+
+    /** Correção das cores quebradas (manchas amarelas, vermelhas e azuis): cada modo muda um jeito de o núcleo montar as texturas. */
+    private static String[][] variaveisDeCorrecao(int c) {
+        switch (c) {
+            case 1: return new String[][] { { "dolphin_texture_cache_accuracy", "Safe" }, { "dolphin_gpu_texture_decoding", "ON" }, { "dolphin_efb_to_texture", "ON" } };
+            case 2: return new String[][] { { "dolphin_texture_cache_accuracy", "Safe" }, { "dolphin_gpu_texture_decoding", "OFF" }, { "dolphin_efb_to_texture", "OFF" } };
+            case 3: return new String[][] { { "dolphin_texture_cache_accuracy", "Safe" }, { "dolphin_gpu_texture_decoding", "ON" }, { "dolphin_efb_to_texture", "OFF" }, { "dolphin_efb_scaled_copy", "OFF" } };
+            default: return new String[][] { { "dolphin_texture_cache_accuracy", "Safe" }, { "dolphin_gpu_texture_decoding", "OFF" }, { "dolphin_efb_to_texture", "ON" } };
+        }
+    }
+
+    private static String[][] juntar(String[][] a, String[][] b) {
+        String[][] r = new String[a.length + b.length][];
+        System.arraycopy(a, 0, r, 0, a.length);
+        System.arraycopy(b, 0, r, a.length, b.length);
+        return r;
+    }
+
+    private int correcaoDeCores() { return getSharedPreferences("vortex_visual", MODE_PRIVATE).getInt("correcao", 0); }
 
     private static void definirVariaveis(GLRetroViewData dados, String[][] pares) {
         try {
@@ -184,15 +209,32 @@ public class JogoActivity extends AppCompatActivity {
         } catch (Throwable ignora) { }
     }
 
-    private void aplicarQualidadeAoVivo(int q) {
-        if (retro == null) return;
+    /** Manda as opções ao núcleo com o jogo aberto e (se pedido) mostra o que ele passou a usar, para a pessoa saber que pegou. */
+    private void aplicarVariaveisAoVivo(String[][] pares, boolean mostrar) {
         try {
-            String[][] pares = variaveisDeQualidade(q);
             Class<?> k = Class.forName("com.swordfish.libretrodroid.Variable");
             Object arr = java.lang.reflect.Array.newInstance(k, pares.length);
             for (int i = 0; i < pares.length; i++) java.lang.reflect.Array.set(arr, i, k.getConstructor(String.class, String.class).newInstance(pares[i][0], pares[i][1]));
             retro.getClass().getMethod("updateVariables", arr.getClass()).invoke(retro, arr);
-        } catch (Throwable ignora) { }
+        } catch (Throwable e) { if (mostrar) Toast.makeText(this, "Não consegui mudar essa opção agora.", Toast.LENGTH_SHORT).show(); return; }
+        if (!mostrar) return;
+        retro.postDelayed(new Runnable() { public void run() {
+            StringBuilder r = new StringBuilder();
+            try {
+                Object[] vs = (Object[]) retro.getClass().getMethod("getVariables").invoke(retro);
+                for (Object v : vs) {
+                    String key = String.valueOf(v.getClass().getMethod("getKey").invoke(v));
+                    if (key.equals("dolphin_texture_cache_accuracy") || key.equals("dolphin_gpu_texture_decoding") || key.equals("dolphin_efb_to_texture"))
+                        r.append(key.replace("dolphin_", "")).append(": ").append(v.getClass().getMethod("getValue").invoke(v)).append("\n");
+                }
+            } catch (Throwable ignora) { }
+            Toast.makeText(JogoActivity.this, r.length() == 0 ? "Correção aplicada." : "Correção aplicada\n" + r.toString().trim(), Toast.LENGTH_LONG).show();
+        } }, 400);
+    }
+
+    private void aplicarQualidadeAoVivo(int q) {
+        if (retro == null) return;
+        aplicarVariaveisAoVivo(juntar(variaveisDeQualidade(q), variaveisDeCorrecao(correcaoDeCores())), false);
         // imagem mais suave (bilinear) nas qualidades altas; "nítido" no padrão
         try {
             Class<?> k = Class.forName(q >= 1 ? "com.swordfish.libretrodroid.ShaderConfig$Default" : "com.swordfish.libretrodroid.ShaderConfig$Sharp");
