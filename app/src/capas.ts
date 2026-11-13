@@ -98,6 +98,44 @@ export function acharNoIndice(ind: Map<string, string[]>, j: DadosDaCapa): strin
   return null;
 }
 
+// ---- outras fontes quando o sistema não tem a capa: o mesmo jogo em outro console, a Wikipédia e, por último, a tela de título
+const OUTROS_SISTEMAS = ["Sony - PlayStation 2", "Microsoft - Xbox", "Nintendo - Wii", "Nintendo - GameCube", "Sony - PlayStation 3", "Sony - PlayStation Portable"];
+
+async function capaEmOutroSistema(j: DadosDaCapa, proprio: string | undefined): Promise<string | null> {
+  const consultas = [nomeDoArquivo(j.caminho).replace(/^\d{4,5} - /, ""), j.titulo, j.nome_interno ?? ""].map(chaveDeNome).filter((k) => k.length >= 3);
+  for (const sis of OUTROS_SISTEMAS.filter((x) => x !== proprio).slice(0, 5)) {
+    const ind = await indiceDe(sis);
+    if (!ind) continue;
+    for (const k of consultas) {
+      const nomes = ind.get(k);
+      if (nomes) return `${BASE}/${encodeURIComponent(sis)}/Named_Boxarts/${encodeURIComponent(melhorNome(nomes, j.regioes ?? []))}.png`;
+    }
+  }
+  return null;
+}
+
+/** Imagem principal do artigo do jogo na Wikipédia (a arte da caixa), só se o título do artigo for o do jogo. */
+async function capaDaWikipedia(j: DadosDaCapa): Promise<string | null> {
+  try {
+    const base = j.titulo.replace(/\([^)]*\)|\[[^\]]*\]/g, " ").replace(/\s+/g, " ").trim();
+    const alvo = chaveDeNome(base);
+    if (alvo.length < 3) return null;
+    const c = new AbortController();
+    const t = window.setTimeout(() => c.abort(), 9000);
+    const q = encodeURIComponent(`${base} ${infoDoConsole(j.plataforma).curto} video game`);
+    const r = await fetch(`https://en.wikipedia.org/w/api.php?format=json&origin=*&action=query&generator=search&gsrsearch=${q}&gsrlimit=6&prop=pageimages|extracts&piprop=thumbnail&pithumbsize=420&exintro=1&explaintext=1&exchars=300&exlimit=6`, { signal: c.signal });
+    window.clearTimeout(t);
+    if (!r.ok) return null;
+    const pags = Object.values(((await r.json()) as { query?: { pages?: Record<string, { title: string; index?: number; extract?: string; thumbnail?: { source: string } }> } }).query?.pages ?? {}).sort((a, b) => (a.index ?? 9) - (b.index ?? 9));
+    for (const p of pags) {
+      const k = chaveDeNome(p.title);
+      const parecido = k === alvo || ((k.startsWith(alvo + " ") || alvo.startsWith(k + " ")) && Math.min(k.length, alvo.length) / Math.max(k.length, alvo.length) >= 0.75);
+      if (parecido && p.thumbnail?.source && /video game|videogame|game (developed|published)|(is|was) an? .*game/i.test(p.extract ?? "")) return p.thumbnail.source;
+    }
+  } catch { /* sem rede: tenta de novo mais tarde */ }
+  return null;
+}
+
 // ---- resolução no navegador (com cache e poucas conexões ao mesmo tempo)
 const CHAVE = "vortex:capas";
 const REPETIR_DEPOIS_S = 7 * 24 * 3600;
@@ -113,9 +151,9 @@ function memoria(): Record<string, Registro> {
   try { cache = JSON.parse(localStorage.getItem(CHAVE) ?? "{}") as Record<string, Registro>; } catch { cache = {}; }
   if (!cache || typeof cache !== "object") cache = {};
   try {
-    if (localStorage.getItem("vortex:capas:sem3") !== "1") {
+    if (localStorage.getItem("vortex:capas:sem4") !== "1") {
       for (const k of Object.keys(cache)) if ("f" in (cache[k] as object)) delete cache[k];
-      localStorage.setItem("vortex:capas:sem3", "1");
+      localStorage.setItem("vortex:capas:sem4", "1");
       localStorage.setItem(CHAVE, JSON.stringify(cache));
     }
   } catch { /* sem armazenamento: segue só com a memória */ }
@@ -171,6 +209,18 @@ export function resolverCapa(j: DadosDaCapa & { id: string }): Promise<string | 
       }
       for (const u of candidatosDeCapa(j)) {
         if (await testar(u)) { memoria()[j.id] = { u }; guardar(); return u; }
+      }
+      // não achou no sistema: o mesmo jogo em outro console (a arte costuma ser a mesma), depois a Wikipédia, e por fim a tela de título
+      const outro = await capaEmOutroSistema(j, sistema);
+      if (outro && await testar(outro)) { memoria()[j.id] = { u: outro }; guardar(); return outro; }
+      const wiki = await capaDaWikipedia(j);
+      if (wiki && await testar(wiki)) { memoria()[j.id] = { u: wiki }; guardar(); return wiki; }
+      if (ind && sistema) {
+        const nome = acharNoIndice(ind, j);
+        if (nome) {
+          const titulo = `${BASE}/${encodeURIComponent(sistema)}/Named_Titles/${encodeURIComponent(nome)}.png`;
+          if (await testar(titulo)) { memoria()[j.id] = { u: titulo }; guardar(); return titulo; }
+        }
       }
       memoria()[j.id] = { f: Math.floor(Date.now() / 1000) }; guardar();
       return null;
