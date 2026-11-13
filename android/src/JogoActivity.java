@@ -63,6 +63,7 @@ public class JogoActivity extends AppCompatActivity {
         new File(dados.getSystemDirectory()).mkdirs();
         nucleoAtual = nucleo == null ? "" : nucleo;
         // modo de teste do GameCube/Wii: desenho por software (lento, mas mostra se o problema é a placa de vídeo)
+        if (nucleoAtual.startsWith("dolphin")) ajustesDeImagemDolphin(dados);
         if (getIntent().getBooleanExtra("software", false) && nucleoAtual.startsWith("dolphin")) definirVariavel(dados, "dolphin_renderer", "Software");
         try { if (srm.isFile()) dados.setSaveRAMState(Files.readAllBytes(srm.toPath())); } catch (Exception ignora) { }
 
@@ -96,6 +97,21 @@ public class JogoActivity extends AppCompatActivity {
     }
 
     private String nucleoAtual = "";
+    private String ajustesImagem = "";
+
+    /** Só para GameCube/Wii (os outros sistemas ficam como estão): não pula quadros repetidos e usa o filtro de imagem mais simples. */
+    private void ajustesDeImagemDolphin(GLRetroViewData dados) {
+        StringBuilder r = new StringBuilder();
+        try { dados.getClass().getMethod("setSkipDuplicateFrames", boolean.class).invoke(dados, false); r.append("sem pular quadros; "); } catch (Throwable e) { r.append("(pular quadros: indisponível); "); }
+        try {
+            Class<?> k = Class.forName("com.swordfish.libretrodroid.ShaderConfig$Sharp");
+            Object sharp = k.getField("INSTANCE").get(null);
+            for (java.lang.reflect.Method m : dados.getClass().getMethods()) {
+                if (m.getName().equals("setShader") && m.getParameterTypes().length == 1) { m.invoke(dados, sharp); r.append("filtro simples; "); break; }
+            }
+        } catch (Throwable e) { r.append("(filtro: indisponível); "); }
+        ajustesImagem = r.toString();
+    }
 
     /** Telas de 120 Hz: pede 60 Hz, que é o ritmo do GameCube/Wii (60 Hz fixos), tanto à janela quanto à superfície do jogo. */
     private void travarEm60Hz() {
@@ -166,6 +182,7 @@ public class JogoActivity extends AppCompatActivity {
             r.append("Núcleo ").append(nucleoAtual).append(": ").append(nucleo.isFile() ? (nucleo.length() / 1024) + " KB" : "NÃO ENCONTRADO").append('\n');
             File sys = new File(getFilesDir(), "system/dolphin-emu/Sys");
             r.append("Arquivos de sistema: GC ").append(new File(sys, "GC").isDirectory() ? "ok" : "FALTA").append(", Wii ").append(new File(sys, "Wii").isDirectory() ? "ok" : "FALTA").append('\n');
+            r.append("Ajustes de imagem: ").append(ajustesImagem.isEmpty() ? "nenhum" : ajustesImagem).append('\n');
             r.append("Modo: ").append(getIntent().getBooleanExtra("software", false) ? "teste (software)" : "normal").append("\n\n");
         } catch (Throwable e) { r.append("(sem dados do aparelho)\n"); }
         try {
