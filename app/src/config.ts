@@ -43,3 +43,12 @@ export function limparSozinho(): boolean {
 export function definirLimparSozinho(v: boolean) {
   try { localStorage.setItem(CHAVE_LIMPAR, v ? "1" : "0"); } catch { /* vale só nesta sessão */ }
 }
+
+const CHAVE_ANALOGICO = "vortex:analogico-rola";
+/** Analógico esquerdo rola a página (para cima e para baixo) e o direcional escolhe os itens. Desligado por padrão. */
+export function analogicoRola(): boolean {
+  try { return localStorage.getItem(CHAVE_ANALOGICO) === "1"; } catch { return false; }
+}
+export function definirAnalogicoRola(v: boolean) {
+  try { localStorage.setItem(CHAVE_ANALOGICO, v ? "1" : "0"); } catch { /* vale só nesta sessão */ }
+}

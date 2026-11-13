@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ConfigGameBar, EmuladoresInfo, EstadoConta, Jogo, ModoDesempenho, ModoJogoConfig, Motor, PosicaoGameBar, RelatorioLimpeza, ResumoPlataforma } from "../ponte";
 import type { Ocultos } from "../ocultos";
-import { atualizarSozinho, definirAtualizarSozinho, definirLimparSozinho, definirOrganizarAutomatico, limparSozinho, organizarAutomatico } from "../config";
+import { analogicoRola, definirAnalogicoRola, atualizarSozinho, definirAtualizarSozinho, definirLimparSozinho, definirOrganizarAutomatico, limparSozinho, organizarAutomatico } from "../config";
 import { faxinaAutomatica, resumoDaFaxina } from "../faxina";
 import { capaConhecida } from "../capas";
 import { BUILD } from "../atualizacao";
@@ -421,6 +421,12 @@ type Tela = "conta" | "gamebar" | "jogos" | "aparencia" | "modo" | "permissoes" 
 interface Item { id: Tela; icone: string; nome: string; titulo: string; detalhe: string }
 
 /** Ajustes em seções: ícone grande + título no alto, dock para trocar de seção (o foco já troca) e o conteúdo logo abaixo. */
+/** Controle: o analógico esquerdo rola a página e o direcional escolhe os itens. */
+function OpcaoAnalogico() {
+  const [ligado, setLigado] = useState(analogicoRola);
+  return <Interruptor ligado={ligado} rotulo="Analógico esquerdo rola a página" detalhe="Com o controle, o analógico esquerdo sobe e desce a tela e só o direcional escolhe os itens. Desligado, os dois escolhem itens." aoMudar={(v) => { setLigado(v); definirAnalogicoRola(v); }} />;
+}
+
 export function Ajustes({ motor, aoMudarBiblioteca, avisar, atualizacao, tema, aoMudarTema, jogos, plats = [], ocultos, aoMostrarConsole, aoMostrarJogo }: { motor: Motor; aoMudarBiblioteca: () => void; avisar: Avisar; atualizacao: Atualizacao; tema: Tema; aoMudarTema: (t: Tema) => void; jogos: Jogo[]; plats?: ResumoPlataforma[]; ocultos?: Ocultos; aoMostrarConsole?: (id: string) => void; aoMostrarJogo?: (id: string) => void }) {
   const itens: Item[] = [
     ...(motor.conta ? [{ id: "conta" as const, icone: "conta", nome: "Conta", titulo: "Conta e saves na nuvem", detalhe: "Vetorial ID, licença e sincronização dos saves." }] : []),
@@ -456,7 +462,8 @@ export function Ajustes({ motor, aoMudarBiblioteca, avisar, atualizacao, tema, a
         {atual.id === "sobre" && (
           <div className="grid gap-4">
             <div><button data-foco className="botao" onClick={() => window.dispatchEvent(new CustomEvent("vortex:termos"))}>Ler os termos de uso</button></div>
-            <p className="text-sm text-slate-400">Controle: direcional ou analógico move · A confirma · B volta · Y favorita · LB/RB trocam de aba. Teclado: setas ou WASD · Enter · Esc · F · Q/E.</p>
+            <OpcaoAnalogico />
+            <p className="text-sm text-slate-400">Controle: direcional ou analógico move · A confirma · B volta · Y favorita · X atualiza a biblioteca · Start confere a versão do Vortex · LB/RB trocam de aba (a barra de baixo só responde a LB/RB). Teclado: setas ou WASD · Enter · Esc · F · Q/E.</p>
             <p className="text-sm text-slate-500">Vortex · Vetorial Tech{BUILD > 0 ? ` · versão 1.${BUILD}` : ""}</p>
           </div>
         )}

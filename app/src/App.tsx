@@ -141,6 +141,8 @@ export function App() {
     } catch (e) { avisar(String(e instanceof Error ? e.message : e)); }
   }, [motor, avisar]);
   useEffect(() => { const t = window.setInterval(() => setHora(new Date()), 20000); return () => window.clearInterval(t); }, []);
+  const [aceitou, setAceitou] = useState(termosAceitos);
+  const atualizacao = useAtualizacao(motor, lancando !== null, avisar, aceitou);
   useEffect(() => {
     const c = (e: Event) => setControle(Boolean((e as CustomEvent).detail));
     const a = (e: Event) => {
@@ -148,10 +150,19 @@ export function App() {
       const d = Number((e as CustomEvent).detail);
       setAba((x) => ABAS[(ABAS.findIndex(([id]) => id === x) + d + ABAS.length) % ABAS.length][0]);
     };
+    // X do controle: procurar jogos de novo (onde o botão "Atualizar biblioteca" aparece). Start: ver se há versão nova do Vortex e instalar.
+    const bib = () => { if (aberto || lancando) return; if ((aba === "inicio" || aba === "biblioteca" || aba === "loja") && !atualizandoBib) void atualizarBiblioteca(true); };
+    const ver = () => {
+      if (lancando) return;
+      if (atualizacao.nova) { void atualizacao.atualizar(); return; }
+      atualizacao.conferir().then((v) => avisar(v ? `Versão nova: 1.${v.numero}. Aperte Start de novo para atualizar.` : "O Vortex já está na versão mais recente.")).catch(() => avisar("Não consegui conferir agora. Veja a internet."));
+    };
     window.addEventListener("vortex:controle", c);
     window.addEventListener("vortex:aba", a);
-    return () => { window.removeEventListener("vortex:controle", c); window.removeEventListener("vortex:aba", a); };
-  }, [aberto, lancando]);
+    window.addEventListener("vortex:atualizar-biblioteca", bib);
+    window.addEventListener("vortex:atualizacao", ver);
+    return () => { window.removeEventListener("vortex:controle", c); window.removeEventListener("vortex:aba", a); window.removeEventListener("vortex:atualizar-biblioteca", bib); window.removeEventListener("vortex:atualizacao", ver); };
+  }, [aberto, lancando, aba, atualizandoBib, atualizacao, atualizarBiblioteca, avisar]);
   // ao trocar de aba, o foco vai para o primeiro item da tela
   useEffect(() => {
     if (aba === "inicio") return; // o Início cuida do próprio foco (volta para o console em que estava)
@@ -185,8 +196,6 @@ export function App() {
     } catch (e) { avisar(String(e)); }
   }, [motor, avisar]);
 
-  const [aceitou, setAceitou] = useState(termosAceitos);
-  const atualizacao = useAtualizacao(motor, lancando !== null, avisar, aceitou);
   const [lendoTermos, setLendoTermos] = useState(false);
   useEffect(() => { const f = () => setLendoTermos(true); window.addEventListener("vortex:termos", f); return () => window.removeEventListener("vortex:termos", f); }, []);
 
@@ -326,14 +335,14 @@ export function App() {
         </main>
 
         <footer className="rodape-dock">
-          <Dock rotulo="Seções" ativo={aba}
+          <Dock rotulo="Seções" foco={false} ativo={aba}
             itens={[
               ...ABAS.filter(([id]) => id !== "controles" || motor.controles).map(([id, nome, icone]) => ({ id, nome, icone })),
               ...(motor.abrirNoVindex ? [{ id: "arquivos", nome: "Arquivos", icone: "arquivos", acao: true }] : []),
               ...(aba === "inicio" || aba === "biblioteca" || aba === "loja" ? [{ id: "atualizar", nome: atualizandoBib ? "Atualizando…" : "Atualizar biblioteca", icone: "atualizar", acao: true, girando: atualizandoBib, desligado: atualizandoBib }] : []),
             ]}
             aoEscolher={(id) => { if (id === "arquivos") void abrirArquivos(); else if (id === "atualizar") void atualizarBiblioteca(true); else setAba(id as Aba); }} />
-          <div className="dicas max-md:hidden" aria-hidden><span><b>A</b> Abrir</span><span><b>B</b> Voltar</span><span><b>LB</b>/<b>RB</b> Abas</span></div>
+          <div className="dicas max-md:hidden" aria-hidden><span><b>A</b> Abrir</span><span><b>B</b> Voltar</span><span><b>LB</b>/<b>RB</b> Abas</span><span><b>X</b> Atualizar biblioteca</span><span><b>Start</b> Atualização</span></div>
         </footer>
       </div>
 
