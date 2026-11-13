@@ -114,6 +114,7 @@ export function App() {
       const rOrg = manual && organizarAutomatico() ? await motor.organizar() : null;
       const org = rOrg ? rOrg.organizados.length : 0;
       const falhaOrg = rOrg?.falhas?.[0];
+      if (motor.pc) await motor.pc.importar().catch(() => null); // Steam e Epic instaladas entram sozinhas
       const r = await motor.escanear();
       const f = manual ? await faxinaAutomatica(motor) : null;
       if (manual || r.removidos || r.novos || org || f) await recarregar();

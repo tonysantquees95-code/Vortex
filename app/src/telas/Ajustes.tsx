@@ -242,6 +242,26 @@ export function TelaJogos({ motor, avisar, aoMudarBiblioteca, plats = [], oculto
           ))}
         </section>
       )}
+      {motor.pc && (
+        <section className="grid gap-3">
+          <h3 className="text-lg font-bold text-cyan-100/90">Jogos de PC</h3>
+          <p className="text-sm text-slate-300">O Vortex acha sozinho os jogos já instalados na Steam e na Epic Games e abre cada um pelo lançador oficial (sem pedir senha). Jogos de outros lugares (Softonic, Microsoft Store…) você adiciona escolhendo o arquivo ou o atalho.</p>
+          <div className="flex flex-wrap gap-2">
+            <button data-foco className="botao primario" disabled={ocupado} onClick={async () => {
+              setOcupado(true);
+              try {
+                const r = await motor.pc!.importar();
+                await motor.escanear(); aoMudarBiblioteca();
+                avisar(r.steam + r.epic ? `Achei ${r.steam} da Steam e ${r.epic} da Epic${r.novos ? ` (${r.novos} novos na biblioteca)` : ""}.` : "Não achei jogos da Steam nem da Epic instalados neste computador.");
+              } catch (e) { avisar(String(e instanceof Error ? e.message : e)); } finally { setOcupado(false); }
+            }}>Buscar jogos da Steam e Epic</button>
+            <button data-foco className="botao" disabled={ocupado} onClick={async () => {
+              try { if (await motor.pc!.adicionar()) { await motor.escanear(); aoMudarBiblioteca(); avisar("Jogo adicionado à biblioteca."); } } catch (e) { avisar(String(e instanceof Error ? e.message : e)); }
+            }}>Adicionar jogo (.exe ou atalho)</button>
+            <button data-foco className="botao" onClick={() => { motor.abrirUrl("https://apps.microsoft.com/games").catch(() => avisar("Não consegui abrir a Microsoft Store.")); }}>Abrir a Microsoft Store</button>
+          </div>
+        </section>
+      )}
       <section className="grid gap-3">
         <h3 className="text-lg font-bold text-cyan-100/90">Pastas de jogos</h3>
         {pastas.map((p) => (

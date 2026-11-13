@@ -94,6 +94,8 @@ export interface Motor {
   gameBar?(definir?: Partial<ConfigGameBar>): Promise<ConfigGameBar>;
   /** Só no Android: controle para jogos que não têm suporte. */
   controles?: Controles;
+  /** Só no Windows: jogos de PC (Steam e Epic já instaladas, programas escolhidos à mão). */
+  pc?: { importar(): Promise<{ steam: number; epic: number; novos: number }>; adicionar(): Promise<boolean> };
   /** Windows e Android: entrar com o Vetorial ID e sincronizar saves. */
   conta?: ContaVetorial;
   /** Permissões do aparelho (no Windows não há nenhuma a pedir). */

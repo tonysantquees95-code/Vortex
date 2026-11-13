@@ -13,3 +13,4 @@ pub mod limpeza;
 pub mod nucleos;
 pub mod loja;
 pub mod nuvem;
+pub mod pc;

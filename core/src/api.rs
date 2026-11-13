@@ -5,6 +5,7 @@ use crate::modo_jogo::{self, SistemaReal, Sistema};
 use crate::loja;
 use crate::nucleos;
 use crate::nuvem;
+use crate::pc;
 use crate::organizador;
 use crate::emuladores::{self, Ambiente, Configuracao, Lancamento, Preferido};
 use crate::plataformas::PLATAFORMAS;
@@ -237,6 +238,12 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
     if comando == "abrir_url" {
         let url = texto(args, "url")?;
         return abrir_url(&url).map(|_| json!({ "aberto": true }));
+    }
+    if comando == "pc_importar" {
+        return pc_importar(args);
+    }
+    if comando == "pc_adicionar" {
+        return pc_adicionar(args);
     }
     if comando == "abrir_pasta" {
         let pasta = texto(args, "pasta")?;
@@ -621,6 +628,68 @@ fn abrir_url(url: &str) -> Result<(), String> {
     #[cfg(not(windows))]
     let r = Command::new("xdg-open").arg(url).spawn();
     r.map(|_| ()).map_err(|e| format!("Não consegui abrir o navegador: {e}"))
+}
+
+fn pasta_jogos_pc(args: &Value) -> PathBuf {
+    let amb = Ambiente::atual();
+    args.get("pasta_vortex").and_then(|x| x.as_str()).filter(|s| !s.trim().is_empty()).map(PathBuf::from).unwrap_or_else(|| amb.casa.join("Documents").join("Vortex").join("Jogos")).join("Jogos PC")
+}
+
+/// Windows: transforma os jogos da Steam e da Epic já instalados em atalhos na pasta "Jogos PC" e põe a pasta na biblioteca.
+fn pc_importar(args: &Value) -> Result<Value, String> {
+    if !cfg!(windows) {
+        return Err("Steam e Epic Games só no Windows por enquanto.".into());
+    }
+    let arquivo = arquivo_da_biblioteca(args)?;
+    let var = |n: &str| std::env::var_os(n).filter(|v| !v.is_empty()).map(PathBuf::from);
+    let mut steam = Vec::new();
+    for base in [var("ProgramFiles(x86)"), var("ProgramFiles"), Some(PathBuf::from("C:\\Steam")), Some(PathBuf::from("D:\\Steam"))].into_iter().flatten() {
+        if let Some(r) = pc::raiz_da_steam(Some(&base)).or_else(|| base.join("steamapps").is_dir().then(|| base.clone())) {
+            steam = pc::jogos_da_steam(&r);
+            if !steam.is_empty() {
+                break;
+            }
+        }
+    }
+    let epic = var("ProgramData").map(|d| pc::jogos_da_epic(&d.join("Epic").join("EpicGamesLauncher").join("Data").join("Manifests"))).unwrap_or_default();
+    let destino = pasta_jogos_pc(args);
+    let mut todos = steam.clone();
+    todos.extend(epic.clone());
+    let novos = pc::escrever_atalhos(&destino, &todos)?;
+    if !todos.is_empty() {
+        let pasta_vortex = destino.parent().map(Path::to_path_buf).unwrap_or_else(|| destino.clone());
+        executar("adicionar_pasta", &json!({ "biblioteca": arquivo, "pasta": pasta_vortex, "agora": args.get("agora") }))?;
+    }
+    Ok(json!({ "steam": steam.len(), "epic": epic.len(), "novos": novos, "pasta": destino }))
+}
+
+/// Windows: atalho para um programa/jogo escolhido à mão (.exe ou .lnk), na pasta "Jogos PC".
+fn pc_adicionar(args: &Value) -> Result<Value, String> {
+    if !cfg!(windows) {
+        return Err("Jogos de PC só no Windows.".into());
+    }
+    let arquivo = arquivo_da_biblioteca(args)?;
+    let origem = PathBuf::from(texto(args, "caminho")?);
+    let ext = crate::plataformas::extensao(&origem);
+    if !origem.is_file() || (ext != "exe" && ext != "lnk") {
+        return Err("Escolha o arquivo do jogo (.exe) ou o atalho dele (.lnk).".into());
+    }
+    let destino = pasta_jogos_pc(args);
+    std::fs::create_dir_all(&destino).map_err(|e| format!("Não consegui criar a pasta: {e}"))?;
+    let nome = pc::nome_de_arquivo(&origem.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default());
+    let saida = destino.join(format!("{nome}.lnk"));
+    if ext == "lnk" {
+        std::fs::copy(&origem, &saida).map_err(|e| format!("Não consegui copiar o atalho: {e}"))?;
+    } else {
+        let roteiro = "$s=(New-Object -ComObject WScript.Shell).CreateShortcut($env:V_SAIDA);$s.TargetPath=$env:V_ALVO;$s.WorkingDirectory=Split-Path $env:V_ALVO;$s.Save()";
+        let ok = Command::new("powershell").args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", roteiro]).env("V_SAIDA", &saida).env("V_ALVO", &origem).status().map(|s| s.success()).unwrap_or(false);
+        if !ok || !saida.is_file() {
+            return Err("Não consegui criar o atalho do jogo.".into());
+        }
+    }
+    let pasta_vortex = destino.parent().map(Path::to_path_buf).unwrap_or_else(|| destino.clone());
+    executar("adicionar_pasta", &json!({ "biblioteca": arquivo, "pasta": pasta_vortex, "agora": args.get("agora") }))?;
+    Ok(json!({ "ok": true, "atalho": saida }))
 }
 
 /// Abre uma pasta existente no gerenciador de arquivos do sistema (Explorer no Windows).

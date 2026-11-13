@@ -40,6 +40,15 @@ export async function motorTauri(): Promise<Motor> {
     lancar: (id) => c<ResultadoLancamento>("lancar", { id }),
     modoJogo: (nova) => c<ModoJogoConfig>("modo_jogo_config", nova ? { configuracao: nova } : {}),
     abrirNoVindex: async (pasta) => { await c("abrir_pasta", { pasta }); return true; },
+    pc: {
+      importar: () => c<{ steam: number; epic: number; novos: number }>("pc_importar"),
+      adicionar: async () => {
+        const r = await open({ multiple: false, filters: [{ name: "Jogo ou atalho", extensions: ["exe", "lnk"] }] });
+        if (typeof r !== "string") return false;
+        await c("pc_adicionar", { caminho: r });
+        return true;
+      },
+    },
     abrirUrl: async (url) => { await c("abrir_url", { url }); },
     isolar: async (id) => { await c("isolar", { id }); },
     limpar: (simulacao = false) => c<RelatorioLimpeza>("limpar", { simulacao }),
