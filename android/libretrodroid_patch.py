@@ -155,5 +155,27 @@ trocar("environment.cpp", "    bottomLeftOrigin = hw_render_callback->bottom_lef
 """)
 
 # 3) só as ABIs do Vortex
+# 4) o Dolphin deixa o estado do OpenGL "sujo" (vertex array e buffers ligados, recorte, mistura, máscara de cor...).
+#    O LibretroDroid desenha a tela com vértices em memória comum, o que só vale com o estado limpo: sem isso a
+#    imagem do jogo existe no buffer, mas nada aparece na tela. Limpa o estado antes de cada desenho.
+trocar("video.cpp", "#include <GLES2/gl2.h>\n", "#include <GLES2/gl2.h>\n#include <GLES3/gl3.h>\n")
+trocar("video.cpp", "    glDisable(GL_DEPTH_TEST);\n\n    glBindFramebuffer(GL_FRAMEBUFFER, 0);\n    glClearColor(0.0F, 0.0F, 0.0F, 1.0F);",
+"""    // Vortex: estado limpo antes de desenhar a tela
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    glDisable(GL_SCISSOR_TEST);
+    glDisable(GL_STENCIL_TEST);
+    glDisable(GL_BLEND);
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_RASTERIZER_DISCARD);
+    glDisable(GL_DEPTH_TEST);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    glDepthMask(GL_TRUE);
+    glActiveTexture(GL_TEXTURE0);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glClearColor(0.0F, 0.0F, 0.0F, 1.0F);""")
+
 trocar(raiz / "libretrodroid/build.gradle", "        versionName \"1.0\"\n", "        versionName \"1.0\"\n        ndk { abiFilters 'arm64-v8a', 'armeabi-v7a' }\n")
 print("patch aplicado")
