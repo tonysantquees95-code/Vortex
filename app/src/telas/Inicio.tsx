@@ -39,7 +39,7 @@ export function quantosCabem(altura: number, passo: number): number {
 /** Lista em cascata (como nos consoles portáteis): o item em foco cresce, os vizinhos encolhem e somem. */
 function Cascata<T>({ itens, sel, aoSel, chaveDe, nome, rotulo, passo, aoClicar, desenho }: {
   itens: T[]; sel: number; aoSel: (i: number) => void; chaveDe: (t: T) => string; nome: string; rotulo: string; passo: number;
-  aoClicar: (t: T) => void; desenho: (t: T, d: number) => ReactNode;
+  aoClicar: (t: T, semToque: boolean) => void; desenho: (t: T, d: number) => ReactNode;
 }) {
   const raiz = useRef<HTMLDivElement | null>(null);
   const toque = useRef<number | null>(null);
@@ -69,7 +69,7 @@ function Cascata<T>({ itens, sel, aoSel, chaveDe, nome, rotulo, passo, aoClicar,
         <button key={chaveDe(t)} data-foco data-cascata={nome} data-chave={chaveDe(t)} role="option" aria-selected={d === 0} className="cascata-item" data-atual={d === 0}
           style={{ transform: `translateY(calc(-50% + ${d * passo + (d > 0 ? passo * 0.28 : d < 0 ? -passo * 0.28 : 0)}px)) scale(${1 - 0.09 * Math.abs(d)})`, opacity: 1 - 0.28 * Math.abs(d), zIndex: 10 - Math.abs(d) }}
           onFocus={() => aoSel(i)} onPointerDown={() => { toque.current = sel; }}
-          onClick={() => { const a = toque.current; toque.current = null; if (a !== null && a !== i) return; aoClicar(t); }}>
+          onClick={() => { const a = toque.current; toque.current = null; if (a !== null && a !== i) return; aoClicar(t, a === null); }}>
           {desenho(t, d)}
         </button>
       ))}
@@ -137,6 +137,8 @@ export function Inicio({ colecoes, inicial, aoFocar, aoFocarJogo, aoLembrar, aoJ
   const [selC, setSelC] = useState(() => Math.max(0, colecoes.findIndex((c) => c.id === inicial)));
   const [selJ, setSelJ] = useState(0);
   const [nivel, setNivel] = useState<0 | 1>(0);
+  const nivelRef = useRef<0 | 1>(0);
+  nivelRef.current = nivel;
   const raiz = useRef<HTMLDivElement | null>(null);
   const [passo, setPasso] = useState(passoPara);
   const atual = colecoes[Math.min(selC, colecoes.length - 1)];
@@ -162,6 +164,8 @@ export function Inicio({ colecoes, inicial, aoFocar, aoFocarJogo, aoLembrar, aoJ
     window.setTimeout(() => focarEm("jogos"), 90);
   };
   const voltar = useCallback(() => {
+    // com o foco nas informações do jogo (Jogar, favoritar...), voltar leva de volta à lista de jogos
+    if (nivelRef.current === 1 && (document.activeElement as HTMLElement | null)?.closest(".previa-jogo")) { focarEm("jogos"); return; }
     setNivel(0);
     window.setTimeout(() => focarEm("consoles", atual?.id), 90);
   }, [atual?.id, focarEm]);
@@ -186,9 +190,9 @@ export function Inicio({ colecoes, inicial, aoFocar, aoFocarJogo, aoLembrar, aoJ
         passo={passo} aoClicar={abrir} desenho={(c, d) => <ItemConsole c={c} d={d} estreito={nivel === 1} passo={passo} />} />
       {nivel === 1 && (
         <div className="coluna-jogos entrar">
-          <div className="coluna-jogos-cab"><button data-foco className="botao" onClick={voltar} aria-label="Voltar para os consoles">‹ {atual.nome}</button><span className="text-sm text-slate-300">{plural(atual.total)}</span>{atual.tipo === "console" && <button data-foco className="botao botao-topo" onClick={() => aoInfoConsole(atual)} aria-label="Informações do console" title="Informações do console">ⓘ</button>}</div>
+          <div className="coluna-jogos-cab"><button tabIndex={-1} className="botao" onClick={voltar} aria-label="Voltar para os consoles">‹ {atual.nome}</button><span className="text-sm text-slate-300">{plural(atual.total)}</span>{atual.tipo === "console" && <button tabIndex={-1} className="botao botao-topo" onClick={() => aoInfoConsole(atual)} aria-label="Informações do console" title="Informações do console">ⓘ</button>}</div>
           <Cascata nome="jogos" rotulo={`Jogos de ${atual.nome}`} itens={jogos} sel={Math.min(selJ, jogos.length - 1)} aoSel={setSelJ} chaveDe={(j) => j.id} passo={passo}
-            aoClicar={aoJogar} desenho={(j, d) => <ItemJogo j={j} d={d} passo={passo} />} />
+            aoClicar={(j, semToque) => { if (semToque) raiz.current?.querySelector<HTMLElement>(".previa-jogo [data-foco]") && focar(raiz.current.querySelector<HTMLElement>(".previa-jogo [data-foco]")!); else aoJogar(j); }} desenho={(j, d) => <ItemJogo j={j} d={d} passo={passo} />} />
         </div>
       )}
       {nivel === 1 && jogoAtual ? (
