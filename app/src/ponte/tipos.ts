@@ -2,7 +2,7 @@
 export interface Jogo {
   id: string; titulo: string; plataforma: string; caminho: string; bytes: number;
   regioes: string[]; idiomas: string[]; tags: string[];
-  capa: string | null; capa_online: string | null;
+  capa: string | null; capa_online: string | null; nome_interno?: string; id_jogo?: string;
   descricao: string | null; desenvolvedor: string | null; editora: string | null; ano: number | null; genero: string | null; jogadores: string | null;
   adicionado: number; favorito: boolean; ultimo_jogo: number; tempo_total_s: number; sessoes: number; disponivel: boolean;
 }

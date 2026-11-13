@@ -2,7 +2,7 @@
 import { infoDoConsole } from "./consoles.ts";
 
 const BASE = "https://thumbnails.libretro.com";
-export interface DadosDaCapa { titulo: string; caminho: string; plataforma: string; regioes?: string[]; capa_online?: string | null }
+export interface DadosDaCapa { titulo: string; caminho: string; plataforma: string; regioes?: string[]; capa_online?: string | null; nome_interno?: string }
 
 /** A Libretro troca estes caracteres por "_" nos nomes de arquivo. */
 export const nomeSeguro = (n: string) => n.replace(/[&*/:`<>?\\|"]/g, "_");
@@ -24,7 +24,7 @@ export function nomeDoArquivo(caminho: string): string {
   return ponto > 0 && base.length - ponto <= 6 ? base.slice(0, ponto) : base;
 }
 
-/** Endereços possíveis da capa, do mais provável ao menos (no máximo 7). */
+/** Endereços possíveis da capa, do mais provável ao menos (no máximo 11). */
 export function candidatosDeCapa(j: DadosDaCapa): string[] {
   const sistema = infoDoConsole(j.plataforma).libretro;
   const urls: string[] = [];
@@ -37,12 +37,17 @@ export function candidatosDeCapa(j: DadosDaCapa): string[] {
   const regioes = [...(j.regioes ?? []).map((r) => REGIAO_EN[r]).filter(Boolean), "USA", "Europe", "World", "Japan", "Brazil"];
   for (const r of regioes) nomes.push(`${base} (${r})`);
   nomes.push(base);
+  // GameCube/Wii: o nome gravado no próprio disco (com a região do código) quando o nome do arquivo não bate
+  if (j.nome_interno && j.nome_interno.trim()) {
+    const interno = artigoNoFim(j.nome_interno.trim());
+    for (const r of regioes.slice(0, 3)) nomes.push(`${interno} (${r})`);
+  }
   const vistos = new Set<string>();
   for (const n of nomes) {
     const u = `${BASE}/${encodeURIComponent(sistema)}/Named_Boxarts/${encodeURIComponent(nomeSeguro(n))}.png`;
     if (!vistos.has(u)) { vistos.add(u); urls.push(u); }
   }
-  return urls.slice(0, 8);
+  return urls.slice(0, 11);
 }
 
 // ---- resolução no navegador (com cache e poucas conexões ao mesmo tempo)
@@ -59,6 +64,13 @@ function memoria(): Record<string, Registro> {
   if (cache) return cache;
   try { cache = JSON.parse(localStorage.getItem(CHAVE) ?? "{}") as Record<string, Registro>; } catch { cache = {}; }
   if (!cache || typeof cache !== "object") cache = {};
+  try {
+    if (localStorage.getItem("vortex:capas:sem2") !== "1") {
+      for (const k of Object.keys(cache)) if ("f" in (cache[k] as object)) delete cache[k];
+      localStorage.setItem("vortex:capas:sem2", "1");
+      localStorage.setItem(CHAVE, JSON.stringify(cache));
+    }
+  } catch { /* sem armazenamento: segue só com a memória */ }
   return cache;
 }
 function guardar() {

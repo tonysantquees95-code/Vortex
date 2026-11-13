@@ -20,6 +20,13 @@ public class MotorTeste {
         confere(Motor.plataformaDoCabecalho(gc, 64) != null && Motor.plataformaDoCabecalho(gc, 64).id.equals("gamecube"), "disco com assinatura do GameCube é GameCube");
         confere(Motor.plataformaDoCabecalho(wii, 64) != null && Motor.plataformaDoCabecalho(wii, 64).id.equals("wii"), "disco com assinatura do Wii é Wii");
         confere(Motor.plataformaDoCabecalho(new byte[64], 64) == null, "disco sem assinatura continua ambíguo");
+        byte[] disco = new byte[0x60];
+        System.arraycopy("GALE01".getBytes(), 0, disco, 0, 6);
+        System.arraycopy("Super Smash Bros. Melee".getBytes(), 0, disco, 0x20, 23);
+        String[] hd = Motor.cabecalhoNintendo(disco, disco.length);
+        confere(hd != null && hd[0].equals("GALE01") && hd[1].equals("Super Smash Bros. Melee"), "cabeçalho do disco traz código e nome");
+        confere("EUA".equals(Motor.regiaoDoCodigo("GALE01")) && "Europa".equals(Motor.regiaoDoCodigo("GM4P01")) && "Japão".equals(Motor.regiaoDoCodigo("GZLJ01")), "região pela 4ª letra do código");
+        confere(Motor.cabecalhoNintendo(new byte[0x60], 0x60) == null, "arquivo sem código não vira jogo nomeado");
         // disco ISO 9660 (PSP / PS2 / PS1) montado na mão: raiz no setor 20, com o nome certo dentro
         for (String[] caso : new String[][]{{"PSP_GAME", "psp"}, {"SYSTEM.CNF;1", "ps2"}, {"SYSTEM.CNF;1", "ps1"}, {"README.TXT;1", ""}}) {
             byte[] d = new byte[0x8000 + 2048 * 40];

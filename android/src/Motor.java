@@ -326,6 +326,16 @@ public class Motor {
                     novos++;
                 } else atualizados++;
                 j.put("titulo", titulo(f.getName())).put("plataforma", p.id).put("caminho", f.getAbsolutePath()).put("raiz", raiz.getPath()).put("bytes", f.length()).put("disponivel", true);
+                // GameCube/Wii: o próprio disco diz o código e o nome do jogo (e a região): ajuda a achar a capa
+                if ((p.id.equals("gamecube") || p.id.equals("wii")) && !j.has("nome_interno")) {
+                    String[] h = cabecalhoNintendo(f);
+                    if (h != null) {
+                        j.put("id_jogo", h[0]).put("nome_interno", h[1]);
+                        String reg = regiaoDoCodigo(h[0]);
+                        JSONArray rs = j.optJSONArray("regioes");
+                        if (reg != null && (rs == null || rs.length() == 0)) j.put("regioes", new JSONArray().put(reg));
+                    }
+                }
             }
         }
         for (String id : chaves(jogos)) {
@@ -448,6 +458,39 @@ public class Motor {
         }
         if (aceitam.size() == 1 && !aceitam.get(0).exigePasta) return aceitam.get(0);
         return null;
+    }
+
+    /** Código (6 letras) e nome do jogo gravados no começo de um disco de GameCube/Wii. null se o arquivo não tiver esse cabeçalho. */
+    static String[] cabecalhoNintendo(byte[] c, int n) {
+        if (c == null || n < 0x60) return null;
+        for (int i = 0; i < 6; i++) { int b = c[i] & 0xff; if (!((b >= '0' && b <= '9') || (b >= 'A' && b <= 'Z'))) return null; }
+        int fim = 0x20;
+        while (fim < 0x60 && c[fim] != 0) fim++;
+        String nome = new String(c, 0x20, fim - 0x20, java.nio.charset.Charset.forName("ISO-8859-1")).trim();
+        if (nome.isEmpty()) return null;
+        return new String[]{new String(c, 0, 6, java.nio.charset.Charset.forName("US-ASCII")), nome};
+    }
+
+    static String[] cabecalhoNintendo(File f) {
+        String n = f.getName().toLowerCase(Locale.ROOT);
+        if (!n.endsWith(".iso") && !n.endsWith(".gcm")) return null;
+        try (java.io.FileInputStream in = new java.io.FileInputStream(f)) {
+            byte[] c = new byte[0x60];
+            int lidos = 0, k;
+            while (lidos < c.length && (k = in.read(c, lidos, c.length - lidos)) > 0) lidos += k;
+            return cabecalhoNintendo(c, lidos);
+        } catch (Exception e) { return null; }
+    }
+
+    /** A 4ª letra do código é a região: E = EUA, P = Europa, J = Japão. */
+    static String regiaoDoCodigo(String codigo) {
+        if (codigo == null || codigo.length() < 4) return null;
+        switch (codigo.charAt(3)) {
+            case 'E': return "EUA";
+            case 'P': case 'D': case 'F': case 'S': case 'I': case 'X': case 'Y': case 'H': case 'U': return "Europa";
+            case 'J': return "Japão";
+            default: return null;
+        }
     }
 
     static String titulo(String arquivo) {
