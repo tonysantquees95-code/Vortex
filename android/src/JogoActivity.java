@@ -74,6 +74,7 @@ public class JogoActivity extends AppCompatActivity {
         controles = montarControles();
         raiz.addView(controles);
         setContentView(raiz);
+        if (nucleoAtual.startsWith("dolphin")) travarEm60Hz();
         retro.setFocusable(true);
         retro.requestFocus();
         atualizarControles();
@@ -90,6 +91,18 @@ public class JogoActivity extends AppCompatActivity {
     }
 
     private String nucleoAtual = "";
+
+    /** Telas de 120 Hz: pede 60 Hz, que é o ritmo do GameCube/Wii (60 Hz fixos), tanto à janela quanto à superfície do jogo. */
+    private void travarEm60Hz() {
+        try {
+            android.view.WindowManager.LayoutParams lp = getWindow().getAttributes();
+            lp.preferredRefreshRate = 60f;
+            getWindow().setAttributes(lp);
+        } catch (Throwable ignora) { }
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            try { retro.getHolder().getSurface().setFrameRate(60f, android.view.Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE); } catch (Throwable ignora) { }
+        }
+    }
 
     /** Opção do núcleo (ex.: dolphin_renderer). Por reflexão porque a classe Variable varia entre versões do LibretroDroid; se não achar, só ignora. */
     private static void definirVariavel(GLRetroViewData dados, String chave, String valor) {
