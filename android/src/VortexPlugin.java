@@ -123,7 +123,7 @@ public class VortexPlugin extends Plugin {
         } finally { h.disconnect(); }
         if (nomes.length() == 0) throw new Exception("lista de capas vazia");
         String texto = nomes.toString();
-        try (FileOutputStream o = new FileOutputStream(cache)) { o.write(texto.getBytes("UTF-8")); } catch (Exception ignora) { }
+        try (java.io.FileOutputStream o = new java.io.FileOutputStream(cache)) { o.write(texto.getBytes("UTF-8")); } catch (Exception ignora) { }
         return texto;
     }
 

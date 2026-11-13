@@ -24,7 +24,6 @@ import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.swordfish.libretrodroid.GLRetroView;
 import com.swordfish.libretrodroid.GLRetroViewData;
-import com.swordfish.libretrodroid.Variable;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -64,7 +63,7 @@ public class JogoActivity extends AppCompatActivity {
         new File(dados.getSystemDirectory()).mkdirs();
         nucleoAtual = nucleo == null ? "" : nucleo;
         // modo de teste do GameCube/Wii: desenho por software (lento, mas mostra se o problema é a placa de vídeo)
-        if (getIntent().getBooleanExtra("software", false) && nucleoAtual.startsWith("dolphin")) dados.setVariables(new Variable[] { new Variable("dolphin_renderer", "Software") });
+        if (getIntent().getBooleanExtra("software", false) && nucleoAtual.startsWith("dolphin")) definirVariavel(dados, "dolphin_renderer", "Software");
         try { if (srm.isFile()) dados.setSaveRAMState(Files.readAllBytes(srm.toPath())); } catch (Exception ignora) { }
 
         retro = new GLRetroView(this, dados);
@@ -91,6 +90,23 @@ public class JogoActivity extends AppCompatActivity {
     }
 
     private String nucleoAtual = "";
+
+    /** Opção do núcleo (ex.: dolphin_renderer). Por reflexão porque a classe Variable varia entre versões do LibretroDroid; se não achar, só ignora. */
+    private static void definirVariavel(GLRetroViewData dados, String chave, String valor) {
+        try {
+            Class<?> k = Class.forName("com.swordfish.libretrodroid.Variable");
+            for (java.lang.reflect.Constructor<?> c : k.getConstructors()) {
+                Class<?>[] t = c.getParameterTypes();
+                if (t.length == 2 && t[0] == String.class && t[1] == String.class) {
+                    Object v = c.newInstance(chave, valor);
+                    Object arr = java.lang.reflect.Array.newInstance(k, 1);
+                    java.lang.reflect.Array.set(arr, 0, v);
+                    dados.getClass().getMethod("setVariables", arr.getClass()).invoke(dados, arr);
+                    return;
+                }
+            }
+        } catch (Throwable ignora) { }
+    }
 
     /** GameCube/Wii: se a tela ficar preta, este botão mostra o que o motor disse e deixa tentar o modo de teste. */
     private void mostrarBotaoDiagnostico() {
