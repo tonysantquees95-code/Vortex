@@ -23,7 +23,7 @@ import { Dock } from "./telas/Dock";
 import { Colecao, colecoesDe, Inicio } from "./telas/Inicio";
 import { BarraStatus } from "./telas/BarraStatus";
 import { androidParaJogos, favoritarAndroid, ehAndroid, pacoteDe, falhaDeAbertura, limparFalhas } from "./androidApps";
-import { capaConhecida, resolverCapa } from "./capas";
+import { capaConhecida, resolverCapa, usarIndiceDeCapas } from "./capas";
 import { faxinaAutomatica, resumoDaFaxina } from "./faxina";
 
 type Aba = "inicio" | "biblioteca" | "loja" | "controles" | "favoritos" | "ajustes";
@@ -31,6 +31,7 @@ const ABAS: [Aba, string, string][] = [["inicio", "Início", "inicio"], ["biblio
 
 export function App() {
   const motor = useMotor();
+  usarIndiceDeCapas(motor.indiceCapas?.bind(motor));
   useNavegacao();
   const [aba, setAba] = useState<Aba>("inicio");
   const [jogos, setJogos] = useState<Jogo[]>([]);

@@ -50,6 +50,54 @@ export function candidatosDeCapa(j: DadosDaCapa): string[] {
   return urls.slice(0, 11);
 }
 
+// ---- lista de capas que existem de verdade (só no Android): acha a capa mesmo quando o nome do arquivo é diferente do padrão
+type FonteDeIndice = (sistema: string) => Promise<string[]>;
+let fonteDeIndice: FonteDeIndice | null = null;
+export const usarIndiceDeCapas = (f: FonteDeIndice | undefined) => { fonteDeIndice = f ?? null; };
+const indices = new Map<string, Promise<Map<string, string[]> | null>>();
+
+/** Nome sem região/versão, sem acento nem pontuação, com o artigo no começo ("Legend of Zelda, The" → "the legend of zelda"). */
+export function chaveDeNome(n: string): string {
+  let t = n.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\([^)]*\)|\[[^\]]*\]/g, " ").replace(/&/g, " and ");
+  t = t.replace(/\b(.+?), (the|a|an)\b(?= - |$| )/, "$2 $1");
+  return t.replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function indiceDe(sistema: string): Promise<Map<string, string[]> | null> {
+  let p = indices.get(sistema);
+  if (!p) {
+    p = (async () => {
+      if (!fonteDeIndice) return null;
+      try {
+        const m = new Map<string, string[]>();
+        for (const nome of await fonteDeIndice(sistema)) { const k = chaveDeNome(nome); if (k) (m.get(k) ?? m.set(k, []).get(k)!).push(nome); }
+        return m.size ? m : null;
+      } catch { indices.delete(sistema); return null; }
+    })();
+    indices.set(sistema, p);
+  }
+  return p;
+}
+
+/** Escolhe, entre as capas com o mesmo nome base, a da região que o jogo tem (ou USA, Europe...). */
+function melhorNome(nomes: string[], regioes: string[]): string {
+  const pref = [...regioes.map((r) => REGIAO_EN[r]).filter(Boolean), "USA", "Europe", "World", "Japan"];
+  for (const r of pref) { const f = nomes.find((n) => n.includes(`(${r}`)); if (f) return f; }
+  return nomes[0];
+}
+
+export function acharNoIndice(ind: Map<string, string[]>, j: DadosDaCapa): string | null {
+  const arquivo = nomeDoArquivo(j.caminho).replace(/^\d{4,5} - /, "");
+  const consultas = [arquivo, j.titulo, j.nome_interno ?? ""].map(chaveDeNome).filter((k) => k.length >= 3);
+  for (const k of consultas) { const e = ind.get(k); if (e) return melhorNome(e, j.regioes ?? []); }
+  // parecido: todas as palavras de um nome estão no outro (ex.: "gta liberty city stories" x "grand theft auto liberty city stories" não entra; precisa ser contido por inteiro)
+  for (const k of consultas) {
+    if (k.length < 6) continue;
+    for (const [chave, nomes] of ind) if (chave.startsWith(k + " ") || k.startsWith(chave + " ")) { if (Math.min(chave.length, k.length) >= 6 && Math.min(chave.length, k.length) / Math.max(chave.length, k.length) >= 0.75) return melhorNome(nomes, j.regioes ?? []); }
+  }
+  return null;
+}
+
 // ---- resolução no navegador (com cache e poucas conexões ao mesmo tempo)
 const CHAVE = "vortex:capas";
 const REPETIR_DEPOIS_S = 7 * 24 * 3600;
@@ -65,9 +113,9 @@ function memoria(): Record<string, Registro> {
   try { cache = JSON.parse(localStorage.getItem(CHAVE) ?? "{}") as Record<string, Registro>; } catch { cache = {}; }
   if (!cache || typeof cache !== "object") cache = {};
   try {
-    if (localStorage.getItem("vortex:capas:sem2") !== "1") {
+    if (localStorage.getItem("vortex:capas:sem3") !== "1") {
       for (const k of Object.keys(cache)) if ("f" in (cache[k] as object)) delete cache[k];
-      localStorage.setItem("vortex:capas:sem2", "1");
+      localStorage.setItem("vortex:capas:sem3", "1");
       localStorage.setItem(CHAVE, JSON.stringify(cache));
     }
   } catch { /* sem armazenamento: segue só com a memória */ }
@@ -114,6 +162,13 @@ export function resolverCapa(j: DadosDaCapa & { id: string }): Promise<string | 
   const p = (async () => {
     await vez();
     try {
+      const sistema = infoDoConsole(j.plataforma).libretro;
+      const ind = sistema ? await indiceDe(sistema) : null;
+      const exato = ind && sistema ? acharNoIndice(ind, j) : null;
+      if (exato && sistema) {
+        const u = `${BASE}/${encodeURIComponent(sistema)}/Named_Boxarts/${encodeURIComponent(exato)}.png`;
+        if (await testar(u)) { memoria()[j.id] = { u }; guardar(); return u; }
+      }
       for (const u of candidatosDeCapa(j)) {
         if (await testar(u)) { memoria()[j.id] = { u }; guardar(); return u; }
       }

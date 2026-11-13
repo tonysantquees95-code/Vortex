@@ -80,6 +80,7 @@ public class VortexPlugin extends Plugin {
                     else if (comando.startsWith("conta_") || comando.startsWith("ponte_") || comando.equals("saves_sincronizar")) r = contaESaves(comando, a);
                     else if (comando.equals("preparar_jogo")) r = preparar(a);
                     else if (comando.equals("lancar")) r = lancar(a);
+                    else if (comando.equals("indice_capas")) r = indiceCapas(a.getString("sistema"));
                     else if (comando.equals("abrir_pasta")) r = abrirPasta(a);
                     else if (comando.equals("abrir_url")) r = abrirUrl(a);
                     else if (comando.equals("visual_controles")) r = JogoActivity.gravarVisual(getContext(), a);
@@ -93,6 +94,37 @@ public class VortexPlugin extends Plugin {
                 }
             }
         });
+    }
+
+    /** Lista dos nomes de capa que existem no repositório da Libretro para um sistema (guardada por 14 dias). Sem ela só dá para adivinhar o nome do arquivo. */
+    private Object indiceCapas(String sistema) throws Exception {
+        if (!sistema.matches("[A-Za-z0-9 ._+-]{3,60}")) throw new Exception("sistema inválido");
+        File cache = new File(getContext().getFilesDir(), "capas_" + sistema.replaceAll("[^A-Za-z0-9]", "_") + ".json");
+        if (cache.isFile() && System.currentTimeMillis() - cache.lastModified() < 14L * 24 * 3600 * 1000) {
+            return new String(java.nio.file.Files.readAllBytes(cache.toPath()), "UTF-8");
+        }
+        java.net.HttpURLConnection h = (java.net.HttpURLConnection) new java.net.URL("https://thumbnails.libretro.com/" + sistema.replace(" ", "%20") + "/Named_Boxarts/").openConnection();
+        h.setConnectTimeout(15000);
+        h.setReadTimeout(60000);
+        h.setRequestProperty("User-Agent", "Vortex");
+        org.json.JSONArray nomes = new org.json.JSONArray();
+        try {
+            if (h.getResponseCode() != 200) throw new Exception("lista de capas indisponível (erro " + h.getResponseCode() + ")");
+            java.io.BufferedReader l = new java.io.BufferedReader(new java.io.InputStreamReader(h.getInputStream(), "UTF-8"));
+            java.util.regex.Pattern re = java.util.regex.Pattern.compile("href=\"([^\"]+?)\\.png\"");
+            String linha;
+            while ((linha = l.readLine()) != null) {
+                java.util.regex.Matcher m = re.matcher(linha);
+                while (m.find()) {
+                    String n = m.group(1).replace("&amp;", "&").replace("+", "%2B");
+                    try { nomes.put(java.net.URLDecoder.decode(n, "UTF-8")); } catch (Exception ignora) { }
+                }
+            }
+        } finally { h.disconnect(); }
+        if (nomes.length() == 0) throw new Exception("lista de capas vazia");
+        String texto = nomes.toString();
+        try (FileOutputStream o = new FileOutputStream(cache)) { o.write(texto.getBytes("UTF-8")); } catch (Exception ignora) { }
+        return texto;
     }
 
     /** Conta Vetorial ID e saves na nuvem. */

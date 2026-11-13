@@ -57,6 +57,7 @@ export function motorAndroid(): Motor {
     lancar: (id) => c<ResultadoLancamento>("lancar", { id }),
     modoJogo: (nova) => c<ModoJogoConfig>("modo_jogo_config", nova ? { configuracao: nova } : {}),
     isolar: async (id) => { await c("isolar", { id }); },
+    indiceCapas: (sistema) => c<string[]>("indice_capas", { sistema }),
     appsAndroid: () => c<AppAndroid[]>("apps_android"),
     abrirApp: async (pacote) => { await c("controle_jogar", { pacote }); },
     abrirNoVindex: async (pasta) => (await c<{ vindex: boolean }>("abrir_pasta", { pasta })).vindex,

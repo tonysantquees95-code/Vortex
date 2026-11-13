@@ -75,6 +75,8 @@ export interface VisualControles { cor: string; cor2: string; modelo: string; ta
 
 export interface Motor {
   plataforma: "windows" | "android" | "demo";
+  /** Só no Android: nomes de capas que existem na Libretro para um sistema (para achar a capa mesmo com o nome do arquivo diferente). */
+  indiceCapas?(sistema: string): Promise<string[]>;
   /** Só no Android: jogos instalados no aparelho (biblioteca "Android"). */
   appsAndroid?(): Promise<AppAndroid[]>;
   /** Só no Android: abre um app/jogo instalado. */
