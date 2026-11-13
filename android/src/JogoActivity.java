@@ -186,15 +186,15 @@ public class JogoActivity extends AppCompatActivity {
             r.append("Modo: ").append(getIntent().getBooleanExtra("software", false) ? "teste (software)" : "normal").append("\n\n");
         } catch (Throwable e) { r.append("(sem dados do aparelho)\n"); }
         try {
-            Process p = Runtime.getRuntime().exec(new String[] { "logcat", "-d", "-t", "600" });
+            Process p = Runtime.getRuntime().exec(new String[] { "logcat", "-d", "-t", "4000" });
             java.io.BufferedReader l = new java.io.BufferedReader(new java.io.InputStreamReader(p.getInputStream()));
             java.util.ArrayList<String> linhas = new java.util.ArrayList<String>();
             String x;
             java.util.regex.Pattern re = java.util.regex.Pattern.compile("dolphin|libretro|retro|egl|gles|opengl|vulkan|shader|fatal|denied|sys[ /]|core|jit", java.util.regex.Pattern.CASE_INSENSITIVE);
-            while ((x = l.readLine()) != null) if (re.matcher(x).find()) linhas.add(x.length() > 200 ? x.substring(0, 200) : x);
+            while ((x = l.readLine()) != null) { if (x.contains("avc:")) continue; if (re.matcher(x).find()) linhas.add(x.length() > 200 ? x.substring(0, 200) : x); }
             r.append("Mensagens do motor (últimas):\n");
             if (linhas.isEmpty()) r.append("(nenhuma)\n");
-            for (int i = Math.max(0, linhas.size() - 40); i < linhas.size(); i++) r.append(linhas.get(i)).append('\n');
+            for (int i = Math.max(0, linhas.size() - 70); i < linhas.size(); i++) r.append(linhas.get(i)).append('\n');
         } catch (Throwable e) { r.append("(não consegui ler as mensagens do motor)\n"); }
         String t = r.toString();
         try (FileOutputStream o = new FileOutputStream(new File(getFilesDir(), "diagnostico.txt"))) { o.write(t.getBytes("UTF-8")); } catch (Throwable ignora) { }

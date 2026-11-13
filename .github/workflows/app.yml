@@ -91,6 +91,16 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
+      # Motor de vídeo (LibretroDroid) remendado: o buffer do jogo não é mais apagado e recriado (o Dolphin ficava com a tela preta)
+      - name: Compilar o motor de vídeo remendado
+        run: |
+          git clone --quiet --depth 1 --branch 0.14.0 https://github.com/Swordfish90/LibretroDroid.git ld
+          git -C ld submodule update --quiet --init --depth 1
+          python android/libretrodroid_patch.py ld
+          cd ld
+          chmod +x gradlew
+          ./gradlew :libretrodroid:assembleRelease --no-daemon
+          cp libretrodroid/build/outputs/aar/libretrodroid-release.aar ../libretrodroid.aar
       - run: npm install --no-audit --no-fund
         working-directory: app
       - name: Testar o motor do Android (sem o Android)
@@ -123,7 +133,9 @@ jobs:
           # tela do jogo: o motor de emulação (LibretroDroid) mora no JitPack
           sed -i 's#mavenCentral()#mavenCentral()\n        maven { url "https://jitpack.io" }#' android/build.gradle
           grep -n jitpack android/build.gradle
-          sed -i "0,/dependencies {/s#dependencies {#dependencies {\n    implementation 'com.github.swordfish90:libretrodroid:0.14.0'#" android/app/build.gradle
+          mkdir -p android/app/libs
+          cp ../libretrodroid.aar android/app/libs/libretrodroid.aar
+          sed -i "0,/dependencies {/s#dependencies {#dependencies {\n    implementation files('libs/libretrodroid.aar')\n    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.5.1'\n    implementation 'org.jetbrains.kotlin:kotlin-stdlib:2.0.21'#" android/app/build.gradle
           sed -i "0,/dependencies {/s#dependencies {#dependencies {\n    implementation 'org.apache.commons:commons-compress:1.26.2'\n    implementation 'org.tukaani:xz:1.9'#" android/app/build.gradle
           grep -n "commons-compress" android/app/build.gradle
           grep -n libretrodroid android/app/build.gradle
