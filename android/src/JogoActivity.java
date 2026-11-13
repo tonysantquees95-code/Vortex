@@ -248,7 +248,7 @@ public class JogoActivity extends AppCompatActivity {
     /** GameCube/Wii: se a tela ficar preta, este botão mostra o que o motor disse e deixa tentar o modo de teste. */
     private void mostrarBotaoDiagnostico() {
         final Button bt = new Button(this);
-        bt.setText("Tela preta? Diagnóstico");
+        bt.setText("Tela preta?");
         bt.setAllCaps(false);
         bt.setTextSize(12);
         bt.setTextColor(Color.WHITE);
@@ -257,9 +257,10 @@ public class JogoActivity extends AppCompatActivity {
         g.setCornerRadius(dp(16));
         bt.setBackground(g);
         bt.setVisibility(View.GONE);
-        // no alto, no meio, logo abaixo do ✕: nenhum botão do controle fica por baixo
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(34), Gravity.TOP | Gravity.CENTER_HORIZONTAL);
-        lp.topMargin = dp(58);
+        // no alto, logo à direita do ✕ (que fica no meio): nada do controle fica por baixo e o botão não é cortado
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(32), Gravity.TOP | Gravity.START);
+        lp.topMargin = dp(10);
+        lp.leftMargin = getResources().getDisplayMetrics().widthPixels / 2 + dp(30);
         raiz.addView(bt, lp);
         bt.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { diagnosticar(); } });
         bt.postDelayed(new Runnable() { public void run() { bt.setVisibility(View.VISIBLE); } }, 5000);
@@ -481,8 +482,16 @@ public class JogoActivity extends AppCompatActivity {
         por(f, botao("Y", KeyEvent.KEYCODE_BUTTON_Y, false), 56, R, 130, 85);
         por(f, botao("A", KeyEvent.KEYCODE_BUTTON_A, false), 56, R, 14, 85);
         // ombros e menu
-        por(f, botao("L", KeyEvent.KEYCODE_BUTTON_L1, false), 44, Gravity.START | Gravity.TOP, 20, 12);
-        por(f, botao("R", KeyEvent.KEYCODE_BUTTON_R1, false), 44, Gravity.END | Gravity.TOP, 20, 12);
+        if (nucleoAtual.startsWith("dolphin")) {
+            // GameCube: os gatilhos L e R (acelerar e frear nos jogos de corrida) são o L2 e o R2; o Z é o R1
+            por(f, botao("L2", KeyEvent.KEYCODE_BUTTON_L2, false), 44, Gravity.START | Gravity.TOP, 20, 12);
+            por(f, botao("L1", KeyEvent.KEYCODE_BUTTON_L1, false), 44, Gravity.START | Gravity.TOP, 74, 12);
+            por(f, botao("R2", KeyEvent.KEYCODE_BUTTON_R2, false), 44, Gravity.END | Gravity.TOP, 20, 12);
+            por(f, botao("R1", KeyEvent.KEYCODE_BUTTON_R1, false), 44, Gravity.END | Gravity.TOP, 74, 12);
+        } else {
+            por(f, botao("L", KeyEvent.KEYCODE_BUTTON_L1, false), 44, Gravity.START | Gravity.TOP, 20, 12);
+            por(f, botao("R", KeyEvent.KEYCODE_BUTTON_R1, false), 44, Gravity.END | Gravity.TOP, 20, 12);
+        }
         FrameLayout.LayoutParams ps = new FrameLayout.LayoutParams(ds(54), ds(32), Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM);
         ps.setMargins(ds(-34), 0, 0, ds(14));
         f.addView(botao("Select", KeyEvent.KEYCODE_BUTTON_SELECT, true), ps);
