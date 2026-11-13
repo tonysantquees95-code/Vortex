@@ -38,6 +38,7 @@ export async function motorTauri(): Promise<Motor> {
     lojaInstalar: (id) => c<{ instalado: boolean; jogo_id: string | null }>("loja_instalar", { id }),
     lancar: (id) => c<ResultadoLancamento>("lancar", { id }),
     modoJogo: (nova) => c<ModoJogoConfig>("modo_jogo_config", nova ? { configuracao: nova } : {}),
+    abrirNoVindex: async (pasta) => { await c("abrir_pasta", { pasta }); return true; },
     abrirUrl: async (url) => { await c("abrir_url", { url }); },
     isolar: async (id) => { await c("isolar", { id }); },
     limpar: (simulacao = false) => c<RelatorioLimpeza>("limpar", { simulacao }),

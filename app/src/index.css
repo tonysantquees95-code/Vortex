@@ -82,7 +82,6 @@ main.rolagem { padding-left: max(.5rem, env(safe-area-inset-left)); padding-righ
 .interruptor[data-lig="true"] { background: linear-gradient(90deg, var(--neon2), var(--neon)); }
 .interruptor[data-lig="true"]::after { transform: translateX(1.3rem); }
 html[data-animacoes="0"] *, html[data-animacoes="0"] *::after, html[data-animacoes="0"] *::before { animation: none !important; transition: none !important; }
-@media (prefers-reduced-motion: reduce) { *, *::after, *::before { animation: none !important; transition: none !important; } }
 
 .campo { width: 100%; padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,.06); border: 1px solid var(--borda); color: inherit; }
 .campo:focus { outline: 2px solid var(--neon); }

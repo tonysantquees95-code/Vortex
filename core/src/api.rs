@@ -229,6 +229,10 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
         let url = texto(args, "url")?;
         return abrir_url(&url).map(|_| json!({ "aberto": true }));
     }
+    if comando == "abrir_pasta" {
+        let pasta = texto(args, "pasta")?;
+        return abrir_pasta(&pasta).map(|_| json!({ "aberto": true, "vindex": true }));
+    }
     let arquivo = arquivo_da_biblioteca(args)?;
     let _g = BLOQUEIO.lock().unwrap_or_else(|e| e.into_inner());
     let mut b = Biblioteca::carregar(&arquivo);
@@ -608,6 +612,19 @@ fn abrir_url(url: &str) -> Result<(), String> {
     #[cfg(not(windows))]
     let r = Command::new("xdg-open").arg(url).spawn();
     r.map(|_| ()).map_err(|e| format!("Não consegui abrir o navegador: {e}"))
+}
+
+/// Abre uma pasta existente no gerenciador de arquivos do sistema (Explorer no Windows).
+fn abrir_pasta(pasta: &str) -> Result<(), String> {
+    let p = std::path::Path::new(pasta);
+    if !p.is_dir() {
+        return Err("Essa pasta não existe mais.".into());
+    }
+    #[cfg(windows)]
+    let r = Command::new("explorer").arg(p).spawn();
+    #[cfg(not(windows))]
+    let r = Command::new("xdg-open").arg(p).spawn();
+    r.map(|_| ()).map_err(|e| format!("Não consegui abrir a pasta: {e}"))
 }
 
 #[cfg(test)]

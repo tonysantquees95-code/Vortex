@@ -58,7 +58,7 @@ export function App() {
   const [infoDe, setInfoDe] = useState<Colecao | null>(null);
   const mudarJogos = useCallback((id: string, como: "esconder" | "fora" | "mostrar") => setOcultos((o) => { const n = mudarJogo(o, id, como); guardarOcultos(n); return n; }), []);
   const mudarOcultos = useCallback((id: string, como: "esconder" | "fora" | "mostrar") => setOcultos((o) => { const n = mudarOculto(o, id, como); guardarOcultos(n); return n; }), []);
-  const [abertura, setAbertura] = useState(() => lerTema().abertura && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+  const [abertura, setAbertura] = useState(() => lerTema().abertura);
   const [config, setConfig] = useState(configurado);
   useEffect(() => { aplicarTema(tema); guardarTema(tema); }, [tema]);
   // os botões virtuais da tela do jogo (Java) seguem a cor do sistema e o modelo escolhido
@@ -134,7 +134,8 @@ export function App() {
   const abrirArquivos = useCallback(async () => {
     try {
       const ps = await motor.pastas();
-      const pasta = ps.find((p) => /vortex/i.test(p)) ?? ps[0] ?? "/storage/emulated/0/Vortex/Jogos";
+      const pasta = ps.find((p) => /vortex/i.test(p)) ?? ps[0] ?? (motor.plataforma === "windows" ? "" : "/storage/emulated/0/Vortex/Jogos");
+      if (!pasta) { avisar("Escolha uma pasta de jogos nos Ajustes primeiro."); return; }
       if (!(await motor.abrirNoVindex?.(pasta))) avisar("Para ver a pasta, instale o Vindex (gerenciador de arquivos da Vetorial).");
     } catch (e) { avisar(String(e instanceof Error ? e.message : e)); }
   }, [motor, avisar]);
