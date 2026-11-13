@@ -18,7 +18,7 @@ export interface PerfilControle {
   botoes: { tecla: string; x: number; y: number }[];
 }
 export interface ModeloControle { modelo: string; nome: string; descricao: string }
-export interface EstadoConta { logado: boolean; email?: string; vortex: boolean; mensagem?: string; offline?: boolean }
+export interface EstadoConta { logado: boolean; email?: string; vortex: boolean; mensagem?: string; offline?: boolean; selo?: string }
 export interface PedidoDaVenus { id: string; comando: "abrir_jogo" | "otimizar"; argumento: string }
 export interface SaveNaNuvem { jogo: string; arquivo: string; bytes: number; atualizado: number; dispositivo: string }
 export interface RelatorioSaves { enviados: number; baixados: number; conflitos: string[]; falhas: string[] }

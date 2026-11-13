@@ -99,12 +99,13 @@ public final class Nuvem {
                 .put("dispositivo", new JSONObject().put("id", disp).put("nome", nomeAparelho).put("plataforma", "android"));
         Resposta r = rede.pedir("POST", "/id/entrar", null, corpo.toString().getBytes(StandardCharsets.UTF_8), null);
         if (r.status != 200) throw new Exception(mensagem(r));
-        String token = new JSONObject(r.texto()).optString("token", "");
+        JSONObject resp = new JSONObject(r.texto());
+        String token = resp.optString("token", "");
         if (token.isEmpty()) throw new Exception("O servidor não devolveu o login.");
-        JSONObject conta = new JSONObject().put("token", token).put("email", email.trim().toLowerCase(Locale.ROOT)).put("dispositivo", disp);
+        JSONObject conta = new JSONObject().put("token", token).put("email", email.trim().toLowerCase(Locale.ROOT)).put("dispositivo", disp).put("selo", resp.optString("selo", ""));
         dados.mkdirs();
         Files.write(new File(dados, "conta.json").toPath(), conta.toString().getBytes(StandardCharsets.UTF_8));
-        return new JSONObject().put("logado", true).put("email", conta.getString("email"));
+        return new JSONObject().put("logado", true).put("email", conta.getString("email")).put("selo", conta.optString("selo", ""));
     }
 
     public static void sair(Rede rede, File dados) {
@@ -116,17 +117,28 @@ public final class Nuvem {
     public static JSONObject estado(Rede rede, File dados) throws Exception {
         JSONObject c = lerConta(dados);
         if (c == null) return new JSONObject().put("logado", false).put("vortex", false);
+        JSONObject fim401 = new JSONObject().put("logado", false).put("vortex", false).put("mensagem", "Sua sessão terminou. Entre de novo.");
         try {
+            // recibo de licença assinado: o app confere a assinatura e decide se abre (sem internet também)
+            Resposta rv = rede.pedir("GET", "/id/verificar", c.getString("token"), null, null);
+            if (rv.status == 200) {
+                String novo = new JSONObject(rv.texto()).optJSONObject("licenca") == null ? "" : new JSONObject(rv.texto()).getJSONObject("licenca").optString("selo", "");
+                if (!novo.isEmpty() && !novo.equals(c.optString("selo", ""))) {
+                    c.put("selo", novo);
+                    Files.write(new File(dados, "conta.json").toPath(), c.toString().getBytes(StandardCharsets.UTF_8));
+                }
+            } else if (rv.status == 401 || rv.status == 403) { new File(dados, "conta.json").delete(); return fim401; }
             Resposta r = rede.pedir("GET", "/vortex/licenca", c.getString("token"), null, null);
+            String selo = c.optString("selo", "");
             if (r.status == 200) {
                 JSONObject v = new JSONObject(r.texto());
-                return new JSONObject().put("logado", true).put("email", c.getString("email")).put("vortex", v.optBoolean("vortex", false)).put("mensagem", v.optString("mensagem", ""));
+                return new JSONObject().put("logado", true).put("email", c.getString("email")).put("selo", selo).put("vortex", v.optBoolean("vortex", false)).put("mensagem", v.optString("mensagem", ""));
             }
-            if (r.status == 401 || r.status == 403) { new File(dados, "conta.json").delete(); return new JSONObject().put("logado", false).put("vortex", false).put("mensagem", "Sua sessão terminou. Entre de novo."); }
-            return new JSONObject().put("logado", true).put("email", c.getString("email")).put("vortex", false).put("mensagem", mensagem(r));
+            if (r.status == 401 || r.status == 403) { new File(dados, "conta.json").delete(); return fim401; }
+            return new JSONObject().put("logado", true).put("email", c.getString("email")).put("selo", selo).put("vortex", false).put("mensagem", mensagem(r));
         } catch (Exception semRede) {
-            // sem internet: o Vortex continua jogando; só a nuvem espera
-            return new JSONObject().put("logado", true).put("email", c.getString("email")).put("vortex", true).put("offline", true);
+            // sem internet: quem decide se abre é o selo assinado (vale alguns dias offline)
+            return new JSONObject().put("logado", true).put("email", c.getString("email")).put("selo", c.optString("selo", "")).put("vortex", true).put("offline", true);
         }
     }
 

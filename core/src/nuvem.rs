@@ -55,6 +55,9 @@ pub struct Conta {
     pub token: String,
     pub email: String,
     pub dispositivo: String,
+    /// Recibo de licença assinado pelo servidor (Ed25519); quem confere é o app, sem internet.
+    #[serde(default)]
+    pub selo: String,
 }
 
 fn arquivo_conta(dados: &Path) -> PathBuf {
@@ -108,7 +111,8 @@ pub fn entrar(rede: &dyn Rede, dados: &Path, email: &str, senha: &str, nome_apar
     }
     let v: Value = serde_json::from_slice(&r.corpo).map_err(|e| e.to_string())?;
     let token = v.get("token").and_then(|t| t.as_str()).ok_or("O servidor não devolveu o login.")?.to_string();
-    let conta = Conta { token, email: email.trim().to_lowercase(), dispositivo };
+    let selo = v.get("selo").and_then(|t| t.as_str()).unwrap_or("").to_string();
+    let conta = Conta { token, email: email.trim().to_lowercase(), dispositivo, selo };
     std::fs::create_dir_all(dados).map_err(|e| e.to_string())?;
     std::fs::write(arquivo_conta(dados), serde_json::to_string(&conta).unwrap()).map_err(|e| e.to_string())?;
     Ok(conta)
@@ -121,21 +125,38 @@ pub fn sair(rede: &dyn Rede, dados: &Path) {
     let _ = std::fs::remove_file(arquivo_conta(dados));
 }
 
-/// {logado, email, vortex (liberado), mensagem}. Se o servidor recusar o login, a conta salva é descartada.
+/// {logado, email, vortex (liberado), selo, mensagem}. Se o servidor recusar o login, a conta salva é descartada.
+/// O `selo` é o recibo assinado da licença: o app confere a assinatura e decide se abre (sem internet também).
 pub fn estado(rede: &dyn Rede, dados: &Path) -> Value {
-    let Some(c) = conta_salva(dados) else { return json!({ "logado": false, "vortex": false }) };
+    let Some(mut c) = conta_salva(dados) else { return json!({ "logado": false, "vortex": false }) };
+    match rede.pedir("GET", "/id/verificar", Some(&c.token), None, None) {
+        Ok(r) if r.status == 200 => {
+            let v: Value = serde_json::from_slice(&r.corpo).unwrap_or(Value::Null);
+            if let Some(novo) = v.get("licenca").and_then(|l| l.get("selo")).and_then(|x| x.as_str()) {
+                if novo != c.selo {
+                    c.selo = novo.to_string();
+                    let _ = std::fs::write(arquivo_conta(dados), serde_json::to_string(&c).unwrap());
+                }
+            }
+        }
+        Ok(r) if r.status == 401 || r.status == 403 => {
+            let _ = std::fs::remove_file(arquivo_conta(dados));
+            return json!({ "logado": false, "vortex": false, "mensagem": "Sua sessão terminou. Entre de novo." });
+        }
+        _ => {}
+    }
     match rede.pedir("GET", "/vortex/licenca", Some(&c.token), None, None) {
         Ok(r) if r.status == 200 => {
             let v: Value = serde_json::from_slice(&r.corpo).unwrap_or(Value::Null);
-            json!({ "logado": true, "email": c.email, "vortex": v.get("vortex").and_then(|x| x.as_bool()).unwrap_or(false), "mensagem": v.get("mensagem").cloned().unwrap_or(json!("")) })
+            json!({ "logado": true, "email": c.email, "selo": c.selo, "vortex": v.get("vortex").and_then(|x| x.as_bool()).unwrap_or(false), "mensagem": v.get("mensagem").cloned().unwrap_or(json!("")) })
         }
         Ok(r) if r.status == 401 || r.status == 403 => {
             let _ = std::fs::remove_file(arquivo_conta(dados));
             json!({ "logado": false, "vortex": false, "mensagem": "Sua sessão terminou. Entre de novo." })
         }
-        Ok(r) => json!({ "logado": true, "email": c.email, "vortex": false, "mensagem": mensagem(&r) }),
-        // sem internet: o Vortex continua jogando; só a nuvem espera
-        Err(_) => json!({ "logado": true, "email": c.email, "vortex": true, "offline": true }),
+        Ok(r) => json!({ "logado": true, "email": c.email, "selo": c.selo, "vortex": false, "mensagem": mensagem(&r) }),
+        // sem internet: quem decide se abre é o selo assinado (vale alguns dias offline)
+        Err(_) => json!({ "logado": true, "email": c.email, "selo": c.selo, "vortex": true, "offline": true }),
     }
 }
 

@@ -22,6 +22,10 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
+      - name: Chave pública do selo de licença (embutida no aplicativo)
+        run: |
+          x=$(curl -fsS --retry 5 --retry-delay 5 https://venus-servidor.tonysantquees95.workers.dev/id/chave-publica | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);if(!/^[A-Za-z0-9_-]{43}$/.test(j.x))process.exit(1);console.log(j.x)})')
+          echo "VITE_SELO_CHAVE=$x" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -38,6 +42,10 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
+      - name: Chave pública do selo de licença (embutida no aplicativo)
+        run: |
+          x=$(curl -fsS --retry 5 --retry-delay 5 https://venus-servidor.tonysantquees95.workers.dev/id/chave-publica | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);if(!/^[A-Za-z0-9_-]{43}$/.test(j.x))process.exit(1);console.log(j.x)})')
+          echo "VITE_SELO_CHAVE=$x" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -83,6 +91,10 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
+      - name: Chave pública do selo de licença (embutida no aplicativo)
+        run: |
+          x=$(curl -fsS --retry 5 --retry-delay 5 https://venus-servidor.tonysantquees95.workers.dev/id/chave-publica | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);if(!/^[A-Za-z0-9_-]{43}$/.test(j.x))process.exit(1);console.log(j.x)})')
+          echo "VITE_SELO_CHAVE=$x" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
