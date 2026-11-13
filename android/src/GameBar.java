@@ -78,6 +78,11 @@ public final class GameBar {
     private final Runnable volta = new Runnable() { @Override public void run() { atualizar(); if (rodando) h.postDelayed(this, 1000); } };
     private final Runnable esconder = new Runnable() { @Override public void run() { expandida = false; desenhar(); } };
 
+    /** Quem troca a velocidade do jogo de verdade (a tela do jogo). Valores inteiros: 1 = normal, 2 = dobro... */
+    public interface AoTrocarVelocidade { boolean definir(int x); }
+    public AoTrocarVelocidade aoTrocarVelocidade;
+    private int velocidade = 1;
+
     public GameBar(Activity a, FrameLayout raiz) { this.act = a; this.raiz = raiz; }
 
     private int dp(float v) { return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, act.getResources().getDisplayMetrics()); }
@@ -138,6 +143,13 @@ public final class GameBar {
             taxas.addView(botaoTaxa("Auto", 0));
             for (int t : taxasDaTela()) taxas.addView(botaoTaxa(t + " Hz", t));
             barra.addView(taxas);
+            if (aoTrocarVelocidade != null) {
+                barra.addView(titulo("VELOCIDADE DO JOGO"));
+                LinearLayout vel = new LinearLayout(act);
+                vel.setOrientation(LinearLayout.HORIZONTAL);
+                for (int x = 1; x <= 4; x++) vel.addView(botaoVelocidade(x));
+                barra.addView(vel);
+            }
             barra.addView(titulo("MODO DE JOGO"));
             modos = new LinearLayout(act);
             modos.setOrientation(LinearLayout.HORIZONTAL);
@@ -183,6 +195,22 @@ public final class GameBar {
         } catch (Throwable ignora) { }
         if (r.isEmpty()) r.add(60);
         return new java.util.ArrayList<Integer>(r);
+    }
+
+    private TextView botaoVelocidade(final int x) {
+        TextView t = botaoModo("x" + x, "");
+        boolean ativa = velocidade == x;
+        GradientDrawable g = new GradientDrawable();
+        g.setCornerRadius(dp(8));
+        g.setColor(ativa ? Color.argb(230, 255, 190, 40) : Color.argb(90, 255, 255, 255));
+        t.setBackground(g);
+        t.setTextColor(ativa ? Color.BLACK : Color.WHITE);
+        t.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
+            if (aoTrocarVelocidade != null && aoTrocarVelocidade.definir(x)) velocidade = x;
+            else android.widget.Toast.makeText(act, "Este jogo não aceitou trocar a velocidade.", android.widget.Toast.LENGTH_SHORT).show();
+            desenhar();
+        } });
+        return t;
     }
 
     private TextView botaoTaxa(String rotulo, final int taxa) {

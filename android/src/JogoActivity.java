@@ -86,6 +86,11 @@ public class JogoActivity extends AppCompatActivity {
         };
         ((InputManager) getSystemService(Context.INPUT_SERVICE)).registerInputDeviceListener(ouvinte, null);
         gameBar = new GameBar(this, raiz);
+        gameBar.aoTrocarVelocidade = new GameBar.AoTrocarVelocidade() {
+            public boolean definir(int x) {
+                try { retro.getClass().getMethod("setFrameSpeed", int.class).invoke(retro, x); return true; } catch (Throwable e) { return false; }
+            }
+        };
         gameBar.iniciar();
         if (nucleoAtual.startsWith("dolphin")) mostrarBotaoDiagnostico();
     }
