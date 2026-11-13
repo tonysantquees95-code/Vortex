@@ -76,6 +76,11 @@ public class JogoActivity extends AppCompatActivity {
         raiz.addView(controles);
         setContentView(raiz);
         if (nucleoAtual.startsWith("dolphin")) travarEm60Hz();
+        // só depois que o motor subiu (antes disso ele ainda não existe)
+        retro.postDelayed(new Runnable() { public void run() {
+            aplicarTamanhoDaTela(tamanhoDaTela());
+            if (nucleoAtual.startsWith("dolphin")) { try { retro.setControllerType(0, 1); } catch (Throwable ignora) { } }
+        } }, 2500);
         retro.setFocusable(true);
         retro.requestFocus();
         atualizarControles();
@@ -92,8 +97,24 @@ public class JogoActivity extends AppCompatActivity {
                 try { retro.getClass().getMethod("setFrameSpeed", int.class).invoke(retro, x); return true; } catch (Throwable e) { return false; }
             }
         };
+        gameBar.tamanhoAtual = tamanhoDaTela();
+        gameBar.aoTrocarTamanho = new GameBar.AoTrocarTamanho() {
+            public void definir(int pct) {
+                getSharedPreferences("vortex_visual", MODE_PRIVATE).edit().putInt("tela_pct", pct).apply();
+                aplicarTamanhoDaTela(pct);
+            }
+        };
         gameBar.iniciar();
         if (nucleoAtual.startsWith("dolphin")) mostrarBotaoDiagnostico();
+    }
+
+    private int tamanhoDaTela() { return getSharedPreferences("vortex_visual", MODE_PRIVATE).getInt("tela_pct", 100); }
+
+    /** Aumenta ou diminui a imagem do jogo (em %, a partir do centro, sem deformar). Acima de 100 as bordas saem da tela. */
+    private void aplicarTamanhoDaTela(int pct) {
+        if (retro == null) return;
+        float h = Math.max(50, Math.min(200, pct)) / 200f;
+        try { retro.setViewport(new android.graphics.RectF(0.5f - h, 0.5f - h, 0.5f + h, 0.5f + h)); } catch (Throwable ignora) { }
     }
 
     private String nucleoAtual = "";
@@ -154,12 +175,13 @@ public class JogoActivity extends AppCompatActivity {
         g.setCornerRadius(dp(16));
         bt.setBackground(g);
         bt.setVisibility(View.GONE);
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(34), Gravity.TOP | Gravity.START);
-        lp.leftMargin = dp(10);
-        lp.topMargin = dp(36);
+        // no alto, no meio, logo abaixo do ✕: nenhum botão do controle fica por baixo
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(34), Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        lp.topMargin = dp(58);
         raiz.addView(bt, lp);
         bt.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { diagnosticar(); } });
         bt.postDelayed(new Runnable() { public void run() { bt.setVisibility(View.VISIBLE); } }, 5000);
+        bt.postDelayed(new Runnable() { public void run() { bt.setVisibility(View.GONE); } }, 25000); // se o jogo apareceu, o aviso some
     }
 
     private void diagnosticar() {
@@ -339,11 +361,17 @@ public class JogoActivity extends AppCompatActivity {
         bt.setPadding(0, 0, 0, 0);
         if (pilula) bt.setTextSize(10);
         bt.setBackground(fundo(pilula, false));
+        final long[] inicio = new long[1];
         bt.setOnTouchListener(new View.OnTouchListener() {
             public boolean onTouch(View v, MotionEvent ev) {
                 int ac = ev.getActionMasked();
-                if (ac == MotionEvent.ACTION_DOWN || ac == MotionEvent.ACTION_POINTER_DOWN) { retro.sendKeyEvent(KeyEvent.ACTION_DOWN, tecla, 0); v.setBackground(fundo(pilula, true)); }
-                else if (ac == MotionEvent.ACTION_UP || ac == MotionEvent.ACTION_CANCEL || ac == MotionEvent.ACTION_POINTER_UP) { retro.sendKeyEvent(KeyEvent.ACTION_UP, tecla, 0); v.setBackground(fundo(pilula, false)); }
+                if (ac == MotionEvent.ACTION_DOWN || ac == MotionEvent.ACTION_POINTER_DOWN) { inicio[0] = android.os.SystemClock.uptimeMillis(); retro.sendKeyEvent(KeyEvent.ACTION_DOWN, tecla, 0); v.setBackground(fundo(pilula, true)); }
+                else if (ac == MotionEvent.ACTION_UP || ac == MotionEvent.ACTION_CANCEL || ac == MotionEvent.ACTION_POINTER_UP) {
+                    v.setBackground(fundo(pilula, false));
+                    long falta = 90 - (android.os.SystemClock.uptimeMillis() - inicio[0]);
+                    if (falta > 0) v.postDelayed(new Runnable() { public void run() { retro.sendKeyEvent(KeyEvent.ACTION_UP, tecla, 0); } }, falta);
+                    else retro.sendKeyEvent(KeyEvent.ACTION_UP, tecla, 0);
+                }
                 return true;
             }
         });

@@ -82,6 +82,9 @@ public final class GameBar {
     public interface AoTrocarVelocidade { boolean definir(int x); }
     public AoTrocarVelocidade aoTrocarVelocidade;
     private int velocidade = 1;
+    public interface AoTrocarTamanho { void definir(int pct); }
+    public AoTrocarTamanho aoTrocarTamanho;
+    public int tamanhoAtual = 100;
 
     public GameBar(Activity a, FrameLayout raiz) { this.act = a; this.raiz = raiz; }
 
@@ -150,6 +153,14 @@ public final class GameBar {
                 for (int x = 1; x <= 4; x++) vel.addView(botaoVelocidade(x));
                 barra.addView(vel);
             }
+            if (aoTrocarTamanho != null) {
+                barra.addView(titulo("TAMANHO DA TELA"));
+                LinearLayout tam = new LinearLayout(act);
+                tam.setOrientation(LinearLayout.HORIZONTAL);
+                int[] pcts = {70, 85, 100, 115, 130, 150};
+                for (int p : pcts) tam.addView(botaoTamanho(p));
+                barra.addView(tam);
+            }
             barra.addView(titulo("MODO DE JOGO"));
             modos = new LinearLayout(act);
             modos.setOrientation(LinearLayout.HORIZONTAL);
@@ -208,6 +219,22 @@ public final class GameBar {
         t.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
             if (aoTrocarVelocidade != null && aoTrocarVelocidade.definir(x)) velocidade = x;
             else android.widget.Toast.makeText(act, "Este jogo não aceitou trocar a velocidade.", android.widget.Toast.LENGTH_SHORT).show();
+            desenhar();
+        } });
+        return t;
+    }
+
+    private TextView botaoTamanho(final int pct) {
+        TextView t = botaoModo(pct + "%", "");
+        boolean ativa = tamanhoAtual == pct;
+        GradientDrawable g = new GradientDrawable();
+        g.setCornerRadius(dp(8));
+        g.setColor(ativa ? Color.argb(230, 25, 227, 255) : Color.argb(90, 255, 255, 255));
+        t.setBackground(g);
+        t.setTextColor(ativa ? Color.BLACK : Color.WHITE);
+        t.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
+            tamanhoAtual = pct;
+            if (aoTrocarTamanho != null) aoTrocarTamanho.definir(pct);
             desenhar();
         } });
         return t;
