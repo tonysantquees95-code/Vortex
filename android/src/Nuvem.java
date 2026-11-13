@@ -147,6 +147,15 @@ public final class Nuvem {
         if (r.status != 200) throw new Exception(mensagem(r));
     }
 
+    /** Jogos com save na conta (de qualquer aparelho): a resposta do servidor sem mexer em nada. */
+    public static JSONObject listaDeSaves(Rede rede, File dados) throws Exception {
+        JSONObject conta = lerConta(dados);
+        if (conta == null) throw new Exception("Entre na sua conta Vetorial ID.");
+        Resposta r = rede.pedir("GET", "/vortex/saves", conta.getString("token"), null, null);
+        if (r.status != 200) throw new Exception(mensagem(r));
+        return new JSONObject(r.texto());
+    }
+
     /** politica: "perguntar", "local" ou "nuvem". */
     public static JSONObject sincronizar(Rede rede, File dados, List<Item> itens, String politica) throws Exception {
         JSONObject conta = lerConta(dados);

@@ -77,7 +77,7 @@ public class VortexPlugin extends Plugin {
                     Object r;
                     if (comando.equals("emuladores")) r = emuladores();
                     else if (comando.startsWith("controle_") || comando.equals("apps_android")) r = controle(comando, a);
-                    else if (comando.startsWith("conta_") || comando.startsWith("ponte_") || comando.equals("saves_sincronizar")) r = contaESaves(comando, a);
+                    else if (comando.startsWith("conta_") || comando.startsWith("ponte_") || comando.equals("saves_sincronizar") || comando.equals("saves_lista")) r = contaESaves(comando, a);
                     else if (comando.equals("preparar_jogo")) r = preparar(a);
                     else if (comando.equals("lancar")) r = lancar(a);
                     else if (comando.equals("indice_capas")) r = indiceCapas(a.getString("sistema"));
@@ -137,6 +137,7 @@ public class VortexPlugin extends Plugin {
             case "conta_sair": Nuvem.sair(rede, dados); return new JSONObject().put("logado", false);
             case "ponte_fila": return Nuvem.fila(rede, dados);
             case "ponte_responder": Nuvem.responder(rede, dados, a.getString("id"), a.optBoolean("ok", true), a.optString("resumo", "")); return new JSONObject().put("ok", true);
+            case "saves_lista": return Nuvem.listaDeSaves(rede, dados);
             case "saves_sincronizar": {
                 Object lista = motor.executar("listar", new JSONObject().put("biblioteca", a.getString("biblioteca")).put("filtro", new JSONObject()));
                 JSONArray jogos = lista instanceof JSONArray ? (JSONArray) lista : new JSONArray(String.valueOf(lista));

@@ -20,6 +20,7 @@ export interface PerfilControle {
 export interface ModeloControle { modelo: string; nome: string; descricao: string }
 export interface EstadoConta { logado: boolean; email?: string; vortex: boolean; mensagem?: string; offline?: boolean }
 export interface PedidoDaVenus { id: string; comando: "abrir_jogo" | "otimizar"; argumento: string }
+export interface SaveNaNuvem { jogo: string; arquivo: string; bytes: number; atualizado: number; dispositivo: string }
 export interface RelatorioSaves { enviados: number; baixados: number; conflitos: string[]; falhas: string[] }
 /** Conta Vetorial ID: licença do Vortex e saves na nuvem. */
 export interface ContaVetorial {
@@ -27,6 +28,8 @@ export interface ContaVetorial {
   entrar(email: string, senha: string): Promise<EstadoConta>;
   sair(): Promise<void>;
   sincronizar(conflitos?: "local" | "nuvem"): Promise<RelatorioSaves>;
+  /** Jogos que têm save na conta (de qualquer aparelho). */
+  nuvem(): Promise<SaveNaNuvem[]>;
   /** Ponte de voz: pedidos que a Vênus fez para este aparelho (perguntar também avisa que o Vortex está aberto). */
   fila(): Promise<PedidoDaVenus[]>;
   responder(id: string, ok: boolean, resumo: string): Promise<void>;

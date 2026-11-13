@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import type { Jogo, Ordem, ResumoPlataforma } from "../ponte";
+import type { ContaVetorial, Jogo, Ordem, ResumoPlataforma } from "../ponte";
+import { JogosDaConta } from "./JogosDaConta";
 import { Carta } from "./pecas";
 import { IconeConsole } from "./Icones";
 
 /** Grade de jogos com capas, busca, ordem e filtro de console. Usada na Biblioteca, nos Favoritos e ao abrir um console da cascata. */
-export function Biblioteca({ jogos, plats, aoAbrir, titulo, consoleFixo, vazio, aoVoltar }: {
-  jogos: Jogo[]; plats: ResumoPlataforma[]; aoAbrir: (j: Jogo) => void; titulo?: string; consoleFixo?: string | null; vazio: string; aoVoltar?: () => void;
+export function Biblioteca({ jogos, plats, aoAbrir, titulo, consoleFixo, vazio, aoVoltar, conta, aoProcurar }: {
+  jogos: Jogo[]; plats: ResumoPlataforma[]; aoAbrir: (j: Jogo) => void; titulo?: string; consoleFixo?: string | null; vazio: string; aoVoltar?: () => void; conta?: ContaVetorial; aoProcurar?: () => void;
 }) {
   const [busca, setBusca] = useState("");
   const [plat, setPlat] = useState<string | null>(null);
@@ -26,6 +27,7 @@ export function Biblioteca({ jogos, plats, aoAbrir, titulo, consoleFixo, vazio, 
           <option value="mais_jogados" className="bg-slate-900">Mais jogados</option><option value="adicionados" className="bg-slate-900">Novos</option><option value="ano" className="bg-slate-900">Ano</option>
         </select>
       </div>
+      {!consoleFixo && conta && aoProcurar && <JogosDaConta conta={conta} jogos={jogos} plats={plats} aoProcurar={aoProcurar} />}
       {!consoleFixo && (
         <div className="rolagem mb-5 flex gap-2 py-2">
           <button data-foco className="chip" data-ativa={!plat} onClick={() => setPlat(null)}>Todas</button>

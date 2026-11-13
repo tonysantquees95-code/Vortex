@@ -195,6 +195,15 @@ pub fn conta_e_saves(comando: &str, args: &Value, rede: &dyn nuvem::Rede) -> Res
             }
             para(nuvem::sincronizar(rede, &c.token, &itens, &dados.join("saves_estado.json"), politica)?)
         }
+        // jogos que têm save na conta (de qualquer aparelho), para mostrar o que falta neste
+        "saves_lista" => {
+            let c = nuvem::conta_salva(&dados).ok_or("Entre na sua conta Vetorial ID.")?;
+            let r = rede.pedir("GET", "/vortex/saves", Some(&c.token), None, None)?;
+            if r.status != 200 {
+                return Err(format!("O servidor respondeu {}.", r.status));
+            }
+            serde_json::from_slice(&r.corpo).map_err(|e| e.to_string())
+        }
         // ponte de voz: o Vortex aberto pergunta o que a Vênus pediu e responde
         "ponte_fila" => {
             let c = nuvem::conta_salva(&dados).ok_or("Sem conta.")?;
@@ -219,7 +228,7 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
     if comando == "preparar_jogo" {
         return preparar_jogo_com(args, &nucleos::baixar_da_libretro);
     }
-    if comando.starts_with("conta_") || comando.starts_with("ponte_") || comando == "saves_sincronizar" {
+    if comando.starts_with("conta_") || comando.starts_with("ponte_") || comando == "saves_sincronizar" || comando == "saves_lista" {
         return conta_e_saves(comando, args, &nuvem::RedeReal);
     }
     if comando == "plataformas_catalogo" {

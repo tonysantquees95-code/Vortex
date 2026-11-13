@@ -318,7 +318,7 @@ export function App() {
           ) : aba === "ajustes" ? (
             <Ajustes motor={motor} aoMudarBiblioteca={recarregar} avisar={avisar} atualizacao={atualizacao} tema={tema} aoMudarTema={setTema} jogos={jogos} plats={plats} ocultos={ocultos} aoMostrarConsole={(id) => mudarOcultos(id, "mostrar")} aoMostrarJogo={(id) => mudarJogos(id, "mostrar")} />
           ) : aba === "biblioteca" ? (
-            <Biblioteca jogos={todos} plats={plats} aoAbrir={setAberto} vazio="Nenhum jogo encontrado." />
+            <Biblioteca jogos={todos} plats={plats} aoAbrir={setAberto} vazio="Nenhum jogo encontrado." conta={motor.conta} aoProcurar={() => { void atualizarBiblioteca(true); }} />
           ) : (
             <Biblioteca key="fav" jogos={favoritos} plats={plats} aoAbrir={setAberto} titulo="Favoritos" vazio="Nenhum favorito ainda. Abra um jogo e aperte Y (ou F) para favoritar." />
           )}
