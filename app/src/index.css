@@ -194,3 +194,12 @@ html[data-formato="futurista"] .cascata-item { border-radius: 4px; }
 }
 
 .botao-topo { padding: .4rem .8rem; gap: .4rem; font-size: .85rem; white-space: nowrap; }
+
+/* Marca VORTEX: neons correndo em volta das letras (mesma animação do VX do Velox) */
+.vx-logo { display: block; width: 100%; height: auto; overflow: visible; }
+@keyframes vx-corre { to { stroke-dashoffset: -100; } }
+.vx-logo .vx-corre { stroke-width: 5; stroke-dasharray: 13 87; stroke-dashoffset: 0; animation: vx-corre 3.4s linear infinite; }
+.vx-logo .vx-corre.a { stroke: #fff; stroke-opacity: .95; }
+.vx-logo .vx-corre.b { stroke: var(--neon2); stroke-width: 4; }
+.marca-vx { display: inline-block; width: clamp(150px, 24vw, 270px); }
+@media (prefers-reduced-motion: reduce) { .vx-logo .vx-corre { animation: none; } }

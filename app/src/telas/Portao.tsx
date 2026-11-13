@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useMotor } from "../estado";
 import type { EstadoConta } from "../ponte";
+import { LogoVortex } from "./LogoVortex";
 import { avaliar, type Estado } from "../trava";
 
 const SITE_DA_CONTA = "https://venus-servidor.tonysantquees95.workers.dev/conta.html";
@@ -77,7 +78,7 @@ export function Portao({ children }: { children: ReactNode }) {
   return (
     <div className="fundo-tela grid min-h-dvh place-items-center p-4">
       <main className="vidro grid w-[min(440px,94vw)] gap-3 p-6 text-center">
-        <span className="marca"><span className="nome text-3xl">VORTEX</span></span>
+        <span className="marca-vx"><LogoVortex /></span>
         {corpo}
         {msg && <p role="alert" className="text-sm text-rose-300">{msg}</p>}
       </main>

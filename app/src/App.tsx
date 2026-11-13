@@ -20,6 +20,7 @@ import { instalarVoltar, registrarVoltar } from "./voltar";
 import { useAtualizacao } from "./useAtualizacao";
 import { Biblioteca } from "./telas/Biblioteca";
 import { Dock } from "./telas/Dock";
+import { LogoVortex } from "./telas/LogoVortex";
 import { Colecao, colecoesDe, Inicio } from "./telas/Inicio";
 import { BarraStatus } from "./telas/BarraStatus";
 import { androidParaJogos, favoritarAndroid, ehAndroid, pacoteDe, falhaDeAbertura, limparFalhas } from "./androidApps";
@@ -306,7 +307,7 @@ export function App() {
         <header className="cabeca grid gap-2 pb-1">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
             <BarraStatus lado="esquerda" hora={hora} controle={controle} demo={motor.plataforma === "demo"} />
-            <div className="text-center"><span className="marca"><span className="nome text-2xl sm:text-4xl">VORTEX</span></span></div>
+            <div className="text-center"><span className="marca-vx"><LogoVortex /></span></div>
             <BarraStatus lado="direita" hora={hora} controle={controle} demo={motor.plataforma === "demo"} />
           </div>
         </header>
