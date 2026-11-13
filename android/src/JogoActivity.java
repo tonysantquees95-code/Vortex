@@ -24,6 +24,7 @@ import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.swordfish.libretrodroid.GLRetroView;
 import com.swordfish.libretrodroid.GLRetroViewData;
+import com.swordfish.libretrodroid.Variable;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -61,6 +62,9 @@ public class JogoActivity extends AppCompatActivity {
         dados.setSystemDirectory(new File(getFilesDir(), "system").getAbsolutePath());
         dados.setSavesDirectory(savesDir.getAbsolutePath());
         new File(dados.getSystemDirectory()).mkdirs();
+        nucleoAtual = nucleo == null ? "" : nucleo;
+        // modo de teste do GameCube/Wii: desenho por software (lento, mas mostra se o problema é a placa de vídeo)
+        if (getIntent().getBooleanExtra("software", false) && nucleoAtual.startsWith("dolphin")) dados.setVariables(new Variable[] { new Variable("dolphin_renderer", "Software") });
         try { if (srm.isFile()) dados.setSaveRAMState(Files.readAllBytes(srm.toPath())); } catch (Exception ignora) { }
 
         retro = new GLRetroView(this, dados);
@@ -83,6 +87,96 @@ public class JogoActivity extends AppCompatActivity {
         ((InputManager) getSystemService(Context.INPUT_SERVICE)).registerInputDeviceListener(ouvinte, null);
         gameBar = new GameBar(this, raiz);
         gameBar.iniciar();
+        if (nucleoAtual.startsWith("dolphin")) mostrarBotaoDiagnostico();
+    }
+
+    private String nucleoAtual = "";
+
+    /** GameCube/Wii: se a tela ficar preta, este botão mostra o que o motor disse e deixa tentar o modo de teste. */
+    private void mostrarBotaoDiagnostico() {
+        final Button bt = new Button(this);
+        bt.setText("Tela preta? Diagnóstico");
+        bt.setAllCaps(false);
+        bt.setTextSize(12);
+        bt.setTextColor(Color.WHITE);
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(Color.argb(190, 20, 20, 30));
+        g.setCornerRadius(dp(16));
+        bt.setBackground(g);
+        bt.setVisibility(View.GONE);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(34), Gravity.TOP | Gravity.START);
+        lp.leftMargin = dp(10);
+        lp.topMargin = dp(36);
+        raiz.addView(bt, lp);
+        bt.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { diagnosticar(); } });
+        bt.postDelayed(new Runnable() { public void run() { bt.setVisibility(View.VISIBLE); } }, 5000);
+    }
+
+    private void diagnosticar() {
+        new Thread(new Runnable() {
+            public void run() {
+                final String relatorio = montarRelatorio();
+                runOnUiThread(new Runnable() { public void run() { mostrarRelatorio(relatorio); } });
+            }
+        }).start();
+    }
+
+    private String montarRelatorio() {
+        StringBuilder r = new StringBuilder();
+        try {
+            android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+            int gl = am.getDeviceConfigurationInfo().reqGlEsVersion;
+            r.append("Aparelho: ").append(android.os.Build.MANUFACTURER).append(' ').append(android.os.Build.MODEL).append(", Android ").append(android.os.Build.VERSION.RELEASE).append('\n');
+            r.append("OpenGL ES: ").append(gl >> 16).append('.').append(gl & 0xffff).append("  ABI: ").append(NucleosAndroid.abi()).append('\n');
+            File nucleo = NucleosAndroid.arquivo(this, nucleoAtual);
+            r.append("Núcleo ").append(nucleoAtual).append(": ").append(nucleo.isFile() ? (nucleo.length() / 1024) + " KB" : "NÃO ENCONTRADO").append('\n');
+            File sys = new File(getFilesDir(), "system/dolphin-emu/Sys");
+            r.append("Arquivos de sistema: GC ").append(new File(sys, "GC").isDirectory() ? "ok" : "FALTA").append(", Wii ").append(new File(sys, "Wii").isDirectory() ? "ok" : "FALTA").append('\n');
+            r.append("Modo: ").append(getIntent().getBooleanExtra("software", false) ? "teste (software)" : "normal").append("\n\n");
+        } catch (Throwable e) { r.append("(sem dados do aparelho)\n"); }
+        try {
+            Process p = Runtime.getRuntime().exec(new String[] { "logcat", "-d", "-t", "600" });
+            java.io.BufferedReader l = new java.io.BufferedReader(new java.io.InputStreamReader(p.getInputStream()));
+            java.util.ArrayList<String> linhas = new java.util.ArrayList<String>();
+            String x;
+            java.util.regex.Pattern re = java.util.regex.Pattern.compile("dolphin|libretro|retro|egl|gles|opengl|vulkan|shader|fatal|denied|sys[ /]|core|jit", java.util.regex.Pattern.CASE_INSENSITIVE);
+            while ((x = l.readLine()) != null) if (re.matcher(x).find()) linhas.add(x.length() > 200 ? x.substring(0, 200) : x);
+            r.append("Mensagens do motor (últimas):\n");
+            if (linhas.isEmpty()) r.append("(nenhuma)\n");
+            for (int i = Math.max(0, linhas.size() - 40); i < linhas.size(); i++) r.append(linhas.get(i)).append('\n');
+        } catch (Throwable e) { r.append("(não consegui ler as mensagens do motor)\n"); }
+        String t = r.toString();
+        try (FileOutputStream o = new FileOutputStream(new File(getFilesDir(), "diagnostico.txt"))) { o.write(t.getBytes("UTF-8")); } catch (Throwable ignora) { }
+        return t;
+    }
+
+    private void mostrarRelatorio(final String texto) {
+        android.widget.TextView t = new android.widget.TextView(this);
+        t.setText(texto);
+        t.setTextSize(11);
+        t.setTypeface(Typeface.MONOSPACE);
+        t.setTextIsSelectable(true);
+        t.setPadding(dp(16), dp(8), dp(16), dp(8));
+        android.widget.ScrollView sv = new android.widget.ScrollView(this);
+        sv.addView(t);
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Diagnóstico do GameCube")
+            .setView(sv)
+            .setPositiveButton("Modo de teste", new android.content.DialogInterface.OnClickListener() {
+                public void onClick(android.content.DialogInterface d, int w) {
+                    android.content.Intent i = new android.content.Intent(getIntent());
+                    i.putExtra("software", true);
+                    finish();
+                    startActivity(i);
+                }
+            })
+            .setNeutralButton("Copiar", new android.content.DialogInterface.OnClickListener() {
+                public void onClick(android.content.DialogInterface d, int w) {
+                    ((android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(android.content.ClipData.newPlainText("diagnostico", texto));
+                }
+            })
+            .setNegativeButton("Fechar", null)
+            .show();
     }
 
     @Override
