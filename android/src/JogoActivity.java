@@ -168,9 +168,11 @@ public class JogoActivity extends AppCompatActivity {
 
     /** GameCube/Wii: Padrão = como estava; Alta e Máxima aumentam a resolução interna e a nitidez das texturas (pedem mais do aparelho). */
     private static String[][] variaveisDeQualidade(int q) {
-        if (q >= 2) return new String[][] { { "dolphin_efb_scale", "x3 (1920 x 1584)" }, { "dolphin_max_anisotropy", "16x" } };
-        if (q == 1) return new String[][] { { "dolphin_efb_scale", "x2 (1280 x 1056)" }, { "dolphin_max_anisotropy", "4x" } };
-        return new String[][] { { "dolphin_efb_scale", "x1 (640 x 528)" }, { "dolphin_max_anisotropy", "1x" } };
+        // "Safe" no cache de texturas corrige as cores quebradas (manchas amarelas, vermelhas e azuis em céu, placas e carros)
+        String cache = "Safe";
+        if (q >= 2) return new String[][] { { "dolphin_texture_cache_accuracy", cache }, { "dolphin_gpu_texture_decoding", "OFF" }, { "dolphin_efb_scale", "x3 (1920 x 1584)" }, { "dolphin_max_anisotropy", "16x" } };
+        if (q == 1) return new String[][] { { "dolphin_texture_cache_accuracy", cache }, { "dolphin_gpu_texture_decoding", "OFF" }, { "dolphin_efb_scale", "x2 (1280 x 1056)" }, { "dolphin_max_anisotropy", "4x" } };
+        return new String[][] { { "dolphin_texture_cache_accuracy", cache }, { "dolphin_gpu_texture_decoding", "OFF" }, { "dolphin_efb_scale", "x1 (640 x 528)" }, { "dolphin_max_anisotropy", "1x" } };
     }
 
     private static void definirVariaveis(GLRetroViewData dados, String[][] pares) {
@@ -467,27 +469,76 @@ public class JogoActivity extends AppCompatActivity {
         f.addView(bt, p);
     }
 
+
+    private FrameLayout.LayoutParams pAnalogico(int grav, int mx, int my, int tam) {
+        FrameLayout.LayoutParams p = new FrameLayout.LayoutParams(ds(tam), ds(tam), grav);
+        p.setMargins(ds(mx), ds(my), ds(mx), ds(my));
+        return p;
+    }
+
+    /** Alavanca na tela (toque e arraste): manda a posição ao motor como analógico esquerdo (1) ou direito/C-stick (2). */
+    private final class Analogico extends View {
+        private final int fonte;
+        private float px, py;
+        private boolean ativo;
+        private final android.graphics.Paint tinta = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        Analogico(int fonte) { super(JogoActivity.this); this.fonte = fonte; }
+        @Override protected void onDraw(android.graphics.Canvas c) {
+            float r = Math.min(getWidth(), getHeight()) / 2f, cx = getWidth() / 2f, cy = getHeight() / 2f;
+            tinta.setStyle(android.graphics.Paint.Style.FILL); tinta.setColor(comAlfa(cor, 40));
+            c.drawCircle(cx, cy, r - dp(2), tinta);
+            tinta.setStyle(android.graphics.Paint.Style.STROKE); tinta.setStrokeWidth(dp(3)); tinta.setColor(comAlfa(cor, 200));
+            c.drawCircle(cx, cy, r - dp(2), tinta);
+            tinta.setStyle(android.graphics.Paint.Style.FILL); tinta.setColor(comAlfa(cor, ativo ? 230 : 150));
+            c.drawCircle(cx + px * r * 0.55f, cy + py * r * 0.55f, r * 0.38f, tinta);
+            if (fonte == 2) { tinta.setColor(Color.WHITE); tinta.setTextAlign(android.graphics.Paint.Align.CENTER); tinta.setTextSize(r * 0.34f); c.drawText("C", cx + px * r * 0.55f, cy + py * r * 0.55f + r * 0.12f, tinta); }
+        }
+        @Override public boolean onTouchEvent(MotionEvent ev) {
+            int ac = ev.getActionMasked();
+            if (ac == MotionEvent.ACTION_UP || ac == MotionEvent.ACTION_CANCEL) { ativo = false; px = 0; py = 0; enviar(); invalidate(); return true; }
+            if (ac == MotionEvent.ACTION_DOWN || ac == MotionEvent.ACTION_MOVE) {
+                float r = Math.min(getWidth(), getHeight()) / 2f;
+                float dx = (ev.getX() - getWidth() / 2f) / (r * 0.8f), dy = (ev.getY() - getHeight() / 2f) / (r * 0.8f);
+                float m = (float) Math.sqrt(dx * dx + dy * dy);
+                if (m > 1f) { dx /= m; dy /= m; }
+                px = dx; py = dy; ativo = true; enviar(); invalidate();
+            }
+            return true;
+        }
+        private void enviar() { try { retro.sendMotionEvent(fonte, px, py, 0); } catch (Throwable ignora) { } }
+    }
+
     private View montarControles() {
         lerVisual();
         FrameLayout f = new FrameLayout(this);
         int L = Gravity.START | Gravity.BOTTOM, R = Gravity.END | Gravity.BOTTOM;
+        final boolean gc = nucleoAtual.startsWith("dolphin");
+        if (gc) {
+            // GameCube: o analógico é quem guia (carro, personagem); o direcional pequeno serve para menus e opções
+            f.addView(new Analogico(1), pAnalogico(L, 24, 14, 120));
+            por(f, botao("▲", KeyEvent.KEYCODE_DPAD_UP, false), 34, L, 67, 206);
+            por(f, botao("◀", KeyEvent.KEYCODE_DPAD_LEFT, false), 34, L, 33, 172);
+            por(f, botao("▶", KeyEvent.KEYCODE_DPAD_RIGHT, false), 34, L, 101, 172);
+            por(f, botao("▼", KeyEvent.KEYCODE_DPAD_DOWN, false), 34, L, 67, 138);
+            f.addView(new Analogico(2), pAnalogico(R, 56, 214, 90));
+        } else {
         // direcional (esquerda)
         por(f, botao("▲", KeyEvent.KEYCODE_DPAD_UP, false), 56, L, 72, 150);
         por(f, botao("▼", KeyEvent.KEYCODE_DPAD_DOWN, false), 56, L, 72, 20);
         por(f, botao("◀", KeyEvent.KEYCODE_DPAD_LEFT, false), 56, L, 14, 85);
         por(f, botao("▶", KeyEvent.KEYCODE_DPAD_RIGHT, false), 56, L, 130, 85);
+        }
         // botões de ação no padrão do RetroPad: B embaixo, A à direita, Y à esquerda, X em cima
         por(f, botao("X", KeyEvent.KEYCODE_BUTTON_X, false), 56, R, 72, 150);
         por(f, botao("B", KeyEvent.KEYCODE_BUTTON_B, false), 56, R, 72, 20);
         por(f, botao("Y", KeyEvent.KEYCODE_BUTTON_Y, false), 56, R, 130, 85);
         por(f, botao("A", KeyEvent.KEYCODE_BUTTON_A, false), 56, R, 14, 85);
         // ombros e menu
-        if (nucleoAtual.startsWith("dolphin")) {
-            // GameCube: os gatilhos L e R (acelerar e frear nos jogos de corrida) são o L2 e o R2; o Z é o R1
-            por(f, botao("L2", KeyEvent.KEYCODE_BUTTON_L2, false), 44, Gravity.START | Gravity.TOP, 20, 12);
-            por(f, botao("L1", KeyEvent.KEYCODE_BUTTON_L1, false), 44, Gravity.START | Gravity.TOP, 74, 12);
-            por(f, botao("R2", KeyEvent.KEYCODE_BUTTON_R2, false), 44, Gravity.END | Gravity.TOP, 20, 12);
-            por(f, botao("R1", KeyEvent.KEYCODE_BUTTON_R1, false), 44, Gravity.END | Gravity.TOP, 74, 12);
+        if (gc) {
+            // GameCube: os gatilhos L e R (acelerar e frear) são o L2 e o R2 do núcleo; o Z é o R1
+            por(f, botao("L", KeyEvent.KEYCODE_BUTTON_L2, false), 44, Gravity.START | Gravity.TOP, 20, 12);
+            por(f, botao("R", KeyEvent.KEYCODE_BUTTON_R2, false), 44, Gravity.END | Gravity.TOP, 20, 12);
+            por(f, botao("Z", KeyEvent.KEYCODE_BUTTON_R1, false), 44, Gravity.END | Gravity.TOP, 74, 12);
         } else {
             por(f, botao("L", KeyEvent.KEYCODE_BUTTON_L1, false), 44, Gravity.START | Gravity.TOP, 20, 12);
             por(f, botao("R", KeyEvent.KEYCODE_BUTTON_R1, false), 44, Gravity.END | Gravity.TOP, 20, 12);
