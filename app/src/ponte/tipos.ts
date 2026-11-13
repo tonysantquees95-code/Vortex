@@ -49,7 +49,7 @@ export interface AppAndroid { pacote: string; nome: string; icone: string }
 export type PosicaoGameBar = "oculta" | "topo" | "base" | "esquerda" | "direita";
 export type ModoDesempenho = "economico" | "normal" | "turbo";
 export interface ConfigGameBar {
-  ligada: boolean; posicao: PosicaoGameBar; modo: ModoDesempenho;
+  ligada: boolean; posicao: PosicaoGameBar; modo: ModoDesempenho; /** taxa de atualização da tela em Hz (0 = automática) */ taxa?: number;
   fps: boolean; cpu: boolean; gpu: boolean; ram: boolean; temp: boolean; bateria: boolean;
 }
 export interface Filtro { texto?: string; plataforma?: string | null; so_favoritos?: boolean; ordem?: Ordem; limite?: number }

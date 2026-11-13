@@ -42,7 +42,7 @@ public final class GameBar {
 
     public static JSONObject ler(Context c) throws Exception {
         SharedPreferences p = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        JSONObject o = new JSONObject().put("ligada", p.getBoolean("ligada", true)).put("posicao", p.getString("posicao", "topo")).put("modo", p.getString("modo", "normal"));
+        JSONObject o = new JSONObject().put("ligada", p.getBoolean("ligada", true)).put("posicao", p.getString("posicao", "topo")).put("modo", p.getString("modo", "normal")).put("taxa", p.getInt("taxa", 0));
         for (String i : ITENS) o.put(i, p.getBoolean(i, true));
         return o;
     }
@@ -53,6 +53,7 @@ public final class GameBar {
         if (n.has("ligada")) e.putBoolean("ligada", n.getBoolean("ligada"));
         if (n.has("posicao") && POSICOES.contains(n.getString("posicao"))) e.putString("posicao", n.getString("posicao"));
         if (n.has("modo") && MODOS.contains(n.getString("modo"))) e.putString("modo", n.getString("modo"));
+        if (n.has("taxa")) { int t = n.getInt("taxa"); e.putInt("taxa", t >= 24 && t <= 240 ? t : 0); }
         for (String i : ITENS) if (n.has(i)) e.putBoolean(i, n.getBoolean(i));
         e.apply();
         return ler(c);
@@ -128,9 +129,18 @@ public final class GameBar {
         barra.addView(texto);
         barra.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { expandida = !expandida; desenhar(); h.removeCallbacks(esconder); if (cfg.optString("posicao", "topo").equals("oculta") && expandida) h.postDelayed(esconder, 6000); } });
         if (expandida) {
+            barra.setMinimumWidth(dp(250));
+            barra.setPadding(dp(12), dp(8), dp(12), dp(10));
+            texto.setTextSize(14);
+            barra.addView(titulo("TAXA DA TELA (FPS)"));
+            LinearLayout taxas = new LinearLayout(act);
+            taxas.setOrientation(LinearLayout.HORIZONTAL);
+            taxas.addView(botaoTaxa("Auto", 0));
+            for (int t : taxasDaTela()) taxas.addView(botaoTaxa(t + " Hz", t));
+            barra.addView(taxas);
+            barra.addView(titulo("MODO DE JOGO"));
             modos = new LinearLayout(act);
-            modos.setOrientation(vertical ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
-            modos.setPadding(0, dp(6), 0, 0);
+            modos.setOrientation(LinearLayout.HORIZONTAL);
             modos.addView(botaoModo("⚡ Turbo", "turbo"));
             modos.addView(botaoModo("● Normal", "normal"));
             modos.addView(botaoModo("🍃 Econômico", "economico"));
@@ -150,6 +160,48 @@ public final class GameBar {
         atualizar();
     }
 
+    private TextView titulo(String rotulo) {
+        TextView t = new TextView(act);
+        t.setText(rotulo); t.setTextSize(9); t.setTextColor(Color.argb(200, 255, 140, 150)); t.setTypeface(Typeface.DEFAULT_BOLD);
+        t.setLetterSpacing(0.12f);
+        t.setPadding(dp(2), dp(10), 0, dp(2));
+        return t;
+    }
+
+    /** Taxas de atualização que a tela do aparelho aceita na resolução atual (ex.: 60, 90, 120). */
+    private List<Integer> taxasDaTela() {
+        java.util.TreeSet<Integer> r = new java.util.TreeSet<Integer>();
+        try {
+            if (Build.VERSION.SDK_INT >= 23) {
+                Display d = act.getWindowManager().getDefaultDisplay();
+                Display.Mode atual = d.getMode();
+                for (Display.Mode m : d.getSupportedModes()) {
+                    if (m.getPhysicalWidth() != atual.getPhysicalWidth() || m.getPhysicalHeight() != atual.getPhysicalHeight()) continue;
+                    r.add(Math.round(m.getRefreshRate()));
+                }
+            }
+        } catch (Throwable ignora) { }
+        if (r.isEmpty()) r.add(60);
+        return new java.util.ArrayList<Integer>(r);
+    }
+
+    private TextView botaoTaxa(String rotulo, final int taxa) {
+        TextView t = botaoModo(rotulo, "");
+        boolean ativa = cfg.optInt("taxa", 0) == taxa;
+        GradientDrawable g = new GradientDrawable();
+        g.setCornerRadius(dp(8));
+        g.setColor(ativa ? Color.argb(230, 25, 227, 255) : Color.argb(90, 255, 255, 255));
+        t.setBackground(g);
+        t.setTextColor(ativa ? Color.BLACK : Color.WHITE);
+        t.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
+            try { cfg.put("taxa", taxa); JSONObject n = new JSONObject(); n.put("taxa", taxa); gravar(act, n); } catch (Exception ignora) { }
+            aplicarModo(modoAtual);
+            frames = 0; ultFps = System.nanoTime();
+            desenhar();
+        } });
+        return t;
+    }
+
     private TextView botaoModo(String rotulo, final String modo) {
         TextView t = new TextView(act);
         t.setText(rotulo); t.setTextSize(11); t.setTextColor(Color.WHITE); t.setTypeface(Typeface.DEFAULT_BOLD);
@@ -162,7 +214,7 @@ public final class GameBar {
         lp.setMargins(dp(2), dp(2), dp(2), dp(2));
         t.setLayoutParams(lp);
         t.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
-            modoAtual = modo; aplicarModo(modo);
+            modoAtual = modo; try { cfg.put("modo", modo); } catch (Exception ignora) { } aplicarModo(modo);
             try { JSONObject n = new JSONObject(); n.put("modo", modo); gravar(act, n); } catch (Exception ignora) { }
             desenhar();
         } });
@@ -185,6 +237,14 @@ public final class GameBar {
                     else if (modo.equals("economico") && r >= 59f && (melhor < 0 || r < melhor)) { melhor = r; alvo = m.getModeId(); }
                 }
                 lp.preferredDisplayModeId = modo.equals("normal") ? 0 : alvo;
+                int taxa = cfg == null ? 0 : cfg.optInt("taxa", 0);
+                if (taxa > 0) {
+                    for (Display.Mode m : d.getSupportedModes()) {
+                        if (m.getPhysicalWidth() != atual.getPhysicalWidth() || m.getPhysicalHeight() != atual.getPhysicalHeight()) continue;
+                        if (Math.round(m.getRefreshRate()) == taxa) { lp.preferredDisplayModeId = m.getModeId(); break; }
+                    }
+                    lp.preferredRefreshRate = taxa;
+                }
             }
             act.getWindow().setAttributes(lp);
             Process.setThreadPriority(modo.equals("turbo") ? Process.THREAD_PRIORITY_URGENT_DISPLAY : Process.THREAD_PRIORITY_DEFAULT);
