@@ -10,6 +10,7 @@ export async function motorTauri(): Promise<Motor> {
     entrar: async (email, senha) => { await c("conta_entrar", { email, senha, aparelho: "Computador Windows" }); return c<EstadoConta>("conta_estado"); },
     sair: async () => { await c("conta_sair"); },
     sincronizar: (conflitos) => c<RelatorioSaves>("saves_sincronizar", conflitos ? { conflitos } : {}),
+    pedir: <T>(metodo: "GET" | "POST" | "DELETE", caminho: string) => c<T>("conta_pedir", { metodo, caminho }),
     nuvem: async () => (await c<{ saves: SaveNaNuvem[] }>("saves_lista")).saves ?? [],
     fila: async () => (await c<{ pedidos: PedidoDaVenus[] }>("ponte_fila")).pedidos ?? [],
     responder: async (id, ok, resumo) => { await c("ponte_responder", { id, ok, resumo }); },
@@ -40,6 +41,7 @@ export async function motorTauri(): Promise<Motor> {
     lancar: (id) => c<ResultadoLancamento>("lancar", { id }),
     modoJogo: (nova) => c<ModoJogoConfig>("modo_jogo_config", nova ? { configuracao: nova } : {}),
     abrirNoVindex: async (pasta) => { await c("abrir_pasta", { pasta }); return true; },
+    abrirSteam: async (appid, acao) => { await c("abrir_steam", { appid: String(appid), acao }); },
     pc: {
       importar: () => c<{ steam: number; epic: number; novos: number }>("pc_importar"),
       adicionar: async () => {

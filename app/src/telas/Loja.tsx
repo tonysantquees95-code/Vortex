@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Jogo, Motor, Oferta } from "../ponte";
 import { focar } from "../foco";
 import { Camada, Capa } from "./pecas";
+import { Portais } from "./Portais";
+import { SteamNoVortex } from "./SteamNoVortex";
 
 const NOMES: Record<string, string> = { nes: "Nintendo 8 bits", snes: "Super Nintendo", gba: "Game Boy Advance", gb: "Game Boy", gbc: "Game Boy Color", genesis: "Mega Drive", mastersystem: "Master System", gamegear: "Game Gear" };
 
@@ -61,6 +63,8 @@ export function Loja({ motor, aoInstalar, aoJogar, avisar }: { motor: Motor; aoI
         <h2 className="titulo-neon text-3xl font-black">Loja</h2>
         <p className="mt-1 text-slate-400">Jogos gratuitos e liberados pelos próprios autores. Toque em Baixar e continue navegando: o Vortex instala sozinho e deixa o Jogar pronto.</p>
       </div>
+      <SteamNoVortex motor={motor} avisar={avisar} />
+      <Portais motor={motor} avisar={avisar} />
       <input data-foco value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar na loja…" className="vidro mb-6 w-full max-w-md px-4 py-3 outline-none placeholder:text-slate-500 focus:border-cyan-300" />
       {lista === null && <p className="py-10 text-slate-400">Carregando a loja…</p>}
       {lista && !grupos.length && <p className="py-10 text-slate-400">Nada encontrado.</p>}

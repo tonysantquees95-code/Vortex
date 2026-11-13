@@ -147,6 +147,17 @@ public final class Nuvem {
         if (r.status != 200) throw new Exception(mensagem(r));
     }
 
+    /** Chamada simples ao servidor com o token deste aparelho (usada pela Steam). */
+    public static JSONObject pedirAoServidor(Rede rede, File dados, String metodo, String caminho) throws Exception {
+        JSONObject conta = lerConta(dados);
+        if (conta == null) throw new Exception("Entre na sua conta Vetorial ID.");
+        Resposta r = rede.pedir(metodo, caminho, conta.getString("token"), metodo.equals("POST") ? "{}".getBytes(StandardCharsets.UTF_8) : null, null);
+        JSONObject j;
+        try { j = new JSONObject(r.texto()); } catch (Exception e) { j = new JSONObject(); }
+        if (r.status >= 400) throw new Exception(j.optString("error", "O servidor respondeu " + r.status + "."));
+        return j;
+    }
+
     /** Jogos com save na conta (de qualquer aparelho): a resposta do servidor sem mexer em nada. */
     public static JSONObject listaDeSaves(Rede rede, File dados) throws Exception {
         JSONObject conta = lerConta(dados);

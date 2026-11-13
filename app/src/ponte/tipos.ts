@@ -28,6 +28,8 @@ export interface ContaVetorial {
   entrar(email: string, senha: string): Promise<EstadoConta>;
   sair(): Promise<void>;
   sincronizar(conflitos?: "local" | "nuvem"): Promise<RelatorioSaves>;
+  /** Chamada ao servidor da conta (só /vortex/steam…). */
+  pedir<T>(metodo: "GET" | "POST" | "DELETE", caminho: string): Promise<T>;
   /** Jogos que têm save na conta (de qualquer aparelho). */
   nuvem(): Promise<SaveNaNuvem[]>;
   /** Ponte de voz: pedidos que a Vênus fez para este aparelho (perguntar também avisa que o Vortex está aberto). */
@@ -96,6 +98,8 @@ export interface Motor {
   controles?: Controles;
   /** Só no Windows: jogos de PC (Steam e Epic já instaladas, programas escolhidos à mão). */
   pc?: { importar(): Promise<{ steam: number; epic: number; novos: number }>; adicionar(): Promise<boolean> };
+  /** Só no Windows: abre/instala um jogo da Steam pelo aplicativo da Steam. */
+  abrirSteam?(appid: number, acao: "jogar" | "instalar"): Promise<void>;
   /** Windows e Android: entrar com o Vetorial ID e sincronizar saves. */
   conta?: ContaVetorial;
   /** Permissões do aparelho (no Windows não há nenhuma a pedir). */

@@ -205,6 +205,21 @@ pub fn conta_e_saves(comando: &str, args: &Value, rede: &dyn nuvem::Rede) -> Res
             }
             serde_json::from_slice(&r.corpo).map_err(|e| e.to_string())
         }
+        // chamadas da Steam ao servidor da conta (só /vortex/steam…), com o token deste aparelho
+        "conta_pedir" => {
+            let c = nuvem::conta_salva(&dados).ok_or("Entre na sua conta Vetorial ID.")?;
+            let caminho = texto(args, "caminho")?;
+            let metodo = texto(args, "metodo").unwrap_or("GET");
+            if !(caminho == "/vortex/steam" || caminho.starts_with("/vortex/steam/")) || !["GET", "POST", "DELETE"].contains(&metodo) {
+                return Err("Pedido não permitido.".into());
+            }
+            let r = rede.pedir(metodo, caminho, Some(&c.token), if metodo == "POST" { Some(&b"{}"[..]) } else { None }, None)?;
+            let v: Value = serde_json::from_slice(&r.corpo).unwrap_or(Value::Null);
+            if r.status >= 400 {
+                return Err(v.get("error").and_then(|x| x.as_str()).map(String::from).unwrap_or_else(|| format!("O servidor respondeu {}.", r.status)));
+            }
+            Ok(v)
+        }
         // ponte de voz: o Vortex aberto pergunta o que a Vênus pediu e responde
         "ponte_fila" => {
             let c = nuvem::conta_salva(&dados).ok_or("Sem conta.")?;
@@ -229,7 +244,7 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
     if comando == "preparar_jogo" {
         return preparar_jogo_com(args, &nucleos::baixar_da_libretro);
     }
-    if comando.starts_with("conta_") || comando.starts_with("ponte_") || comando == "saves_sincronizar" || comando == "saves_lista" {
+    if comando.starts_with("conta_") || comando.starts_with("ponte_") || comando == "saves_sincronizar" || comando == "saves_lista" || comando == "conta_pedir" {
         return conta_e_saves(comando, args, &nuvem::RedeReal);
     }
     if comando == "plataformas_catalogo" {
@@ -238,6 +253,18 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
     if comando == "abrir_url" {
         let url = texto(args, "url")?;
         return abrir_url(&url).map(|_| json!({ "aberto": true }));
+    }
+    if comando == "abrir_steam" {
+        let appid = texto(args, "appid")?;
+        let acao = if texto(args, "acao").unwrap_or("jogar") == "instalar" { "install" } else { "rungameid" };
+        if appid.is_empty() || appid.len() > 10 || !appid.chars().all(|c| c.is_ascii_digit()) {
+            return Err("Jogo da Steam inválido.".into());
+        }
+        if !cfg!(windows) {
+            return Err("Abrir jogos da Steam só no Windows.".into());
+        }
+        let r = Command::new("cmd").args(["/C", "start", "", &format!("steam://{acao}/{appid}")]).spawn();
+        return r.map(|_| json!({ "aberto": true })).map_err(|e| format!("Não consegui abrir a Steam: {e}"));
     }
     if comando == "pc_importar" {
         return pc_importar(args);

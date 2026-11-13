@@ -30,6 +30,7 @@ export function motorAndroid(): Motor {
     entrar: async (email, senha) => { await c("conta_entrar", { email, senha, aparelho: "Celular Android" }); return c<EstadoConta>("conta_estado"); },
     sair: async () => { await c("conta_sair"); },
     sincronizar: (conflitos) => c<RelatorioSaves>("saves_sincronizar", conflitos ? { conflitos } : {}),
+    pedir: <T>(metodo: "GET" | "POST" | "DELETE", caminho: string) => c<T>("conta_pedir", { metodo, caminho }),
     nuvem: async () => (await c<{ saves: SaveNaNuvem[] }>("saves_lista")).saves ?? [],
     fila: async () => (await c<{ pedidos: PedidoDaVenus[] }>("ponte_fila")).pedidos ?? [],
     responder: async (id, ok, resumo) => { await c("ponte_responder", { id, ok, resumo }); },
