@@ -91,11 +91,9 @@ fn plano_do_jogo(b: &Biblioteca, id: &str, biblioteca: &Path) -> Result<Lancamen
     let cfg = Configuracao::carregar(&arquivo_de_configuracao(biblioteca));
     let instalados = emuladores::descobrir(&amb, &cfg);
     let mut plano = emuladores::planejar(&j.caminho, &j.plataforma, &instalados, &cfg, &amb, &pasta_de_dados(biblioteca))?;
-    // perfil por jogo (IA): só o Dolphin no computador aceita ajustes pela linha de comando
-    if plano.emulador == "dolphin" && amb.so == emuladores::So::Windows {
-        if let Some(p) = crate::perfil_jogo::ler(&pasta_de_dados(biblioteca), id) {
-            plano.args.extend(crate::perfil_jogo::argumentos(&p));
-        }
+    // perfil por jogo (IA): Dolphin e PPSSPP pela linha de comando, RetroArch pelas opções do núcleo
+    if let Some(p) = crate::perfil_jogo::ler(&pasta_de_dados(biblioteca), id) {
+        crate::perfil_jogo::aplicar(&mut plano, &p, &pasta_de_dados(biblioteca), id);
     }
     Ok(plano)
 }
@@ -199,7 +197,13 @@ pub fn conta_e_saves(comando: &str, args: &Value, rede: &dyn nuvem::Rede) -> Res
                 return Ok(json!({ "ajustes": {}, "motivo": "" }));
             }
             let c = nuvem::conta_salva(&dados).ok_or("Entre na sua conta Vetorial ID para usar a IA.")?;
-            let corpo = serde_json::to_vec(&json!({ "titulo": j.titulo, "plataforma": j.plataforma, "aparelho": crate::sistema::aparelho() })).map_err(|e| e.to_string())?;
+            let emulador = {
+                let amb = Ambiente::atual();
+                let cfg = Configuracao::carregar(&arquivo_de_configuracao(&arquivo));
+                let inst = emuladores::descobrir(&amb, &cfg);
+                emuladores::planejar(&j.caminho, &j.plataforma, &inst, &cfg, &amb, &dados).map(|p| p.emulador).unwrap_or_default()
+            };
+            let corpo = serde_json::to_vec(&json!({ "titulo": j.titulo, "plataforma": j.plataforma, "emulador": emulador, "aparelho": crate::sistema::aparelho() })).map_err(|e| e.to_string())?;
             let r = rede.pedir("POST", "/vortex/ia/perfil", Some(&c.token), Some(&corpo), None)?;
             let v: Value = serde_json::from_slice(&r.corpo).map_err(|_| "Resposta inesperada do servidor.".to_string())?;
             if r.status >= 400 {
