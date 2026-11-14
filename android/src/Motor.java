@@ -93,6 +93,35 @@ public class Motor {
                 if (!r.optBoolean("simulacao")) salvar(arquivo, bib);
                 return r;
             }
+            case "faxina_revisao": return Limpeza.revisao(jogos);
+            case "faxina_ia_aplicar": {
+                int feitos = 0;
+                JSONArray falhas = new JSONArray();
+                String[][] grupos = {{"duplicados", Limpeza.DUPLICADOS}, {"corrompidos", Limpeza.CORROMPIDOS}};
+                for (String[] g : grupos) {
+                    JSONArray ids = args.optJSONArray(g[0]);
+                    for (int i = 0; ids != null && i < ids.length(); i++) {
+                        try { Limpeza.separar(jogos, ids.getString(i), g[1]); feitos++; } catch (Exception e) { falhas.put(String.valueOf(e.getMessage())); }
+                    }
+                }
+                salvar(arquivo, bib);
+                return new JSONObject().put("separados", feitos).put("falhas", falhas);
+            }
+            case "escanear_sistema": return escanearSistema(bib, args);
+            case "decidir_plataforma": {
+                JSONObject dec = bib.optJSONObject("plataforma_da_pasta");
+                if (dec == null) { dec = new JSONObject(); bib.put("plataforma_da_pasta", dec); }
+                String pasta = texto(args, "pasta"), pl = args.isNull("plataforma") ? "" : args.optString("plataforma", "");
+                if (pl.isEmpty()) dec.remove(pasta);
+                else { if (Plataformas.porId(pl) == null) throw new Exception("Console desconhecido."); dec.put(pasta, pl); }
+                salvar(arquivo, bib);
+                return new JSONObject().put("ok", true);
+            }
+            case "catalogo_ids": {
+                JSONArray ids = new JSONArray();
+                for (Plataformas.P p : Plataformas.TODAS) ids.put(p.id);
+                return ids;
+            }
             case "isolar": {
                 JSONObject r = Limpeza.isolar(jogos, texto(args, "id"));
                 salvar(arquivo, bib);
@@ -298,6 +327,145 @@ public class Motor {
         return resto.isEmpty() ? base : base + "/" + resto;
     }
 
+
+    // ------------------------------------------------------------ varredura do aparelho (mesmo comportamento do Rust: core/src/sistema.rs)
+    private static final java.util.Set<String> PULAR_SISTEMA = new java.util.HashSet<String>(java.util.Arrays.asList(
+        "android", "data", "obb", "bios", "saves", "states", "savestates", "screenshots", "thumbnails", "cheats", "boxart", "covers", "media", "cache",
+        "vindexquarentena", "corrompidos", "duplicados", "nodemodules", "git", "recyclebin", "losedir", "trash", "dcim", "pictures", "music", "movies", "alarms", "ringtones", "notifications", "podcasts"));
+    private static final java.util.Set<String> AMBIGUAS_SISTEMA = new java.util.HashSet<String>(java.util.Arrays.asList("bin", "iso", "img", "zip", "7z", "chd", "cue", "rvz", "wbfs"));
+
+    private static final class PastaSistema {
+        final Map<String, Integer> plataformas = new java.util.TreeMap<String, Integer>();
+        int ambiguos;
+        final List<String> amostras = new ArrayList<String>();
+        void soma(PastaSistema o) {
+            for (Map.Entry<String, Integer> e : o.plataformas.entrySet()) plataformas.merge(e.getKey(), e.getValue(), Integer::sum);
+            ambiguos += o.ambiguos;
+            for (String a : o.amostras) if (amostras.size() < 6) amostras.add(a);
+        }
+    }
+
+    private static final class Contagem { int vistos; boolean completa = true; }
+
+    private static void varrerSistema(File dir, File raiz, int nivel, long fim, Map<String, PastaSistema> porPasta, Contagem c) {
+        if (nivel > 9 || !c.completa) return;
+        File[] fs = dir.listFiles();
+        if (fs == null) return;
+        for (File f : fs) {
+            if (!c.completa) return;
+            String n = f.getName();
+            if (f.isDirectory()) {
+                if (n.startsWith(".") || PULAR_SISTEMA.contains(normalizar(n))) continue;
+                varrerSistema(f, raiz, nivel + 1, fim, porPasta, c);
+            } else if (f.isFile()) {
+                if (++c.vistos % 2000 == 0 && System.currentTimeMillis() > fim) { c.completa = false; return; }
+                Plataformas.P p = identificar(f, raiz);
+                String pai = dir.getPath();
+                if (p != null) {
+                    PastaSistema ps = porPasta.get(pai);
+                    if (ps == null) { ps = new PastaSistema(); porPasta.put(pai, ps); }
+                    ps.plataformas.merge(p.id, 1, Integer::sum);
+                } else {
+                    int pt = n.lastIndexOf('.');
+                    if (pt > 0 && AMBIGUAS_SISTEMA.contains(n.substring(pt + 1).toLowerCase(Locale.ROOT))) {
+                        PastaSistema ps = porPasta.get(pai);
+                        if (ps == null) { ps = new PastaSistema(); porPasta.put(pai, ps); }
+                        ps.ambiguos++;
+                        if (ps.amostras.size() < 6) ps.amostras.add(n);
+                    }
+                }
+            }
+        }
+    }
+
+    /** Sobe cada pasta para a coleção a que pertence: se a de cima tem 2 ou mais subpastas com jogos, a candidata é a de cima. */
+    private static JSONArray agruparSistema(Map<String, PastaSistema> inicial, List<String> raizes) throws JSONException {
+        Map<String, PastaSistema> atual = inicial;
+        while (true) {
+            Map<String, Integer> filhos = new HashMap<String, Integer>();
+            for (String p : atual.keySet()) { File pai = new File(p).getParentFile(); if (pai != null) filhos.merge(pai.getPath(), 1, Integer::sum); }
+            Map<String, PastaSistema> proximo = new java.util.TreeMap<String, PastaSistema>();
+            boolean mudou = false;
+            for (Map.Entry<String, PastaSistema> e : atual.entrySet()) {
+                File paiF = new File(e.getKey()).getParentFile();
+                boolean sobe = paiF != null && filhos.getOrDefault(paiF.getPath(), 0) >= 2 && paiF.getParentFile() != null && !raizes.contains(paiF.getPath());
+                String destino = sobe ? paiF.getPath() : e.getKey();
+                PastaSistema d = proximo.get(destino);
+                if (d == null) { d = new PastaSistema(); proximo.put(destino, d); }
+                d.soma(e.getValue());
+                mudou |= sobe;
+            }
+            atual = proximo;
+            if (!mudou) break;
+        }
+        List<JSONObject> v = new ArrayList<JSONObject>();
+        for (Map.Entry<String, PastaSistema> e : atual.entrySet()) {
+            int total = 0;
+            for (int x : e.getValue().plataformas.values()) total += x;
+            if (total < 2 && e.getValue().ambiguos < 3) continue;
+            v.add(new JSONObject().put("pasta", e.getKey()).put("total", total).put("plataformas", new JSONObject(e.getValue().plataformas)).put("ambiguos", e.getValue().ambiguos).put("amostras", new JSONArray(e.getValue().amostras)));
+        }
+        Collections.sort(v, new Comparator<JSONObject>() {
+            public int compare(JSONObject a, JSONObject b) { int c = Integer.compare(b.optInt("total"), a.optInt("total")); return c != 0 ? c : a.optString("pasta").compareTo(b.optString("pasta")); }
+        });
+        return new JSONArray(v);
+    }
+
+    private static String linhaDe(String arquivo, String chave) {
+        try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.FileReader(arquivo))) {
+            String l;
+            while ((l = r.readLine()) != null) if (l.startsWith(chave)) { int i = l.indexOf(':'); return i < 0 ? "" : l.substring(i + 1).trim(); }
+        } catch (Exception e) { /* sem acesso */ }
+        return "";
+    }
+
+    private static JSONObject aparelhoInfo() throws JSONException {
+        long kb = 0;
+        try { String m = linhaDe("/proc/meminfo", "MemTotal"); if (!m.isEmpty()) kb = Long.parseLong(m.replaceAll("[^0-9]", "")); } catch (Exception e) { /* ignora */ }
+        String cpu = linhaDe("/proc/cpuinfo", "Hardware");
+        if (cpu.isEmpty()) cpu = linhaDe("/proc/cpuinfo", "model name");
+        return new JSONObject().put("so", "android").put("cpu", cpu).put("nucleos", Runtime.getRuntime().availableProcessors()).put("ram_gb", kb / (1024 * 1024));
+    }
+
+    /** Varre o armazenamento inteiro (interno e cartões) atrás de coleções de jogos, sem adicionar nada. */
+    private JSONObject escanearSistema(JSONObject bib, JSONObject args) throws Exception {
+        long fim = System.currentTimeMillis() + Math.max(10, Math.min(600, args.optLong("segundos", 90))) * 1000L;
+        List<String> raizes = raizesDoArmazenamento(args);
+        Map<String, PastaSistema> porPasta = new java.util.TreeMap<String, PastaSistema>();
+        Contagem c = new Contagem();
+        JSONArray discos = new JSONArray();
+        for (String r : raizes) {
+            File raiz = new File(r);
+            if (!raiz.isDirectory()) continue;
+            discos.put(r);
+            varrerSistema(raiz, raiz, 0, fim, porPasta, c);
+        }
+        JSONArray todas = agruparSistema(porPasta, raizes);
+        JSONArray ja = bib.getJSONArray("pastas");
+        JSONArray candidatas = new JSONArray();
+        for (int i = 0; i < todas.length(); i++) {
+            String pasta = todas.getJSONObject(i).getString("pasta");
+            boolean coberta = false;
+            for (int k = 0; k < ja.length(); k++) { String p = ja.getString(k); if (pasta.equals(p) || pasta.startsWith(p + "/")) coberta = true; }
+            if (!coberta) candidatas.put(todas.getJSONObject(i));
+        }
+        return new JSONObject().put("varredura", new JSONObject().put("discos", discos).put("candidatas", candidatas).put("arquivos_vistos", c.vistos).put("completa", c.completa)).put("aparelho", aparelhoInfo());
+    }
+
+    /** Arquivo ambíguo (.bin, .iso, .zip…) numa pasta cujo console a pessoa (ou a IA, confirmada) já decidiu. */
+    private static Plataformas.P decidida(JSONObject bib, File f) {
+        JSONObject dec = bib.optJSONObject("plataforma_da_pasta");
+        if (dec == null || dec.length() == 0) return null;
+        String n = f.getName();
+        int pt = n.lastIndexOf('.');
+        if (pt <= 0 || !AMBIGUAS_SISTEMA.contains(n.substring(pt + 1).toLowerCase(Locale.ROOT))) return null;
+        for (File d = f.getParentFile(); d != null; d = d.getParentFile()) {
+            String id = dec.optString(d.getPath(), "");
+            if (!id.isEmpty()) return Plataformas.porId(id);
+        }
+        return null;
+    }
+
     // ------------------------------------------------------------ escaneamento
     private JSONObject escanear(JSONObject bib, long t) throws Exception {
         JSONObject jogos = bib.getJSONObject("jogos");
@@ -312,6 +480,7 @@ public class Motor {
             percorrer(raiz, arquivos, 0);
             for (File f : arquivos) {
                 Plataformas.P p = identificar(f, raiz);
+                if (p == null) p = decidida(bib, f);
                 if (p == null) continue;
                 // "00", "0C"…: pedaços de arquivo dividido, não jogos
                 String nomeF = f.getName();

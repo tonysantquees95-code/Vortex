@@ -114,6 +114,37 @@ public class MotorTeste {
             confere(rl.getJSONArray("falhas").length() == 0, "limpar sem falhas " + rl);
             confere(new File(t, "limpa/Corrompidos/Quebrado.nes").isFile() && new File(t, "limpa/Corrompidos/Vazio.nes").isFile(), "corrompidos vão para a pasta Corrompidos");
             confere(new File(t, "limpa/Duplicados").isDirectory() && new File(lr, "Contra (USA).nes").isFile() && new File(lr, "Mario (USA).nes").isFile(), "fica a versão preferida e os outros jogos");
+            // revisão para a IA: nomes quase iguais aparecem juntos, e a pessoa confirma o que separar
+            File rv = new File(t, "rev"); rv.mkdirs();
+            byte[] nes4 = nes.clone(); nes4[100] = 4; byte[] nes5 = nes.clone(); nes5[100] = 5;
+            Files.write(new File(rv, "Sonic Hedgehog (USA).nes").toPath(), nes4);
+            Files.write(new File(rv, "Sonic Hedgehogg (USA).nes").toPath(), nes5);
+            String bib3 = new File(t, "dados/rev.json").getPath();
+            m.executar("adicionar_pasta", new JSONObject().put("biblioteca", bib3).put("pasta", rv.getPath()));
+            m.executar("escanear", new JSONObject().put("biblioteca", bib3));
+            JSONObject revs = (JSONObject) m.executar("faxina_revisao", new JSONObject().put("biblioteca", bib3));
+            confere(revs.getJSONArray("parecidos").length() == 1 && revs.getJSONArray("parecidos").getJSONArray(0).length() == 2, "revisão junta nomes parecidos (" + revs + ")");
+            String idSep = revs.getJSONArray("parecidos").getJSONArray(0).getJSONObject(1).getString("id");
+            JSONObject ap = (JSONObject) m.executar("faxina_ia_aplicar", new JSONObject().put("biblioteca", bib3).put("duplicados", new JSONArray().put(idSep)).put("corrompidos", new JSONArray().put("id-inexistente")));
+            confere(ap.getInt("separados") == 1 && ap.getJSONArray("falhas").length() == 1 && new File(rv, "Duplicados").isDirectory(), "IA separa só o que a pessoa confirmou (" + ap + ")");
+            confere(((JSONArray) m.executar("catalogo_ids", new JSONObject().put("biblioteca", bib3))).length() > 10, "catálogo de plataformas");
+            // varredura do aparelho: acha a coleção (Roms) que tem uma pasta por console e guarda a decisão de pasta ambígua
+            File sis = new File(t, "sis");
+            for (String n : new String[]{"Roms/NES/Jogo Um.nes", "Roms/NES/Jogo Dois.nes", "Roms/SNES/Jogo Tres.sfc", "Roms/SNES/Jogo Quatro.sfc", "Fotos/foto.jpg"}) { File f = new File(sis, n); f.getParentFile().mkdirs(); Files.write(f.toPath(), "x".getBytes()); }
+            File amb = new File(sis, "Dumps"); amb.mkdirs();
+            for (String n : new String[]{"Disco Um.bin", "Disco Dois.bin", "Disco Tres.bin"}) Files.write(new File(amb, n).toPath(), "y".getBytes());
+            JSONObject vs = (JSONObject) m.executar("escanear_sistema", new JSONObject().put("biblioteca", bib3).put("raizes", new JSONArray().put(sis.getPath())));
+            JSONArray cands = vs.getJSONObject("varredura").getJSONArray("candidatas");
+            confere(cands.length() == 2 && cands.getJSONObject(0).getString("pasta").endsWith("Roms") && cands.getJSONObject(0).getInt("total") == 4, "varredura acha a coleção e sobe para a pasta Roms (" + cands + ")");
+            confere(cands.getJSONObject(1).getInt("ambiguos") == 3 && vs.getJSONObject("aparelho").getInt("nucleos") > 0, "varredura vê os arquivos ambíguos e o aparelho");
+            m.executar("decidir_plataforma", new JSONObject().put("biblioteca", bib3).put("pasta", amb.getPath()).put("plataforma", "ps1"));
+            m.executar("adicionar_pasta", new JSONObject().put("biblioteca", bib3).put("pasta", sis.getPath()));
+            JSONObject esc = (JSONObject) m.executar("escanear", new JSONObject().put("biblioteca", bib3));
+            JSONArray lst = (JSONArray) m.executar("listar", new JSONObject().put("biblioteca", bib3).put("filtro", new JSONObject().put("plataforma", "ps1")));
+            confere(lst.length() == 3, "pasta decidida como PlayStation passa a mostrar os 3 .bin (" + lst.length() + ")");
+            boolean recusou = false;
+            try { m.executar("decidir_plataforma", new JSONObject().put("biblioteca", bib3).put("pasta", amb.getPath()).put("plataforma", "nao-existe")); } catch (Exception e) { recusou = true; }
+            confere(recusou, "console desconhecido é recusado");
             // download incompleto: NSP que promete mais bytes do que tem; e pedaço "00" não vira jogo
             File sw = new File(t, "fora/switch"); sw.mkdirs();
             byte[] nsp = new byte[1024];

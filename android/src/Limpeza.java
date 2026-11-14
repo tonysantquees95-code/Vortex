@@ -173,6 +173,102 @@ public final class Limpeza {
         } catch (Exception e) { return null; }
     }
 
+
+    // ---- revisão para a IA (mesmo comportamento do Rust): nomes quase iguais e arquivos pequenos demais para o console
+
+    private static int distancia(String a, String b) {
+        int[] ant = new int[b.length() + 1];
+        for (int j = 0; j <= b.length(); j++) ant[j] = j;
+        for (int i = 0; i < a.length(); i++) {
+            int[] cur = new int[b.length() + 1];
+            cur[0] = i + 1;
+            for (int j = 0; j < b.length(); j++) cur[j + 1] = Math.min(Math.min(ant[j] + (a.charAt(i) == b.charAt(j) ? 0 : 1), ant[j + 1] + 1), cur[j] + 1);
+            ant = cur;
+        }
+        return ant[b.length()];
+    }
+
+    private static JSONObject itemRevisao(JSONObject j) throws Exception {
+        return new JSONObject().put("id", j.getString("id")).put("titulo", j.optString("titulo")).put("plataforma", j.optString("plataforma"))
+            .put("bytes", j.optLong("bytes")).put("arquivo", new File(j.optString("caminho")).getName());
+    }
+
+    /** Casos de borda para a IA opinar. Nada é movido aqui. */
+    public static JSONObject revisao(JSONObject jogos) throws Exception {
+        JSONArray parecidos = new JSONArray(), suspeitos = new JSONArray();
+        java.util.Set<String> acomp = acompanhantesDaBiblioteca(jogos);
+        List<JSONObject> boas = new ArrayList<JSONObject>();
+        List<String> ids = Motor.chavesPublicas(jogos);
+        Collections.sort(ids);
+        for (String id : ids) {
+            JSONObject j = jogos.getJSONObject(id);
+            if (j.optBoolean("disponivel", true) && new File(j.optString("caminho")).isFile() && !acomp.contains(j.optString("caminho"))) boas.add(j);
+        }
+        Map<String, List<JSONObject>> baldes = new HashMap<String, List<JSONObject>>();
+        for (JSONObject j : boas) {
+            String n = Motor.normalizar(j.optString("titulo"));
+            if (n.length() < 4) continue;
+            String k = j.optString("plataforma") + "|" + n.substring(0, 4);
+            List<JSONObject> l = baldes.get(k);
+            if (l == null) { l = new ArrayList<JSONObject>(); baldes.put(k, l); }
+            l.add(j);
+        }
+        java.util.Set<String> usados = new java.util.HashSet<String>();
+        for (List<JSONObject> v : baldes.values()) {
+            if (v.size() > 60) v = v.subList(0, 60);
+            for (int i = 0; i < v.size(); i++) {
+                if (usados.contains(v.get(i).getString("id"))) continue;
+                String a = Motor.normalizar(v.get(i).optString("titulo"));
+                JSONArray grupo = new JSONArray().put(itemRevisao(v.get(i)));
+                List<String> doGrupo = new ArrayList<String>();
+                doGrupo.add(v.get(i).getString("id"));
+                for (int k = i + 1; k < v.size(); k++) {
+                    if (grupo(v.get(k)).equals(grupo(v.get(i))) || usados.contains(v.get(k).getString("id"))) continue;
+                    String c = Motor.normalizar(v.get(k).optString("titulo"));
+                    int limite = Math.max(Math.max(a.length(), c.length()) * 15 / 100, 2);
+                    if (Math.abs(a.length() - c.length()) <= limite && distancia(a, c) <= limite) { grupo.put(itemRevisao(v.get(k))); doGrupo.add(v.get(k).getString("id")); }
+                }
+                if (grupo.length() > 1) { usados.addAll(doGrupo); if (parecidos.length() < 40) parecidos.put(grupo); }
+            }
+        }
+        Map<String, List<Long>> porConsole = new HashMap<String, List<Long>>();
+        for (JSONObject j : boas) {
+            List<Long> l = porConsole.get(j.optString("plataforma"));
+            if (l == null) { l = new ArrayList<Long>(); porConsole.put(j.optString("plataforma"), l); }
+            l.add(j.optLong("bytes"));
+        }
+        for (JSONObject j : boas) {
+            List<Long> t = porConsole.get(j.optString("plataforma"));
+            if (t.size() < 5 || suspeitos.length() >= 40) continue;
+            List<Long> o = new ArrayList<Long>(t);
+            Collections.sort(o);
+            long mediana = o.get(o.size() / 2);
+            if (j.optLong("bytes") * 25 < mediana && motivo(new File(j.optString("caminho"))) == null) suspeitos.put(itemRevisao(j));
+        }
+        return new JSONObject().put("parecidos", parecidos).put("suspeitos", suspeitos);
+    }
+
+    /** Move um jogo para Duplicados ou Corrompidos e tira da biblioteca (a IA sugere e a pessoa confirma). */
+    public static void separar(JSONObject jogos, String id, String pasta) throws Exception {
+        if (!pasta.equals(DUPLICADOS) && !pasta.equals(CORROMPIDOS)) throw new Exception("Pasta inválida.");
+        JSONObject j = jogos.optJSONObject(id);
+        if (j == null) throw new Exception("Esse jogo não está mais na biblioteca.");
+        List<String> falhas = new ArrayList<String>();
+        File f = new File(j.optString("caminho"));
+        if (f.isFile() && !mover(f, new File(j.optString("raiz"), pasta), falhas)) throw new Exception(falhas.isEmpty() ? "Não consegui mover o arquivo." : falhas.get(0));
+        jogos.remove(id);
+    }
+
+    private static java.util.Set<String> acompanhantesDaBiblioteca(JSONObject jogos) throws Exception {
+        java.util.Set<String> acomp = new java.util.HashSet<String>();
+        for (String id : Motor.chavesPublicas(jogos)) {
+            File c = new File(jogos.getJSONObject(id).optString("caminho"));
+            if (java.util.Arrays.asList("cue", "gdi", "m3u", "ccd", "mds").contains(Organizador.ext(c)) && c.isFile())
+                for (File a : Organizador.acompanhantes(c)) acomp.add(a.getPath());
+        }
+        return acomp;
+    }
+
     /** Tira um jogo que não abriu da biblioteca e guarda o arquivo na pasta Corrompidos. */
     public static JSONObject isolar(JSONObject jogos, String id) throws Exception {
         JSONObject j = jogos.optJSONObject(id);
