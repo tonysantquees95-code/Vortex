@@ -32,7 +32,7 @@ import { capaConhecida, resolverCapa, usarIndiceDeCapas } from "./capas";
 import { faxinaAutomatica, resumoDaFaxina } from "./faxina";
 
 type Aba = "inicio" | "biblioteca" | "loja" | "controles" | "favoritos" | "ajustes";
-const ABAS: [Aba, string, string][] = [["inicio", "Início", "inicio"], ["biblioteca", "Biblioteca", "biblioteca"], ["loja", "Loja", "loja"], ["controles", "Controles", "controles"], ["favoritos", "Favoritos", "favoritos"], ["ajustes", "Ajustes", "ajustes"]];
+const ABAS: [Aba, string, string][] = [["inicio", "Início", "inicio"], ["biblioteca", "Biblioteca", "biblioteca"], ["loja", "Loja", "loja"], ["favoritos", "Favoritos", "favoritos"], ["ajustes", "Ajustes", "ajustes"], ["controles", "Controles", "controles"]];
 
 export function App() {
   const motor = useMotor();
@@ -347,10 +347,10 @@ export function App() {
               aoJogar={jogar} aoDetalhes={setAberto} aoFavoritar={favoritar} jogoParaContinuar={continuar.find((j) => !ocultos.fora.includes(j.plataforma)) ?? null} aoContinuar={jogar} aoInfoConsole={setInfoDe} />
           ) : aba === "loja" ? (
             <Loja motor={motor} aoInstalar={recarregar} avisar={avisar} aoJogar={(id) => { const j = jogos.find((x) => x.id === id); if (j) jogar(j); else avisar("O jogo ainda está aparecendo na biblioteca. Tente de novo em instantes."); }} />
-          ) : aba === "controles" && motor.controles ? (
-            <Controles controles={motor.controles} avisar={avisar} />
+          ) : aba === "controles" ? (
+            <Controles motor={motor} avisar={avisar} />
           ) : aba === "ajustes" ? (
-            <Ajustes motor={motor} aoMudarBiblioteca={recarregar} avisar={avisar} atualizacao={atualizacao} tema={tema} aoMudarTema={setTema} jogos={jogos} plats={plats} ocultos={ocultos} aoMostrarConsole={(id) => mudarOcultos(id, "mostrar")} aoMostrarJogo={(id) => mudarJogos(id, "mostrar")} />
+            <Ajustes motor={motor} aoAbrirArquivos={motor.abrirNoVindex ? () => { void abrirArquivos(); } : undefined} aoMudarBiblioteca={recarregar} avisar={avisar} atualizacao={atualizacao} tema={tema} aoMudarTema={setTema} jogos={jogos} plats={plats} ocultos={ocultos} aoMostrarConsole={(id) => mudarOcultos(id, "mostrar")} aoMostrarJogo={(id) => mudarJogos(id, "mostrar")} />
           ) : aba === "biblioteca" ? (
             <Biblioteca jogos={todos} plats={plats} aoAbrir={setAberto} vazio="Nenhum jogo encontrado." conta={motor.conta} aoProcurar={() => { void atualizarBiblioteca(true); }} />
           ) : (
@@ -361,11 +361,10 @@ export function App() {
         <footer className="rodape-dock">
           <Dock rotulo="Seções" foco={false} ativo={aba}
             itens={[
-              ...ABAS.filter(([id]) => id !== "controles" || motor.controles).map(([id, nome, icone]) => ({ id, nome, icone })),
-              ...(motor.abrirNoVindex ? [{ id: "arquivos", nome: "Arquivos", icone: "arquivos", acao: true }] : []),
+              ...ABAS.map(([id, nome, icone]) => ({ id, nome, icone })),
               ...(aba === "inicio" || aba === "biblioteca" || aba === "loja" ? [{ id: "atualizar", nome: atualizandoBib ? "Atualizando…" : "Atualizar biblioteca", icone: "atualizar", acao: true, girando: atualizandoBib, desligado: atualizandoBib }] : []),
             ]}
-            aoEscolher={(id) => { if (id === "arquivos") void abrirArquivos(); else if (id === "atualizar") void atualizarBiblioteca(true); else setAba(id as Aba); }} />
+            aoEscolher={(id) => { if (id === "atualizar") void atualizarBiblioteca(true); else setAba(id as Aba); }} />
           <div className="dicas max-md:hidden" aria-hidden><span><b>A</b> Abrir</span><span><b>B</b> Voltar</span><span><b>LB</b>/<b>RB</b> Abas</span><span><b>X</b> Atualizar biblioteca</span><span><b>Start</b> Atualização</span></div>
         </footer>
       </div>

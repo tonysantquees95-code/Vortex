@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { analogicoRola } from "./config";
+import { lerId, normalizar, perfilAtivoDe, estaEscutando } from "./controle";
 import { direcoesDoControle, proximoFoco, type Candidato, type Direcao } from "./navegacao";
 
 /** Elementos que podem receber foco: o que estiver na camada de cima (modal) ou, sem modal, a tela inteira. */
@@ -86,11 +87,13 @@ export function useNavegacao() {
     const ler = (agora: number) => {
       const pad = (navigator.getGamepads?.() ?? []).find((g) => g && g.connected) ?? null;
       if (!!pad !== conectado) { conectado = !!pad; avisar("vortex:controle", conectado); }
-      if (pad) {
-        const botoes = pad.buttons.map((b) => b.pressed);
+      if (pad && !estaEscutando()) {
+        const perfil = perfilAtivoDe(lerId(pad.id));
+        const norm = normalizar(perfil?.mapa ?? null, pad.buttons.map((b) => b.pressed), Array.from(pad.axes));
+        const botoes = norm.botoes;
         // opção "analógico rola a página": o analógico esquerdo sobe e desce a tela e só o direcional escolhe os itens
         const rola = analogicoRola();
-        const eixos = Array.from(pad.axes);
+        const eixos = norm.eixos;
         const dirs = direcoesDoControle(botoes, rola ? [0, 0] : eixos);
         if (rola) {
           const y = eixos[1] ?? 0;

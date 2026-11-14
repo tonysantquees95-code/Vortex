@@ -536,7 +536,7 @@ function OpcaoAnalogico() {
   return <Interruptor ligado={ligado} rotulo="Analógico esquerdo rola a página" detalhe="Com o controle, o analógico esquerdo sobe e desce a tela e só o direcional escolhe os itens. Desligado, os dois escolhem itens." aoMudar={(v) => { setLigado(v); definirAnalogicoRola(v); }} />;
 }
 
-export function Ajustes({ motor, aoMudarBiblioteca, avisar, atualizacao, tema, aoMudarTema, jogos, plats = [], ocultos, aoMostrarConsole, aoMostrarJogo }: { motor: Motor; aoMudarBiblioteca: () => void; avisar: Avisar; atualizacao: Atualizacao; tema: Tema; aoMudarTema: (t: Tema) => void; jogos: Jogo[]; plats?: ResumoPlataforma[]; ocultos?: Ocultos; aoMostrarConsole?: (id: string) => void; aoMostrarJogo?: (id: string) => void }) {
+export function Ajustes({ motor, aoAbrirArquivos, aoMudarBiblioteca, avisar, atualizacao, tema, aoMudarTema, jogos, plats = [], ocultos, aoMostrarConsole, aoMostrarJogo }: { motor: Motor; aoAbrirArquivos?: () => void; aoMudarBiblioteca: () => void; avisar: Avisar; atualizacao: Atualizacao; tema: Tema; aoMudarTema: (t: Tema) => void; jogos: Jogo[]; plats?: ResumoPlataforma[]; ocultos?: Ocultos; aoMostrarConsole?: (id: string) => void; aoMostrarJogo?: (id: string) => void }) {
   const itens: Item[] = [
     ...(motor.conta ? [{ id: "conta" as const, icone: "conta", nome: "Conta", titulo: "Conta e saves na nuvem", detalhe: "Vetorial ID, licença e sincronização dos saves." }] : []),
     ...(motor.conta && motor.drive ? [{ id: "drive" as const, icone: "drive", nome: "Drive", titulo: "Vetorial Drive", detalhe: "Seu espaço na nuvem para documentos e ROMs, disponível em todos os apps da Vetorial." }] : []),
@@ -564,6 +564,13 @@ export function Ajustes({ motor, aoMudarBiblioteca, avisar, atualizacao, tema, a
         {atual.id === "conta" && motor.conta && <ContaVetorial motor={motor} avisar={avisar} />}
         {atual.id === "drive" && motor.drive && <TelaDrive motor={motor} avisar={avisar} aoMudarBiblioteca={aoMudarBiblioteca} />}
         {atual.id === "jogos" && <TelaJogos motor={motor} avisar={avisar} aoMudarBiblioteca={aoMudarBiblioteca} plats={plats} ocultos={ocultos} aoMostrarConsole={aoMostrarConsole} jogos={jogos} aoMostrarJogo={aoMostrarJogo} />}
+        {atual.id === "jogos" && aoAbrirArquivos && (
+          <section className="space-y-2 rounded-2xl bg-white/5 p-5">
+            <h3 className="text-lg font-bold">Ver os arquivos</h3>
+            <p className="text-sm text-slate-300">Abre a pasta dos jogos no Vindex, o gerenciador de arquivos da Vetorial.</p>
+            <button data-foco className="botao" onClick={aoAbrirArquivos}>Abrir pasta no Vindex</button>
+          </section>
+        )}
         {atual.id === "aparencia" && <TelaAparencia tema={tema} aoMudar={aoMudarTema} jogos={jogos} avisar={avisar} botoesVirtuais={Boolean(motor.visualControles)} />}
         {atual.id === "permissoes" && <Permissoes motor={motor} avisar={avisar} />}
         {atual.id === "modo" && <TelaModoJogo motor={motor} avisar={avisar} />}

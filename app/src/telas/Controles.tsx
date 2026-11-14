@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Controles as Ponte, ModeloControle, PerfilControle } from "../ponte";
+import type { Controles as Ponte, ModeloControle, PerfilControle, Motor } from "../ponte";
+import { MeuControle } from "./MeuControle";
 
 type Dados = { perfis: PerfilControle[]; ativos: Record<string, string> };
 
 /** Jogos de Android sem suporte a controle: escolher o jogo, um modelo de layout, posicionar os botões e guardar perfis. */
-export function Controles({ controles, avisar }: { controles: Ponte; avisar: (t: string) => void }) {
+function JogosDeAndroid({ controles, avisar }: { controles: Ponte; avisar: (t: string) => void }) {
   const [jogos, setJogos] = useState<{ pacote: string; nome: string }[] | null>(null);
   const [dados, setDados] = useState<Dados>({ perfis: [], ativos: {} });
   const [modelos, setModelos] = useState<ModeloControle[]>([]);
@@ -78,6 +79,22 @@ function AvisoServico({ aoAbrir }: { aoAbrir: () => void }) {
     <div className="rounded-xl border border-amber-400/40 bg-amber-400/10 p-3 text-sm">
       <p>Falta ativar o serviço <b>Vortex Controle</b> em Acessibilidade. Ele só serve para tocar na tela por você quando o controle é apertado; não lê nada do que aparece.</p>
       <button data-foco className="botao mt-2" onClick={aoAbrir}>Abrir configurações de acessibilidade</button>
+    </div>
+  );
+}
+
+/** Aba Controles: o controle físico (reconhecer, driver, perfis, botões) e, no Android, o layout de toques para jogos sem suporte a controle. */
+export function Controles({ motor, avisar }: { motor: Motor; avisar: (t: string) => void }) {
+  const [parte, setParte] = useState<"controle" | "jogos">("controle");
+  return (
+    <div className="space-y-5">
+      {motor.controles && (
+        <div className="mx-auto flex max-w-3xl gap-2">
+          <button data-foco className={"botao" + (parte === "controle" ? " primario" : "")} onClick={() => setParte("controle")}>Meu controle</button>
+          <button data-foco className={"botao" + (parte === "jogos" ? " primario" : "")} onClick={() => setParte("jogos")}>Jogos de Android</button>
+        </div>
+      )}
+      {parte === "jogos" && motor.controles ? <JogosDeAndroid controles={motor.controles} avisar={avisar} /> : <MeuControle motor={motor} avisar={avisar} />}
     </div>
   );
 }
