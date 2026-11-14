@@ -102,11 +102,11 @@ html[data-formato="futurista"] .vidro, html[data-formato="futurista"] .carta { b
 @keyframes respiro-texto { 0%, 100% { filter: brightness(.9); } 50% { filter: brightness(1.25); } }
 
 /* abertura: o vórtice 3D (canvas WebGL) enche a tela e o nome surge no fim, com um clarão */
-.abertura { position: fixed; inset: 0; z-index: 200; overflow: hidden; background: #000; display: grid; place-items: center; transition: opacity .5s ease; }
+.abertura { position: fixed; inset: 0; z-index: 200; overflow: hidden; contain: strict; background: #000; display: grid; place-items: center; transition: opacity .5s ease; }
 .abertura[data-saindo="true"] { opacity: 0; pointer-events: none; }
 .abertura .letreiro { position: relative; z-index: 2; font-weight: 900; font-size: clamp(2.4rem, 10vw, 5.5rem); letter-spacing: .34em; text-indent: .34em; color: #fff; opacity: 0; will-change: transform, opacity;
   text-shadow: 0 0 18px rgba(var(--neon-rgb), 1), 0 0 60px rgba(var(--neon-rgb), .85); animation: letreiro 1.3s 1.2s cubic-bezier(.2,.9,.2,1) forwards; }
-@keyframes letreiro { 0% { opacity: 0; transform: scale(3.2); } 65% { opacity: 1; } 100% { opacity: 1; transform: scale(1); } }
+@keyframes letreiro { 0% { opacity: 0; transform: scale(2.2); } 65% { opacity: 1; } 100% { opacity: 1; transform: scale(1); } }
 .abertura .toque { position: absolute; bottom: 6vh; z-index: 2; font-size: .75rem; letter-spacing: .3em; color: rgba(255,255,255,.45); text-transform: uppercase; }
 
 /* cartas de seleção de cor e telas de configuração */
@@ -202,4 +202,6 @@ html[data-formato="futurista"] .cascata-item { border-radius: 4px; }
 .vx-logo .vx-corre.a { stroke: #fff; stroke-opacity: .95; }
 .vx-logo .vx-corre.b { stroke: var(--neon2); stroke-width: 4; }
 .marca-vx { display: inline-block; width: clamp(150px, 24vw, 270px); }
+/* na abertura o logo fica parado: filtro de desfoque + traços animados + clarão do WebGL juntos engasgavam no celular */
+.vx-logo.parado .vx-corre { animation: none; }
 @media (prefers-reduced-motion: reduce) { .vx-logo .vx-corre { animation: none; } }

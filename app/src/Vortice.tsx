@@ -75,9 +75,10 @@ export function Vortice({ modo }: { modo: "abertura" | "fundo" }) {
     const brilho = Number(getComputedStyle(document.documentElement).getPropertyValue("--brilho")) || 0.7;
 
     // resolução: nítida na abertura, menor no fundo (que é só ambiente)
+    let fator = 1; // resolução dinâmica: se o aparelho não dá conta, o vórtice desenha menor em vez de engasgar
     const ajusta = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const alvo = fundo ? 0.45 : 0.9;
+      const alvo = (fundo ? 0.45 : 0.9) * fator;
       let w = Math.max(2, Math.round(canvas.clientWidth * dpr * alvo)), h = Math.max(2, Math.round(canvas.clientHeight * dpr * alvo));
       const max = fundo ? 500_000 : 1_600_000;
       if (w * h > max) { const k = Math.sqrt(max / (w * h)); w = Math.round(w * k); h = Math.round(h * k); }
@@ -86,16 +87,25 @@ export function Vortice({ modo }: { modo: "abertura" | "fundo" }) {
     ajusta();
     window.addEventListener("resize", ajusta);
 
-    let quadro = 0, anterior = 0, pos = 0, relogio = 0, ultimoDesenho = 0, vivo = true;
+    let quadro = 0, anterior = 0, pos = 0, relogio = 0, ultimoDesenho = 0, vivo = true, inicio = 0, amostra = 0, somaDt = 0;
     const desenha = (agora: number) => {
       if (!vivo) return;
       quadro = requestAnimationFrame(desenha);
       if (document.hidden) { anterior = agora; return; }
+      if (!inicio) inicio = agora;
+      if (!fundo && anterior) {
+        somaDt += agora - anterior;
+        if (++amostra === 12) {
+          if (somaDt / 12 > 24 && fator > 0.45) { fator *= 0.78; ajusta(); }
+          amostra = 0; somaDt = 0;
+        }
+      }
       if (fundo && agora - ultimoDesenho < 33) return; // 30 quadros por segundo bastam para o fundo
       ultimoDesenho = agora;
-      const dt = anterior ? Math.min(0.05, (agora - anterior) / 1000) : 0.016;
+      const dt = anterior ? Math.min(0.1, (agora - anterior) / 1000) : 0.016;
       anterior = agora;
-      relogio += dt;
+      // na abertura o relógio é o tempo real: se algum quadro demorar, a animação não atrasa em relação ao nome que surge
+      relogio = fundo ? relogio + dt : (agora - inicio) / 1000;
       let flash = 0;
       if (fundo) pos += dt * 0.16;
       else {

@@ -85,7 +85,11 @@ export function App() {
     } catch (e) { avisar(String(e)); } finally { setCarregado(true); }
   }, [motor, avisar]);
 
+  // com a abertura na tela, a carga pesada (biblioteca, busca de jogos) espera: assim a animação não engasga no celular
+  const jaIniciou = useRef(false);
   useEffect(() => {
+    if (abertura || jaIniciou.current) return;
+    jaIniciou.current = true;
     motor.recuperarModoJogo().catch(() => {});
     recarregar();
     // organização automática: acha jogos soltos, guarda por console na pasta do Vortex e mostra tudo na biblioteca
@@ -101,7 +105,7 @@ export function App() {
         if (r.organizados.length || f) recarregar();
       }).catch(() => { setOcupado(""); });
     }
-  }, [motor, recarregar, avisar]);
+  }, [motor, recarregar, avisar, abertura]);
   // Atualizar a biblioteca: procura tudo de novo; o que foi apagado ou movido sai (e o console some se ficou sem jogos).
   const atualizando = useRef(false);
   const [atualizandoBib, setAtualizandoBib] = useState(false);
