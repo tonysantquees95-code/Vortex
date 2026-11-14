@@ -119,6 +119,12 @@ export interface Motor {
   conta?: ContaVetorial;
   /** Android: Vetorial Drive. */
   drive?: DriveVetorial;
+  /** Windows: varredura completa do computador (todos os discos) com ajuda da IA do servidor. */
+  sistema?: {
+    varrer(): Promise<VarreduraSistema>;
+    ia(v: VarreduraSistema): Promise<SugestaoIA>;
+    decidirPlataforma(pasta: string, plataforma: string | null): Promise<void>;
+  };
   /** Permissões do aparelho (no Windows não há nenhuma a pedir). */
   permissoes(): Promise<Permissao[]>;
   /** Abre a tela do sistema onde a pessoa libera a permissão. */
@@ -155,3 +161,10 @@ export interface Motor {
 
 /** Permissão do aparelho que o Vortex precisa (ou pode usar). */
 export interface Permissao { id: string; titulo: string; motivo: string; obrigatoria: boolean; concedida: boolean }
+
+export interface CandidataSistema { pasta: string; total: number; plataformas: Record<string, number>; ambiguos: number; amostras: string[] }
+export interface VarreduraSistema {
+  varredura: { discos: string[]; candidatas: CandidataSistema[]; arquivos_vistos: number; completa: boolean };
+  aparelho: { so: string; cpu: string; nucleos: number; ram_gb: number };
+}
+export interface SugestaoIA { pastas: { pasta: string; plataforma: string | null; motivo: string }[]; perfil: string; observacoes: string }

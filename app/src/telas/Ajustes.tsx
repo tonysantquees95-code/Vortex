@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ConfigGameBar, EmuladoresInfo, EstadoConta, Jogo, ModoDesempenho, ModoJogoConfig, Motor, PosicaoGameBar, RelatorioLimpeza, ResumoPlataforma } from "../ponte";
+import type { ConfigGameBar, EmuladoresInfo, EstadoConta, Jogo, ModoDesempenho, ModoJogoConfig, Motor, PosicaoGameBar, RelatorioLimpeza, ResumoPlataforma, CandidataSistema, SugestaoIA } from "../ponte";
 import type { Ocultos } from "../ocultos";
 import { analogicoRola, definirAnalogicoRola, atualizarSozinho, definirAtualizarSozinho, definirLimparSozinho, definirOrganizarAutomatico, limparSozinho, organizarAutomatico } from "../config";
 import { faxinaAutomatica, resumoDaFaxina } from "../faxina";
@@ -197,6 +197,39 @@ export function TelaJogos({ motor, avisar, aoMudarBiblioteca, plats = [], oculto
       aoMudarBiblioteca();
     } catch (e) { avisar(String(e instanceof Error ? e.message : e)); } finally { setOcupado(false); }
   };
+  const [achadas, setAchadas] = useState<{ c: CandidataSistema; plataforma: string | null; motivo: string; marcada: boolean }[] | null>(null);
+  const [nota, setNota] = useState("");
+  const varrerSistema = async () => {
+    if (!motor.sistema) return;
+    setOcupado(true); setAchadas(null); setNota("Varrendo todos os discos… pode levar um minuto.");
+    try {
+      const v = await motor.sistema.varrer();
+      let sug: SugestaoIA | null = null;
+      if (v.varredura.candidatas.length) {
+        setNota("Pedindo ajuda à IA para entender as pastas…");
+        try { sug = await motor.sistema.ia(v); } catch { sug = null; }
+      }
+      const lista = v.varredura.candidatas.map((c) => {
+        const s = sug?.pastas.find((x) => x.pasta === c.pasta);
+        return { c, plataforma: s?.plataforma ?? null, motivo: s?.motivo ?? "", marcada: c.total >= 2 || !!s?.plataforma };
+      });
+      setAchadas(lista);
+      setNota(`${v.varredura.arquivos_vistos.toLocaleString("pt-BR")} arquivos olhados em ${v.varredura.discos.join(" ")}${v.varredura.completa ? "" : " (parou no limite de tempo)"}. ${lista.length ? `${lista.length} pasta(s) com jogos.` : "Não achei pastas novas com jogos."}${sug?.observacoes ? ` ${sug.observacoes}` : ""}${sug ? "" : " (sem a ajuda da IA agora)"}`);
+    } catch (e) { setNota(""); avisar(String(e instanceof Error ? e.message : e)); } finally { setOcupado(false); }
+  };
+  const adicionarAchadas = async () => {
+    if (!motor.sistema || !achadas) return;
+    setOcupado(true);
+    try {
+      for (const a of achadas.filter((x) => x.marcada)) {
+        if (a.plataforma && a.c.ambiguos > 0) await motor.sistema.decidirPlataforma(a.c.pasta, a.plataforma);
+        await motor.adicionarPasta(a.c.pasta);
+      }
+      setPastas(await motor.pastas());
+      setAchadas(null);
+      await escanear();
+    } catch (e) { avisar(String(e instanceof Error ? e.message : e)); } finally { setOcupado(false); }
+  };
   const desfazer = async () => {
     setOcupado(true);
     try {
@@ -216,6 +249,25 @@ export function TelaJogos({ motor, avisar, aoMudarBiblioteca, plats = [], oculto
         </div>
         {resultado && <div className="vidro grid gap-1 p-4 text-sm text-slate-200">{resultado.map((l, i) => <p key={i}>{l}</p>)}</div>}
       </section>
+      {motor.sistema && (
+        <section className="grid gap-3">
+          <h3 className="text-lg font-bold text-cyan-100/90">Varredura completa do computador</h3>
+          <p className="text-sm text-slate-400">Olha todos os discos (inclusive o C:), acha as pastas com jogos e usa a IA para entender as que não têm o nome do console. Nada é movido nem apagado.</p>
+          <div className="flex flex-wrap gap-3"><button data-foco className={`botao ${pastas.length ? "" : "primario"}`} disabled={ocupado} onClick={varrerSistema}>{ocupado ? "Varrendo…" : "🔎 Varrer o computador inteiro"}</button></div>
+          {nota && <p className="text-sm text-slate-300">{nota}</p>}
+          {achadas && achadas.length > 0 && (
+            <div className="vidro grid gap-2 p-4 text-sm text-slate-200">
+              {achadas.map((a, i) => (
+                <label key={a.c.pasta} className="flex items-start gap-3">
+                  <input type="checkbox" checked={a.marcada} onChange={(e) => setAchadas(achadas.map((x, j) => j === i ? { ...x, marcada: e.target.checked } : x))} />
+                  <span className="min-w-0"><span className="block truncate">{a.c.pasta}</span><span className="block text-slate-400">{a.c.total ? `${a.c.total} jogo(s): ${Object.entries(a.c.plataformas).map(([k, v]) => `${k} ${v}`).join(", ")}` : ""}{a.c.ambiguos ? ` · ${a.c.ambiguos} arquivo(s) a identificar${a.plataforma ? ` → IA acha que é ${a.plataforma}${a.motivo ? ` (${a.motivo})` : ""}` : ""}` : ""}</span></span>
+                </label>
+              ))}
+              <div className="flex flex-wrap gap-3"><button data-foco className="botao primario" disabled={ocupado} onClick={adicionarAchadas}>Adicionar as marcadas</button><button data-foco className="botao" onClick={() => setAchadas(null)}>Cancelar</button></div>
+            </div>
+          )}
+        </section>
+      )}
       <section className="grid gap-3">
         <h3 className="text-lg font-bold text-cyan-100/90">Jogos repetidos e arquivos quebrados</h3>
         <Interruptor ligado={limpezaAuto} rotulo="Deixar um jogo só por título" detalhe="Depois de buscar, fica a melhor versão de cada jogo (Brasil, EUA, sem beta). As cópias vão para a pasta Duplicados e os arquivos quebrados para a pasta Corrompidos, dentro da sua pasta de jogos. Nada é apagado." aoMudar={(v) => { setLimpezaAuto(v); definirLimparSozinho(v); }} />

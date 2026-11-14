@@ -184,6 +184,19 @@ pub fn conta_e_saves(comando: &str, args: &Value, rede: &dyn nuvem::Rede) -> Res
             let c = nuvem::entrar(rede, &dados, texto(args, "email")?, texto(args, "senha")?, texto(args, "aparelho").unwrap_or("Computador"), "windows")?;
             Ok(json!({ "logado": true, "email": c.email }))
         }
+        "sistema_ia" => {
+            // manda o resumo da varredura para a IA do servidor (DeepSeek/Groq); sem conta ou sem rede, o app segue sem IA
+            let c = nuvem::conta_salva(&dados).ok_or("Entre na sua conta Vetorial ID para usar a IA na varredura.")?;
+            let mut pedido = args.clone();
+            pedido["plataformas"] = json!(crate::plataformas::PLATAFORMAS.iter().map(|p| p.id).collect::<Vec<_>>());
+            let corpo = serde_json::to_vec(&pedido).map_err(|e| e.to_string())?;
+            let r = rede.pedir("POST", "/vortex/ia/varredura", Some(&c.token), Some(&corpo), None)?;
+            let v: Value = serde_json::from_slice(&r.corpo).map_err(|_| "Resposta inesperada do servidor.".to_string())?;
+            if r.status >= 400 {
+                return Err(v.get("mensagem").or_else(|| v.get("erro")).and_then(|x| x.as_str()).unwrap_or("A IA não respondeu agora.").to_string());
+            }
+            Ok(v)
+        }
         "conta_sair" => {
             nuvem::sair(rede, &dados);
             Ok(json!({ "logado": false }))
@@ -254,7 +267,7 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
     if comando == "preparar_jogo" {
         return preparar_jogo_com(args, &nucleos::baixar_da_libretro);
     }
-    if comando.starts_with("conta_") || comando.starts_with("ponte_") || comando == "saves_sincronizar" || comando == "saves_lista" || comando == "conta_pedir" {
+    if comando.starts_with("conta_") || comando.starts_with("ponte_") || comando == "saves_sincronizar" || comando == "saves_lista" || comando == "conta_pedir" || comando == "sistema_ia" {
         return conta_e_saves(comando, args, &nuvem::RedeReal);
     }
     if comando == "plataformas_catalogo" {
@@ -297,6 +310,13 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
             b.adicionar_pasta(&PathBuf::from(texto(args, "pasta")?))?;
             mudou = true;
             para(&b.pastas)
+        }
+        "catalogo_ids" => Ok(json!(crate::plataformas::PLATAFORMAS.iter().map(|p| p.id).collect::<Vec<_>>())),
+        "decidir_plataforma" => {
+            let pl = args.get("plataforma").and_then(|x| x.as_str()).filter(|x| !x.is_empty());
+            b.decidir_plataforma(&PathBuf::from(texto(args, "pasta")?), pl)?;
+            mudou = true;
+            Ok(json!({ "ok": true }))
         }
         "remover_pasta" => {
             let n = b.remover_pasta(&PathBuf::from(texto(args, "pasta")?));
@@ -406,6 +426,16 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
         "modo_jogo_recuperar" => {
             // chamado quando o Vortex abre: se ele fechou no meio de um jogo, devolve o computador ao normal
             Ok(json!({ "desfeito": modo_jogo::desativar(&SistemaReal::novo(), &pasta_de_dados(&arquivo)) }))
+        }
+        "escanear_sistema" => {
+            // varredura completa: todos os discos (inclusive o C:), sem adicionar nada; devolve as pastas candidatas
+            let amb = Ambiente::atual();
+            let segundos = args.get("segundos").and_then(|x| x.as_u64()).unwrap_or(90).clamp(10, 600);
+            let raizes = crate::sistema::raizes_de_disco(&amb);
+            let mut v = crate::sistema::varrer(&raizes, std::time::Duration::from_secs(segundos), &amb.casa);
+            let ja: Vec<PathBuf> = b.pastas.clone();
+            v.candidatas.retain(|c| !ja.iter().any(|p| c.pasta.starts_with(p)));
+            Ok(json!({ "varredura": v, "aparelho": crate::sistema::aparelho() }))
         }
         "organizar_candidatos" => {
             let amb = Ambiente::atual();

@@ -1,4 +1,4 @@
-import type { PedidoDaVenus, ContaVetorial, EstadoConta, RelatorioSaves, SaveNaNuvem, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, RelatorioLimpeza, Oferta } from "./tipos";
+import type { PedidoDaVenus, ContaVetorial, EstadoConta, RelatorioSaves, SaveNaNuvem, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, VarreduraSistema, SugestaoIA, RelatorioLimpeza, Oferta } from "./tipos";
 
 /** Windows: fala com o motor em Rust pelo comando "motor" do Tauri (o Rust acrescenta o caminho da biblioteca). */
 export async function motorTauri(): Promise<Motor> {
@@ -29,6 +29,14 @@ export async function motorTauri(): Promise<Motor> {
     adicionarPasta: (pasta) => c<string[]>("adicionar_pasta", { pasta }),
     removerPasta: async (pasta) => { await c("remover_pasta", { pasta }); },
     escanear: () => c<ResumoEscaneamento>("escanear"),
+    sistema: {
+      varrer: () => c<VarreduraSistema>("escanear_sistema"),
+      ia: (v) => c<SugestaoIA>("sistema_ia", {
+        pastas: v.varredura.candidatas.slice(0, 40).map((x) => ({ pasta: x.pasta, plataformas: x.plataformas, ambiguos: x.ambiguos, amostras: x.amostras })),
+        aparelho: v.aparelho,
+      }),
+      decidirPlataforma: async (pasta, plataforma) => { await c("decidir_plataforma", { pasta, plataforma }); },
+    },
     listar: (filtro = {}) => c<Jogo[]>("listar", { filtro }),
     continuar: (limite = 12) => c<Jogo[]>("continuar", { limite }),
     plataformas: () => c<ResumoPlataforma[]>("plataformas"),

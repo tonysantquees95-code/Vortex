@@ -127,11 +127,14 @@ pub struct Biblioteca {
     pub historico: Vec<Sessao>,
     /// jogos abertos agora: id → início (segundos). Guardado para sobreviver a um fechamento inesperado.
     pub em_andamento: BTreeMap<String, u64>,
+    /// pasta → plataforma decidida pela varredura do sistema (ou pela pessoa) para arquivos ambíguos (.bin, .iso, .zip…)
+    #[serde(default)]
+    pub plataforma_da_pasta: BTreeMap<PathBuf, String>,
 }
 
 impl Default for Biblioteca {
     fn default() -> Self {
-        Biblioteca { versao: VERSAO, pastas: Vec::new(), jogos: BTreeMap::new(), historico: Vec::new(), em_andamento: BTreeMap::new() }
+        Biblioteca { versao: VERSAO, pastas: Vec::new(), jogos: BTreeMap::new(), historico: Vec::new(), em_andamento: BTreeMap::new(), plataforma_da_pasta: BTreeMap::new() }
     }
 }
 
@@ -224,6 +227,20 @@ impl Biblioteca {
         fs::rename(&tmp, arquivo).map_err(|e| format!("Não consegui salvar a biblioteca: {e}"))
     }
 
+    /// Guarda a plataforma de uma pasta (None desfaz). Só vale para arquivos ambíguos.
+    pub fn decidir_plataforma(&mut self, pasta: &Path, plataforma: Option<&str>) -> Result<(), String> {
+        match plataforma {
+            Some(id) => {
+                plataformas::por_id(id).ok_or("Console desconhecido.")?;
+                self.plataforma_da_pasta.insert(pasta.to_path_buf(), id.to_string());
+            }
+            None => {
+                self.plataforma_da_pasta.remove(pasta);
+            }
+        }
+        Ok(())
+    }
+
     pub fn adicionar_pasta(&mut self, pasta: &Path) -> Result<(), String> {
         if !pasta.is_dir() {
             return Err(format!("A pasta não existe: {}", pasta.display()));
@@ -272,6 +289,7 @@ impl Biblioteca {
     }
 
     fn varrer_raiz(&mut self, raiz: &Path, agora: u64, opcoes: OpcoesEscaneamento, vistos: &mut HashSet<String>, r: &mut ResumoEscaneamento) {
+        let decididas = self.plataforma_da_pasta.clone();
         // 1) agrupa os arquivos por pasta
         let mut por_pasta: BTreeMap<PathBuf, Vec<(PathBuf, fs::Metadata)>> = BTreeMap::new();
         let it = WalkDir::new(raiz).follow_links(false).max_depth(12).into_iter().filter_entry(|e| {
@@ -309,7 +327,13 @@ impl Biblioteca {
                 let nome = nome_do_arquivo(caminho);
                 let nome_baixo = nome.to_lowercase();
                 let ext = plataformas::extensao(caminho);
-                let pl: Option<&'static Plataforma> = match plataformas::identificar(caminho, raiz) {
+                let decidida = || -> Option<&'static Plataforma> {
+                    if !["bin", "iso", "img", "zip", "7z", "chd", "cue", "rvz", "wbfs", "m3u"].contains(&ext.as_str()) {
+                        return None;
+                    }
+                    caminho.ancestors().skip(1).find_map(|a| decididas.get(a)).and_then(|id| plataformas::por_id(id))
+                };
+                let pl: Option<&'static Plataforma> = match plataformas::identificar(caminho, raiz).or_else(decidida) {
                     Some(p) => Some(p),
                     None if plataformas::eh_pacote(&ext) => plataformas::identificar_dentro(&espiar_zip(caminho)),
                     None => None,

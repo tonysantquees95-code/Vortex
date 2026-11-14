@@ -170,6 +170,17 @@ public final class Nuvem {
         return j;
     }
 
+    /** Resumo da varredura do aparelho para a IA do servidor (DeepSeek/Groq). */
+    public static JSONObject iaVarredura(Rede rede, File dados, JSONObject pedido) throws Exception {
+        JSONObject conta = lerConta(dados);
+        if (conta == null) throw new Exception("Entre na sua conta Vetorial ID para usar a IA na varredura.");
+        Resposta r = rede.pedir("POST", "/vortex/ia/varredura", conta.getString("token"), pedido.toString().getBytes(StandardCharsets.UTF_8), null);
+        JSONObject j;
+        try { j = new JSONObject(r.texto()); } catch (Exception e) { j = new JSONObject(); }
+        if (r.status >= 400) throw new Exception(j.optString("mensagem", j.optString("error", "A IA não respondeu agora.")));
+        return j;
+    }
+
     /** Jogos com save na conta (de qualquer aparelho): a resposta do servidor sem mexer em nada. */
     public static JSONObject listaDeSaves(Rede rede, File dados) throws Exception {
         JSONObject conta = lerConta(dados);

@@ -1,5 +1,5 @@
 import { registerPlugin } from "@capacitor/core";
-import type { PedidoDaVenus, ContaVetorial, EstadoConta, RelatorioSaves, SaveNaNuvem, Controles, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, RelatorioLimpeza, AppAndroid, ConfigGameBar, Oferta, Permissao, DriveVetorial, ListaDoDrive, ProgressoDoDrive } from "./tipos";
+import type { PedidoDaVenus, ContaVetorial, EstadoConta, RelatorioSaves, SaveNaNuvem, Controles, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, VarreduraSistema, SugestaoIA, RelatorioLimpeza, AppAndroid, ConfigGameBar, Oferta, Permissao, DriveVetorial, ListaDoDrive, ProgressoDoDrive } from "./tipos";
 
 /** Mesmo contrato do Rust, implementado em Java (plugin "Vortex"). */
 interface PluginVortex {
@@ -62,6 +62,14 @@ export function motorAndroid(): Motor {
     adicionarPasta: (pasta) => c<string[]>("adicionar_pasta", { pasta }),
     removerPasta: async (pasta) => { await c("remover_pasta", { pasta }); },
     escanear: () => c<ResumoEscaneamento>("escanear"),
+    sistema: {
+      varrer: () => c<VarreduraSistema>("escanear_sistema"),
+      ia: (v) => c<SugestaoIA>("sistema_ia", {
+        pastas: v.varredura.candidatas.slice(0, 40).map((x) => ({ pasta: x.pasta, plataformas: x.plataformas, ambiguos: x.ambiguos, amostras: x.amostras })),
+        aparelho: v.aparelho,
+      }),
+      decidirPlataforma: async (pasta, plataforma) => { await c("decidir_plataforma", { pasta, plataforma }); },
+    },
     listar: (filtro = {}) => c<Jogo[]>("listar", { filtro }),
     continuar: (limite = 12) => c<Jogo[]>("continuar", { limite }),
     plataformas: () => c<ResumoPlataforma[]>("plataformas"),

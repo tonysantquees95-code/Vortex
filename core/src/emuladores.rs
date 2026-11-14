@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -150,7 +151,38 @@ fn pastas_de_busca(amb: &Ambiente, cfg: &Configuracao) -> Vec<PathBuf> {
     v.push(amb.casa.join("Jogos"));
     v.push(amb.casa.join("Applications"));
     v.push(PathBuf::from(if amb.so == So::Windows { "C:\\" } else { "/opt" }));
+    for pasta in ["Downloads", "Desktop", "Documents", "Área de Trabalho", "Transferências"] {
+        v.push(amb.casa.join(pasta));
+    }
+    for disco in crate::sistema::raizes_de_disco(amb) {
+        if disco == amb.casa {
+            continue;
+        }
+        for nome in ["Emuladores", "Emulators", "Emulation", "Emulacao", "Emu", "Games", "Jogos", "Retro", "Portable", "Apps"] {
+            v.push(disco.join(nome));
+        }
+        v.push(disco);
+    }
     v
+}
+
+/// Procura o programa em até 3 níveis dentro das pastas de busca (emulador instalado numa pasta de nome qualquer).
+fn achar_fundo(amb: &Ambiente, cfg: &Configuracao, exes: &[&str]) -> Option<PathBuf> {
+    for base in pastas_de_busca(amb, cfg) {
+        // nunca entra em discos inteiros nem em Windows/Program Files: só nas pastas de emuladores e de usuário
+        if base.parent().is_none() || base.file_name().is_none() {
+            continue;
+        }
+        for e in WalkDir::new(&base).max_depth(3).follow_links(false).into_iter().filter_entry(|x| !x.file_name().to_string_lossy().starts_with('$')).filter_map(Result::ok) {
+            if e.file_type().is_file() {
+                let n = e.file_name().to_string_lossy().to_lowercase();
+                if exes.iter().any(|x| x.to_lowercase() == n) {
+                    return Some(e.path().to_path_buf());
+                }
+            }
+        }
+    }
+    None
 }
 
 fn achar_exe(amb: &Ambiente, cfg: &Configuracao, pastas: &[&str], exes: &[&str]) -> Option<PathBuf> {
@@ -180,7 +212,7 @@ fn achar_exe(amb: &Ambiente, cfg: &Configuracao, pastas: &[&str], exes: &[&str])
             }
         }
     }
-    None
+    achar_fundo(amb, cfg, exes)
 }
 
 /// Pasta de instalação do RetroArch (onde ficam retroarch.exe, cores/ e shaders/).
