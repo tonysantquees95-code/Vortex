@@ -34,6 +34,7 @@ export async function motorTauri(): Promise<Motor> {
       ler: (id) => c<PerfilJogo | null>("perfil_jogo_ler", { id }),
       gerar: (id) => c<PerfilJogo | null>("perfil_jogo_ia", { id }),
       limpar: async (id) => { await c("perfil_jogo_limpar", { id }); },
+      desligar: async (id) => { await c("perfil_jogo_desligar", { id }); },
     },
     faxinaIA: {
       revisar: () => c<RevisaoFaxina>("faxina_revisao"),

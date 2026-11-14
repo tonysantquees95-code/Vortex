@@ -363,7 +363,7 @@ export function App() {
       {infoDe && <InfoConsole c={infoDe} aoFechar={() => setInfoDe(null)}
         aoEsconder={() => { mudarOcultos(infoDe.id, "esconder"); avisar(`${infoDe.nome} escondido do Início`); setInfoDe(null); }}
         aoTirar={() => { mudarOcultos(infoDe.id, "fora"); avisar(`${infoDe.nome} saiu da biblioteca`); setInfoDe(null); }} />}
-      {aberto && <Detalhe jogo={aberto} aoJogar={jogar} aoFavoritar={favoritar} aoFechar={() => setAberto(null)} aoEsconder={(j) => { mudarJogos(j.id, "esconder"); avisar(`${j.titulo} escondido do Início`); setAberto(null); }} aoTirar={(j) => { mudarJogos(j.id, "fora"); avisar(`${j.titulo} saiu da biblioteca`); setAberto(null); }} aoAbrirUrl={(u) => { motor.abrirUrl(u).catch(() => avisar("Não consegui abrir o navegador.")); }} />}
+      {aberto && <Detalhe motor={motor} jogo={aberto} aoJogar={jogar} aoFavoritar={favoritar} aoFechar={() => setAberto(null)} aoEsconder={(j) => { mudarJogos(j.id, "esconder"); avisar(`${j.titulo} escondido do Início`); setAberto(null); }} aoTirar={(j) => { mudarJogos(j.id, "fora"); avisar(`${j.titulo} saiu da biblioteca`); setAberto(null); }} aoAbrirUrl={(u) => { motor.abrirUrl(u).catch(() => avisar("Não consegui abrir o navegador.")); }} />}
       {lendoTermos && <Termos aoFechar={() => setLendoTermos(false)} />}
       {!config && !abertura && <Configuracao motor={motor} tema={tema} aoMudarTema={setTema} avisar={avisar} aoMudarBiblioteca={recarregar} aoTerminar={() => { marcarConfigurado(); setConfig(true); recarregar(); }} />}
       {lancando && (

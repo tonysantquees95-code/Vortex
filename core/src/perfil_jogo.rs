@@ -136,6 +136,11 @@ pub fn ler(dados: &Path, id: &str) -> Option<Perfil> {
     tudo(dados).remove(id).filter(|p| p.desativado || p.ajustes.keys().any(|k| PERMITIDOS.iter().any(|(c, _)| c == k)))
 }
 
+/// A pessoa quer o jogo na configuração do emulador: o perfil fica desligado (e a IA não é chamada de novo).
+pub fn desligar(dados: &Path, id: &str) -> Result<(), String> {
+    salvar(dados, id, Perfil { ajustes: BTreeMap::new(), motivo: "Desligado por você.".into(), origem: "manual".into(), falhas: 0, desativado: true })
+}
+
 /// O jogo fechou logo com erro depois de abrir com o perfil: na 1ª vez volta aos ajustes mínimos, na 2ª desliga o perfil.
 pub fn registrar_falha(dados: &Path, id: &str) {
     let Some(mut p) = ler(dados, id) else { return };
@@ -275,5 +280,13 @@ mod testes {
         assert!(ler(t.path(), "velho").is_none(), "perfil no formato antigo é refeito");
         limpar(t.path(), "abc").unwrap();
         assert!(ler(t.path(), "abc").is_none());
+    }
+
+    #[test]
+    fn desligar_mantem_o_registro_para_a_ia_nao_voltar() {
+        let t = tempfile::tempdir().unwrap();
+        salvar(t.path(), "j", perfil()).unwrap();
+        desligar(t.path(), "j").unwrap();
+        assert!(ler(t.path(), "j").unwrap().desativado);
     }
 }

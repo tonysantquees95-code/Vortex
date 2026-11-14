@@ -384,6 +384,10 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
             para(&b.pastas)
         }
         "perfil_jogo_ler" => Ok(crate::perfil_jogo::ler(&pasta_de_dados(&arquivo), texto(args, "id")?).map(|p| json!(p)).unwrap_or(Value::Null)),
+        "perfil_jogo_desligar" => {
+            crate::perfil_jogo::desligar(&pasta_de_dados(&arquivo), texto(args, "id")?)?;
+            Ok(json!({ "ok": true }))
+        }
         "perfil_jogo_limpar" => {
             crate::perfil_jogo::limpar(&pasta_de_dados(&arquivo), texto(args, "id")?)?;
             Ok(json!({ "ok": true }))

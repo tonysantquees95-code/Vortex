@@ -124,6 +124,7 @@ export interface Motor {
     ler(id: string): Promise<PerfilJogo | null>;
     gerar(id: string): Promise<PerfilJogo | null>;
     limpar(id: string): Promise<void>;
+    desligar(id: string): Promise<void>;
   };
   /** Windows: o que cada console da biblioteca usa e se já está pronto. */
   central?(): Promise<CentralEmuladores>;
@@ -187,7 +188,7 @@ export interface ItemRevisao { id: string; titulo: string; plataforma: string; b
 export interface RevisaoFaxina { parecidos: ItemRevisao[][]; suspeitos: ItemRevisao[] }
 export interface SugestaoFaxina { duplicados: { manter: string; remover: string[]; motivo: string }[]; corrompidos: { id: string; motivo: string }[]; observacoes?: string }
 
-export interface PerfilJogo { ajustes: Record<string, string>; motivo: string; origem: string }
+export interface PerfilJogo { ajustes: Record<string, string>; motivo: string; origem: string; falhas?: number; desativado?: boolean }
 
 export interface LinhaCentral { id: string; nome: string; jogos: number; estado: "pronto" | "baixa" | "instalar"; emulador: string; aviso: string | null }
 export interface CentralEmuladores { consoles: LinhaCentral[]; aparelho: { so: string; cpu: string; nucleos: number; ram_gb: number } }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Jogo } from "../ponte";
+import type { Jogo, Motor, PerfilJogo } from "../ponte";
 import { tempoJogado } from "../navegacao";
 import { focar } from "../foco";
 import { atalhosDeGuia, fichaConhecida, resolverFicha, type Ficha } from "../ficha";
@@ -23,12 +23,14 @@ function useFicha(j: Jogo): { ficha: Ficha | null; buscando: boolean } {
   return { ficha, buscando };
 }
 
-export function Detalhe({ jogo, aoJogar, aoFavoritar, aoFechar, aoAbrirUrl, aoEsconder, aoTirar }: { jogo: Jogo; aoJogar: (j: Jogo) => void; aoFavoritar: (j: Jogo) => void; aoFechar: () => void; aoAbrirUrl: (url: string) => void; aoEsconder: (j: Jogo) => void; aoTirar: (j: Jogo) => void }) {
+export function Detalhe({ motor, jogo, aoJogar, aoFavoritar, aoFechar, aoAbrirUrl, aoEsconder, aoTirar }: { motor?: Motor; jogo: Jogo; aoJogar: (j: Jogo) => void; aoFavoritar: (j: Jogo) => void; aoFechar: () => void; aoAbrirUrl: (url: string) => void; aoEsconder: (j: Jogo) => void; aoTirar: (j: Jogo) => void }) {
   const [confirmar, setConfirmar] = useState<"esconder" | "fora" | null>(null);
   const [trocandoCapa, setTrocandoCapa] = useState(false);
   const trocandoRef = useRef(false);
   trocandoRef.current = trocandoCapa;
   const { ficha, buscando } = useFicha(jogo);
+  const [perfil, setPerfil] = useState<PerfilJogo | null | undefined>(undefined);
+  useEffect(() => { let vivo = true; motor?.perfilIA?.ler(jogo.id).then((p) => { if (vivo) setPerfil(p); }).catch(() => {}); return () => { vivo = false; }; }, [motor, jogo.id]);
   useEffect(() => {
     const voltar = () => { if (!trocandoRef.current) aoFechar(); };
     const fav = () => aoFavoritar(jogo);
@@ -67,6 +69,15 @@ export function Detalhe({ jogo, aoJogar, aoFavoritar, aoFechar, aoAbrirUrl, aoEs
           <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
             {fatos.map(([k, v]) => <div key={k}><dt className="text-slate-500">{k}</dt><dd className="font-semibold">{v}</dd></div>)}
           </dl>
+          {perfil !== undefined && perfil !== null && (
+            <div className="mt-4 grid gap-2 rounded-lg bg-white/5 p-3 text-sm">
+              <p className="text-slate-300">{perfil.desativado ? "Ajustes da IA desligados: este jogo abre com a configuração do emulador." : `Ajustes da IA para o seu aparelho${perfil.motivo ? `: ${perfil.motivo}` : ""}`}</p>
+              <div className="flex flex-wrap gap-2">
+                {!perfil.desativado && <button data-foco className="botao" onClick={() => { motor?.perfilIA?.desligar(jogo.id).then(() => setPerfil({ ...perfil, desativado: true })).catch(() => {}); }}>Voltar ao padrão</button>}
+                <button data-foco className="botao" onClick={() => { motor?.perfilIA?.limpar(jogo.id).then(() => setPerfil(null)).catch(() => {}); }}>Refazer com a IA</button>
+              </div>
+            </div>
+          )}
           {!jogo.disponivel && <p className="mt-4 rounded-lg bg-rose-500/15 p-3 text-sm text-rose-200">O arquivo deste jogo não foi encontrado. Confira se a pasta ou o HD está conectado.</p>}
           <div className="mt-auto flex flex-wrap gap-3 pt-6">
             <button data-foco className="botao primario" disabled={!jogo.disponivel} onClick={() => aoJogar(jogo)}>▶ Jogar</button>
