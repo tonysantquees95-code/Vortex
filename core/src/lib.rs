@@ -16,3 +16,4 @@ pub mod nuvem;
 pub mod pc;
 pub mod sistema;
 pub mod perfil_jogo;
+pub mod instalador;

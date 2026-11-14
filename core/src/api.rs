@@ -161,13 +161,38 @@ fn loja_instalar_com(args: &Value, baixar: loja::Baixar) -> Result<Value, String
 }
 
 /// Garante o motor embutido (RetroArch portátil + núcleo) do console do jogo. Pode demorar na primeira vez, por isso roda sem segurar a biblioteca.
-fn preparar_jogo_com(args: &Value, baixar: nucleos::Baixar) -> Result<Value, String> {
+fn preparar_jogo_com(args: &Value, baixar: nucleos::Baixar, baixar_emulador: nucleos::Baixar, api: &dyn Fn(&str) -> Result<Value, String>) -> Result<Value, String> {
     let arquivo = arquivo_da_biblioteca(args)?;
     let id = texto(args, "id")?;
     let b = Biblioteca::carregar(&arquivo);
     let j = b.jogos.get(id).ok_or("Esse jogo não está mais na biblioteca.")?;
     let pl = crate::plataformas::por_id(&j.plataforma).ok_or("Console desconhecido.")?;
     let dados = pasta_de_dados(&arquivo);
+    // emulador próprio que o Vortex sabe baixar (PS2, PS3, PSP…): se não está instalado, baixa; se não der, cai no RetroArch quando houver núcleo
+    if let Some(f) = crate::instalador::fonte_para(pl.id) {
+        let amb = Ambiente::atual();
+        let ca = arquivo_de_configuracao(&arquivo);
+        let mut c = Configuracao::carregar(&ca);
+        let tem = emuladores::descobrir(&amb, &c).iter().any(|i| i.id == f.catalogo && i.modelo == emuladores::Modelo::Proprio);
+        if tem {
+            return Ok(json!({ "nucleo": f.catalogo, "baixou": false }));
+        }
+        let exes = emuladores::EMULADORES.iter().find(|e| e.id == f.catalogo).map(|e| e.exe_windows).unwrap_or(&[]);
+        match crate::instalador::instalar(&dados, f, exes, api, baixar_emulador) {
+            Ok(pasta) => {
+                if !c.pastas_extras.contains(&pasta) {
+                    c.pastas_extras.push(pasta);
+                    c.salvar(&ca)?;
+                }
+                return Ok(json!({ "nucleo": f.catalogo, "baixou": true }));
+            }
+            Err(e) => {
+                if nucleos::melhor_nucleo(pl).is_none() {
+                    return Err(e);
+                }
+            }
+        }
+    }
     let r = nucleos::preparar(&dados, pl, baixar)?;
     // o RetroArch embutido vira o preferido, a não ser que a pessoa já tenha escolhido outro
     let ca = arquivo_de_configuracao(&arquivo);
@@ -307,7 +332,7 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
         return loja_instalar_com(args, &loja::baixar_https);
     }
     if comando == "preparar_jogo" {
-        return preparar_jogo_com(args, &nucleos::baixar_da_libretro);
+        return preparar_jogo_com(args, &nucleos::baixar_da_libretro, &crate::instalador::baixar_do_github, &crate::instalador::api_github);
     }
     if comando.starts_with("conta_") || comando.starts_with("ponte_") || comando == "saves_sincronizar" || comando == "saves_lista" || comando == "conta_pedir" || comando == "sistema_ia" || comando == "faxina_ia" || comando == "perfil_jogo_ia" {
         return conta_e_saves(comando, args, &nuvem::RedeReal);
@@ -669,7 +694,7 @@ mod testes {
                 w.finish().map(|_| ()).map_err(|e| e.to_string())
             }
         };
-        let r = preparar_jogo_com(&json!({ "biblioteca": bib, "id": id }), &falso).unwrap();
+        let r = preparar_jogo_com(&json!({ "biblioteca": bib, "id": id }), &falso, &falso, &|_| Err("sem rede".into())).unwrap();
         assert_eq!(r["nucleo"], "snes9x_libretro");
         assert_eq!(r["baixou"], true);
         let cfg = Configuracao::carregar(&arquivo_de_configuracao(Path::new(&bib)));
