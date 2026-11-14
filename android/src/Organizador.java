@@ -33,6 +33,8 @@ public class Organizador {
         public final List<Item> organizados = new ArrayList<Item>();
         public final List<Item> registro = new ArrayList<Item>();
         public final List<String> falhas = new ArrayList<String>();
+        /** zerados ou quebrados: vão para a pasta Corrompidos (nada é apagado) */
+        public final List<String> descartados = new ArrayList<String>();
     }
 
     /** Compactados que já abri e não deram jogo (nome|tamanho|data): não gasta minutos abrindo de novo a cada atualização. */
@@ -218,6 +220,12 @@ public class Organizador {
         }
     }
 
+    private static void descartar(File arq, File vortex, String motivo, boolean simulacao, Resultado r) {
+        r.descartados.add(arq.getPath() + " (" + motivo + ")");
+        if (simulacao) return;
+        try { mover(arq, livre(new File(new File(vortex, Limpeza.CORROMPIDOS), arq.getName()))); } catch (Exception ex) { r.falhas.add(arq.getName() + ": " + ex.getMessage()); }
+    }
+
     public static Resultado organizar(List<File> origens, File vortex, boolean simulacao) {
         Resultado r = new Resultado();
         Set<File> feitos = new HashSet<File>();
@@ -234,6 +242,11 @@ public class Organizador {
                 Plataformas.P plat;
                 boolean doZip = false;
                 boolean sete = e.equals("7z");
+                // zerado ou quebrado: vai para "Corrompidos" em vez de dar erro a cada busca
+                if (sete || e.equals("zip") || Motor.identificar(arq, raiz) != null) {
+                    String m = (sete || e.equals("zip")) ? Limpeza.motivo(arq) : (arq.length() == 0 ? "arquivo vazio" : null);
+                    if (m != null) { descartar(arq, vortex, m, simulacao, r); feitos.add(arq); continue; }
+                }
                 if ((sete || e.equals("zip")) && JA_VISTOS.contains(chaveDe(arq))) continue;
                 if (e.equals("zip")) {
                     Plataformas.P pasta = Motor.plataformaDaPasta(arq, raiz);
@@ -241,7 +254,10 @@ public class Organizador {
                 } else if (sete) {
                     Plataformas.P pasta = Motor.plataformaDaPasta(arq, raiz);
                     if (pasta != null && pasta.id.equals("arcade")) plat = pasta; else { 
-                        try { plat = identificarEm7z(arq); } catch (Throwable ex) { r.falhas.add(arq.getName() + ": não consegui abrir o .7z (" + ex.getClass().getSimpleName() + ": " + ex.getMessage() + ")"); continue; }
+                        try { plat = identificarEm7z(arq); } catch (Throwable ex) {
+                            String msg = String.valueOf(ex.getMessage());
+                            if (msg.contains("out of bounds") || msg.contains("nextHeader") || msg.contains("Truncated") || msg.contains("Unexpected end")) { descartar(arq, vortex, "7z cortado (download incompleto)", simulacao, r); feitos.add(arq); continue; }
+                            r.falhas.add(arq.getName() + ": não consegui abrir o .7z (" + ex.getClass().getSimpleName() + ": " + ex.getMessage() + ")"); continue; }
                         doZip = true;
                         if (plat == null) r.falhas.add(arq.getName() + ": abri o .7z mas não achei um jogo que eu reconheça dentro");
                     }

@@ -553,6 +553,7 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
                 Some(l) => l.iter().filter_map(|x| x.as_str()).map(PathBuf::from).collect(),
                 None => organizador::candidatos(&amb.casa, amb.so == emuladores::So::Windows),
             };
+            let mut faxina: Option<crate::limpeza::RelatorioLimpeza> = None;
             let (rel, reg) = organizador::organizar(&origens, &pasta_vortex, simulacao);
             if !simulacao {
                 let arq_reg = arquivo.with_file_name("organizador.json");
@@ -566,9 +567,14 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
                 b.adicionar_pasta(&pasta_vortex)?;
                 b.limpar_sessoes_velhas(t);
                 b.escanear(t, OpcoesEscaneamento::default());
+                // a busca já descarta o que não presta: corrompidos e repetidos saem da biblioteca (vão para as pastas Corrompidos/Duplicados)
+                faxina = Some(crate::limpeza::limpar(&mut b, false));
                 mudou = true;
             }
-            Ok(json!({ "organizados": rel.organizados, "ja_no_lugar": rel.ja_no_lugar, "falhas": rel.falhas, "simulacao": rel.simulacao, "pasta_vortex": pasta_vortex, "origens": origens }))
+            let (f_dup, f_cor, f_falhas) = faxina.map(|f| (f.duplicados, f.corrompidos, f.falhas)).unwrap_or_default();
+            let mut falhas = rel.falhas;
+            falhas.extend(f_falhas);
+            Ok(json!({ "organizados": rel.organizados, "ja_no_lugar": rel.ja_no_lugar, "falhas": falhas, "simulacao": rel.simulacao, "pasta_vortex": pasta_vortex, "origens": origens, "descartados": rel.descartados, "duplicados": f_dup, "corrompidos": f_cor }))
         }
         "organizar_desfazer" => {
             let arq_reg = arquivo.with_file_name("organizador.json");
@@ -670,8 +676,8 @@ mod testes {
         let t = tempfile::tempdir().unwrap();
         let solto = t.path().join("solto");
         fs::create_dir_all(&solto).unwrap();
-        fs::write(solto.join("Sonic (USA).md"), "x").unwrap();
-        fs::write(solto.join("Zelda (USA).sfc"), "y").unwrap();
+        fs::write(solto.join("Sonic (USA).md"), "x".repeat(1024)).unwrap();
+        fs::write(solto.join("Zelda (USA).sfc"), "y".repeat(1024)).unwrap();
         let bib = t.path().join("dados/biblioteca.json").to_string_lossy().to_string();
         let vortex = t.path().join("Vortex/Jogos");
         let a = |sim: bool| json!({ "biblioteca": bib, "agora": 5, "origens": [solto], "pasta_vortex": vortex, "simulacao": sim });

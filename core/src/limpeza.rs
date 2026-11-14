@@ -109,8 +109,16 @@ fn basico(caminho: &Path) -> Option<String> {
             }
         }
         "m3u" | "gdi" | "ccd" | "mds" | "sub" => {}
-        "zip" if c.len() < 4 || &c[..2] != b"PK" => return Some("zip danificado".into()),
-        "7z" if c.len() < 6 || c[..6] != [b'7', b'z', 0xBC, 0xAF, 0x27, 0x1C] => return Some("7z danificado".into()),
+        "zip" => {
+            if c.len() < 4 || &c[..2] != b"PK" {
+                return Some("zip danificado".into());
+            }
+        }
+        "7z" => {
+            if c.len() < 6 || c[..6] != [b'7', b'z', 0xBC, 0xAF, 0x27, 0x1C] {
+                return Some("7z danificado".into());
+            }
+        }
         "nes" if c.len() < 4 || c[..4] != [b'N', b'E', b'S', 0x1A] => return Some("cabeçalho NES inválido".into()),
         "z64" | "v64" | "n64" if !c.is_empty() && ![0x80, 0x37, 0x40].contains(&c[0]) => return Some("cabeçalho Nintendo 64 inválido".into()),
         _ => {

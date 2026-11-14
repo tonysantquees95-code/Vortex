@@ -180,6 +180,7 @@ public class Motor {
                 if (args.has("origens")) { JSONArray o = args.getJSONArray("origens"); for (int i = 0; i < o.length(); i++) origens.add(new File(o.getString(i))); }
                 else origens = Organizador.candidatos(raizesDoArmazenamento(args));
                 Organizador.Resultado res = Organizador.organizar(origens, vortex, sim);
+                JSONObject faxina = null;
                 JSONArray org = new JSONArray();
                 for (Organizador.Item it : res.organizados) org.put(it.json());
                 if (!sim) {
@@ -191,9 +192,12 @@ public class Motor {
                     vortex.mkdirs();
                     if (!contem(bib.getJSONArray("pastas"), vortex.getPath())) bib.getJSONArray("pastas").put(vortex.getPath());
                     escanear(bib, t);
+                    faxina = Limpeza.limpar(jogos, false);
                     salvar(arquivo, bib);
                 }
-                return new JSONObject().put("organizados", org).put("ja_no_lugar", 0).put("falhas", new JSONArray(res.falhas)).put("simulacao", sim).put("pasta_vortex", vortex.getPath()).put("origens", new JSONArray(pathsDe(origens)));
+                JSONArray falhasTodas = new JSONArray(res.falhas);
+                if (faxina != null) { JSONArray ff = faxina.optJSONArray("falhas"); for (int i = 0; ff != null && i < ff.length(); i++) falhasTodas.put(ff.getString(i)); }
+                return new JSONObject().put("descartados", new JSONArray(res.descartados)).put("duplicados", faxina == null ? new JSONArray() : faxina.getJSONArray("duplicados")).put("corrompidos", faxina == null ? new JSONArray() : faxina.getJSONArray("corrompidos")).put("organizados", org).put("ja_no_lugar", 0).put("falhas", falhasTodas).put("simulacao", sim).put("pasta_vortex", vortex.getPath()).put("origens", new JSONArray(pathsDe(origens)));
             }
             case "organizar_desfazer": {
                 File reg = new File(arquivo.getParentFile(), "organizador.json");

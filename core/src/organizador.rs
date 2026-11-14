@@ -19,6 +19,8 @@ pub struct Relatorio {
     pub organizados: Vec<Item>,
     pub ja_no_lugar: usize,
     pub falhas: Vec<String>,
+    /// zerados ou quebrados: não entram na biblioteca, vão para a pasta "Corrompidos" (nada é apagado)
+    pub descartados: Vec<String>,
     pub simulacao: bool,
 }
 
@@ -181,6 +183,21 @@ pub fn organizar(origens: &[PathBuf], pasta_vortex: &Path, simulacao: bool) -> (
                 continue;
             }
             let ext = plataformas::extensao(&arq);
+            // zerado ou quebrado: vai para "Corrompidos" em vez de ficar dando erro a cada busca
+            if plataformas::eh_pacote(&ext) || plataformas::identificar(&arq, raiz).is_some() {
+                let vazio = fs::metadata(&arq).map(|m| m.len() == 0).unwrap_or(false);
+                let motivo = if vazio { Some("arquivo vazio".to_string()) } else if plataformas::eh_pacote(&ext) { crate::limpeza::motivo_de_corrupcao(&arq) } else { None };
+                if let Some(m) = motivo {
+                    rel.descartados.push(format!("{} ({m})", arq.display()));
+                    feitos.insert(arq.clone());
+                    if !simulacao {
+                        if let Err(e) = mover_arquivo(&arq, &livre(pasta_vortex.join(crate::limpeza::PASTA_CORROMPIDOS).join(arq.file_name().unwrap_or_default()))) {
+                            rel.falhas.push(e);
+                        }
+                    }
+                    continue;
+                }
+            }
             // zip: só se descobrir o console pelo conteúdo e não estiver em pasta de arcade (arcade usa o zip fechado)
             let (plat, do_zip) = if plataformas::eh_pacote(&ext) {
                 match plataformas::plataforma_da_pasta(&arq, raiz) {
@@ -339,5 +356,19 @@ mod testes {
         let t = tempfile::tempdir().unwrap();
         fs::create_dir_all(t.path().join("Downloads")).unwrap();
         assert_eq!(candidatos(t.path(), false), vec![t.path().join("Downloads")]);
+    }
+
+    #[test]
+    fn zerado_e_zip_quebrado_vao_para_corrompidos() {
+        let t = tempfile::tempdir().unwrap();
+        let o = t.path().join("origem");
+        fs::create_dir_all(&o).unwrap();
+        fs::write(o.join("Vazio (USA).nes"), "").unwrap();
+        fs::write(o.join("quebrado.zip"), "isso nao e um zip").unwrap();
+        let vortex = t.path().join("Vortex/Jogos");
+        let (r, _) = organizar(&[o.clone()], &vortex, false);
+        assert_eq!(r.descartados.len(), 2, "{:?}", r.descartados);
+        assert!(vortex.join("Corrompidos/Vazio (USA).nes").is_file() && vortex.join("Corrompidos/quebrado.zip").is_file());
+        assert!(!o.join("Vazio (USA).nes").exists());
     }
 }

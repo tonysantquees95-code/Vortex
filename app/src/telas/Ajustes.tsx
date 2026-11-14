@@ -230,6 +230,9 @@ export function TelaJogos({ motor, avisar, aoMudarBiblioteca, plats = [], oculto
       const linhas = [r.organizados.length ? `${r.organizados.length} jogos achados e guardados em ${r.pasta_vortex}.` : "Nenhum jogo solto encontrado nas pastas de sempre."];
       if (r.origens?.length) linhas.push(`Procurei em: ${r.origens.join(" · ")}`);
       else linhas.push("Não achei nenhuma pasta de jogos (Roms, Download, Games…). Use “Adicionar pasta” e escolha onde estão as suas ROMs.");
+      const zerados = (r.descartados?.length ?? 0) + (r.corrompidos?.length ?? 0);
+      if (zerados) linhas.push(`${zerados} arquivo(s) zerado(s), quebrado(s) ou com erro foram descartados da biblioteca (guardados na pasta Corrompidos).`);
+      if (r.duplicados?.length) linhas.push(`${r.duplicados.length} repetido(s) descartado(s) (guardados na pasta Duplicados).`);
       if (r.falhas.length) linhas.push(`${r.falhas.length} arquivo(s) com problema: ${r.falhas.slice(0, 3).join("; ")}`);
       setResultado(linhas);
       setPastas(await motor.pastas());
@@ -536,7 +539,7 @@ function OpcaoAnalogico() {
 export function Ajustes({ motor, aoMudarBiblioteca, avisar, atualizacao, tema, aoMudarTema, jogos, plats = [], ocultos, aoMostrarConsole, aoMostrarJogo }: { motor: Motor; aoMudarBiblioteca: () => void; avisar: Avisar; atualizacao: Atualizacao; tema: Tema; aoMudarTema: (t: Tema) => void; jogos: Jogo[]; plats?: ResumoPlataforma[]; ocultos?: Ocultos; aoMostrarConsole?: (id: string) => void; aoMostrarJogo?: (id: string) => void }) {
   const itens: Item[] = [
     ...(motor.conta ? [{ id: "conta" as const, icone: "conta", nome: "Conta", titulo: "Conta e saves na nuvem", detalhe: "Vetorial ID, licença e sincronização dos saves." }] : []),
-    ...(motor.conta && motor.drive ? [{ id: "drive" as const, icone: "conta", nome: "Drive", titulo: "Vetorial Drive", detalhe: "Seu espaço na nuvem para documentos e ROMs, disponível em todos os apps da Vetorial." }] : []),
+    ...(motor.conta && motor.drive ? [{ id: "drive" as const, icone: "drive", nome: "Drive", titulo: "Vetorial Drive", detalhe: "Seu espaço na nuvem para documentos e ROMs, disponível em todos os apps da Vetorial." }] : []),
     { id: "jogos", icone: "jogos", nome: "Jogos", titulo: "Jogos e busca", detalhe: "Buscar jogos no aparelho, pastas, organização por console e faxina de repetidos." },
     { id: "aparencia", icone: "aparencia", nome: "Visual", titulo: "Personalização", detalhe: "Cor, brilho neon, fundo (foto, capa ou modelos), formato, botões do jogo e abertura." },
     { id: "permissoes", icone: "permissoes", nome: "Permissões", titulo: "Permissões", detalhe: "O que o Vortex precisa liberar no aparelho e por quê." },

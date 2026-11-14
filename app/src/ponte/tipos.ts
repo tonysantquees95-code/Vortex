@@ -84,6 +84,7 @@ export interface ResultadoLancamento { pid: number; emulador: string; nucleo: st
 export interface RelatorioOrganizacao {
   organizados: { origem: string; destino: string; plataforma: string; extraido: boolean }[];
   falhas: string[]; simulacao: boolean; pasta_vortex: string; origens?: string[];
+  descartados?: string[]; duplicados?: string[]; corrompidos?: string[];
 }
 
 export interface Oferta {
