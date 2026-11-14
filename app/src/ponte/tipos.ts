@@ -119,7 +119,13 @@ export interface Motor {
   conta?: ContaVetorial;
   /** Android: Vetorial Drive. */
   drive?: DriveVetorial;
-  /** Windows: varredura completa do computador (todos os discos) com ajuda da IA do servidor. */
+  /** IA da faxina: nomes parecidos e arquivos pequenos demais. Nada é movido sem a pessoa confirmar. */
+  faxinaIA?: {
+    revisar(): Promise<RevisaoFaxina>;
+    sugerir(r: RevisaoFaxina): Promise<SugestaoFaxina>;
+    aplicar(duplicados: string[], corrompidos: string[]): Promise<{ separados: number; falhas: string[] }>;
+  };
+  /** Windows e Android: varredura completa do computador (todos os discos) com ajuda da IA do servidor. */
   sistema?: {
     varrer(): Promise<VarreduraSistema>;
     ia(v: VarreduraSistema): Promise<SugestaoIA>;
@@ -168,3 +174,7 @@ export interface VarreduraSistema {
   aparelho: { so: string; cpu: string; nucleos: number; ram_gb: number };
 }
 export interface SugestaoIA { pastas: { pasta: string; plataforma: string | null; motivo: string }[]; perfil: string; observacoes: string }
+
+export interface ItemRevisao { id: string; titulo: string; plataforma: string; bytes: number; arquivo: string }
+export interface RevisaoFaxina { parecidos: ItemRevisao[][]; suspeitos: ItemRevisao[] }
+export interface SugestaoFaxina { duplicados: { manter: string; remover: string[]; motivo: string }[]; corrompidos: { id: string; motivo: string }[]; observacoes?: string }

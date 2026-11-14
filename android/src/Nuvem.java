@@ -171,10 +171,14 @@ public final class Nuvem {
     }
 
     /** Resumo da varredura do aparelho para a IA do servidor (DeepSeek/Groq). */
-    public static JSONObject iaVarredura(Rede rede, File dados, JSONObject pedido) throws Exception {
+    public static JSONObject iaVarredura(Rede rede, File dados, JSONObject pedido) throws Exception { return iaEm(rede, dados, "/vortex/ia/varredura", pedido); }
+
+    public static JSONObject iaFaxina(Rede rede, File dados, JSONObject pedido) throws Exception { return iaEm(rede, dados, "/vortex/ia/faxina", pedido); }
+
+    private static JSONObject iaEm(Rede rede, File dados, String caminho, JSONObject pedido) throws Exception {
         JSONObject conta = lerConta(dados);
         if (conta == null) throw new Exception("Entre na sua conta Vetorial ID para usar a IA na varredura.");
-        Resposta r = rede.pedir("POST", "/vortex/ia/varredura", conta.getString("token"), pedido.toString().getBytes(StandardCharsets.UTF_8), null);
+        Resposta r = rede.pedir("POST", caminho, conta.getString("token"), pedido.toString().getBytes(StandardCharsets.UTF_8), null);
         JSONObject j;
         try { j = new JSONObject(r.texto()); } catch (Exception e) { j = new JSONObject(); }
         if (r.status >= 400) throw new Exception(j.optString("mensagem", j.optString("error", "A IA não respondeu agora.")));

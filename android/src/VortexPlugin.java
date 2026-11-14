@@ -77,7 +77,7 @@ public class VortexPlugin extends Plugin {
                     Object r;
                     if (comando.equals("emuladores")) r = emuladores();
                     else if (comando.startsWith("controle_") || comando.equals("apps_android")) r = controle(comando, a);
-                    else if (comando.startsWith("conta_") || comando.startsWith("ponte_") || comando.equals("saves_sincronizar") || comando.equals("saves_lista") || comando.equals("conta_pedir") || comando.equals("sistema_ia")) r = contaESaves(comando, a);
+                    else if (comando.startsWith("conta_") || comando.startsWith("ponte_") || comando.equals("saves_sincronizar") || comando.equals("saves_lista") || comando.equals("conta_pedir") || comando.equals("sistema_ia") || comando.equals("faxina_ia")) r = contaESaves(comando, a);
                     else if (comando.equals("drive_lista")) r = Drive.lista(new File(getContext().getFilesDir(), "vortex"));
                     else if (comando.equals("drive_apagar")) r = Drive.apagar(new File(getContext().getFilesDir(), "vortex"), a.getString("pasta"), a.getString("nome"));
                     else if (comando.equals("preparar_jogo")) r = preparar(a);
@@ -144,6 +144,7 @@ public class VortexPlugin extends Plugin {
                 if (!(caminho.equals("/vortex/steam") || caminho.startsWith("/vortex/steam/")) || !(metodo.equals("GET") || metodo.equals("POST") || metodo.equals("DELETE"))) throw new Exception("Pedido não permitido.");
                 return Nuvem.pedirAoServidor(rede, dados, metodo, caminho);
             }
+            case "faxina_ia": return Nuvem.iaFaxina(rede, dados, new JSONObject(a.toString()));
             case "sistema_ia": {
                 JSONObject pedido = new JSONObject(a.toString());
                 pedido.put("plataformas", new JSONArray(String.valueOf(motor.executar("catalogo_ids", new JSONObject().put("biblioteca", a.getString("biblioteca"))))));

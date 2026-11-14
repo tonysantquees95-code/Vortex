@@ -412,4 +412,29 @@ mod testes {
         arq(t.path(), "a.bin", &vec![1u8; 2048]);
         assert!(motivo_de_corrupcao(&t.path().join("a.cue")).is_none());
     }
+
+    #[test]
+    fn revisao_acha_nomes_parecidos_e_arquivos_pequenos() {
+        let t = tempfile::tempdir().unwrap();
+        let raiz = t.path().join("roms");
+        arq(&raiz, "nes/Super Mario Bros.nes", &nes(1));
+        arq(&raiz, "nes/Super Mario Bross.nes", &nes(2));
+        arq(&raiz, "nes/Zelda.nes", &nes(3));
+        arq(&raiz, "nes/Metroid.nes", &nes(4));
+        arq(&raiz, "nes/Kirby.nes", &nes(5));
+        arq(&raiz, "nes/Contra.nes", &nes(6));
+        let mut pequeno = nes(7);
+        pequeno.truncate(600);
+        arq(&raiz, "nes/Duck Hunt.nes", &pequeno);
+        let mut b = Biblioteca::default();
+        b.adicionar_pasta(&raiz).unwrap();
+        b.escanear(100, OpcoesEscaneamento::default());
+        let r = revisao(&b);
+        assert!(r.parecidos.iter().any(|g| g.len() == 2 && g.iter().all(|i| i.titulo.starts_with("Super Mario"))), "{:?}", r.parecidos);
+        assert!(r.suspeitos.iter().any(|i| i.titulo == "Duck Hunt"), "{:?}", r.suspeitos);
+        let id = r.suspeitos[0].id.clone();
+        separar(&mut b, &id, PASTA_CORROMPIDOS).unwrap();
+        assert!(raiz.join("Corrompidos/Duck Hunt.nes").is_file());
+        assert!(separar(&mut b, "x", "Outra").is_err());
+    }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ConfigGameBar, EmuladoresInfo, EstadoConta, Jogo, ModoDesempenho, ModoJogoConfig, Motor, PosicaoGameBar, RelatorioLimpeza, ResumoPlataforma, CandidataSistema, SugestaoIA } from "../ponte";
+import type { ConfigGameBar, EmuladoresInfo, EstadoConta, Jogo, ModoDesempenho, ModoJogoConfig, Motor, PosicaoGameBar, RelatorioLimpeza, ResumoPlataforma, CandidataSistema, SugestaoIA, RevisaoFaxina, SugestaoFaxina } from "../ponte";
 import type { Ocultos } from "../ocultos";
 import { analogicoRola, definirAnalogicoRola, atualizarSozinho, definirAtualizarSozinho, definirLimparSozinho, definirOrganizarAutomatico, limparSozinho, organizarAutomatico } from "../config";
 import { faxinaAutomatica, resumoDaFaxina } from "../faxina";
@@ -164,6 +164,30 @@ export function TelaJogos({ motor, avisar, aoMudarBiblioteca, plats = [], oculto
     try { const r = await motor.limpar(true); if (r.duplicados.length || r.corrompidos.length) setPrevia(r); else { setPrevia(null); avisar("Tudo em ordem: nenhum jogo repetido nem arquivo quebrado."); } }
     catch (e) { avisar(String(e instanceof Error ? e.message : e)); } finally { setOcupado(false); }
   };
+  const [revIA, setRevIA] = useState<{ rev: RevisaoFaxina; sug: SugestaoFaxina; dup: Record<string, boolean>; cor: Record<string, boolean> } | null>(null);
+  const revisarComIA = async () => {
+    if (!motor.faxinaIA) return;
+    setOcupado(true); setRevIA(null);
+    try {
+      const rev = await motor.faxinaIA.revisar();
+      if (!rev.parecidos.length && !rev.suspeitos.length) { avisar("Nada duvidoso para a IA olhar: sem nomes parecidos nem arquivos pequenos demais."); return; }
+      const sug = await motor.faxinaIA.sugerir(rev);
+      if (!sug.duplicados.length && !sug.corrompidos.length) { avisar("A IA olhou e não achou nada para separar."); return; }
+      const dup: Record<string, boolean> = {}; sug.duplicados.forEach((d) => d.remover.forEach((id) => { dup[id] = true; }));
+      const cor: Record<string, boolean> = {}; sug.corrompidos.forEach((c) => { cor[c.id] = true; });
+      setRevIA({ rev, sug, dup, cor });
+    } catch (e) { avisar(String(e instanceof Error ? e.message : e)); } finally { setOcupado(false); }
+  };
+  const nomeDe = (id: string) => { const todos = revIA ? [...revIA.rev.parecidos.flat(), ...revIA.rev.suspeitos] : []; const i = todos.find((x) => x.id === id); return i ? `${i.arquivo} (${(i.bytes / 1048576).toFixed(1)} MB)` : id; };
+  const aplicarIA = async () => {
+    if (!revIA || !motor.faxinaIA) return;
+    setOcupado(true);
+    try {
+      const r = await motor.faxinaIA.aplicar(Object.keys(revIA.dup).filter((k) => revIA.dup[k]), Object.keys(revIA.cor).filter((k) => revIA.cor[k]));
+      avisar(`${r.separados} arquivo(s) separados${r.falhas.length ? ` · ${r.falhas.length} com problema` : ""}. Nada foi apagado.`);
+      setRevIA(null); aoMudarBiblioteca();
+    } catch (e) { avisar(String(e instanceof Error ? e.message : e)); } finally { setOcupado(false); }
+  };
   const fazerFaxina = async () => {
     setOcupado(true);
     try {
@@ -271,7 +295,20 @@ export function TelaJogos({ motor, avisar, aoMudarBiblioteca, plats = [], oculto
       <section className="grid gap-3">
         <h3 className="text-lg font-bold text-cyan-100/90">Jogos repetidos e arquivos quebrados</h3>
         <Interruptor ligado={limpezaAuto} rotulo="Deixar um jogo só por título" detalhe="Depois de buscar, fica a melhor versão de cada jogo (Brasil, EUA, sem beta). As cópias vão para a pasta Duplicados e os arquivos quebrados para a pasta Corrompidos, dentro da sua pasta de jogos. Nada é apagado." aoMudar={(v) => { setLimpezaAuto(v); definirLimparSozinho(v); }} />
-        <div className="flex flex-wrap gap-3"><button data-foco className="botao" disabled={ocupado} onClick={verFaxina}>🧹 Ver o que dá para limpar</button></div>
+        <div className="flex flex-wrap gap-3"><button data-foco className="botao" disabled={ocupado} onClick={verFaxina}>🧹 Ver o que dá para limpar</button>{motor.faxinaIA && <button data-foco className="botao" disabled={ocupado} onClick={revisarComIA}>🤖 Revisar com IA</button>}</div>
+        {revIA && (
+          <div className="vidro grid gap-2 p-4 text-sm text-slate-200">
+            <p>A IA sugere separar estes arquivos (você decide; nada é apagado):</p>
+            {revIA.sug.duplicados.map((d) => (
+              <div key={d.manter} className="grid gap-1">
+                <p className="text-slate-400">Repetido de “{nomeDe(d.manter)}”{d.motivo ? ` — ${d.motivo}` : ""}</p>
+                {d.remover.map((id) => <label key={id} className="flex gap-3"><input type="checkbox" checked={!!revIA.dup[id]} onChange={(e) => setRevIA({ ...revIA, dup: { ...revIA.dup, [id]: e.target.checked } })} /><span className="truncate">{nomeDe(id)}</span></label>)}
+              </div>
+            ))}
+            {revIA.sug.corrompidos.map((c) => <label key={c.id} className="flex gap-3"><input type="checkbox" checked={!!revIA.cor[c.id]} onChange={(e) => setRevIA({ ...revIA, cor: { ...revIA.cor, [c.id]: e.target.checked } })} /><span className="truncate">Parece quebrado: {nomeDe(c.id)}{c.motivo ? ` — ${c.motivo}` : ""}</span></label>)}
+            <div className="flex flex-wrap gap-3"><button data-foco className="botao primario" disabled={ocupado} onClick={aplicarIA}>Separar as marcadas</button><button data-foco className="botao" onClick={() => setRevIA(null)}>Deixar como está</button></div>
+          </div>
+        )}
         {previa && (
           <div className="vidro grid gap-3 p-4 text-sm text-slate-200">
             <p>{previa.duplicados.length} repetido(s) e {previa.corrompidos.length} quebrado(s) seriam separados.</p>
