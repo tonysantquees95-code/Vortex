@@ -31,8 +31,14 @@ pub struct Perfil {
     /// chave neutra → valor em texto ("2", "true")
     pub ajustes: BTreeMap<String, String>,
     pub motivo: String,
-    /// "ia" ou "manual"
+    /// "ia", "manual" ou "seguro" (a IA errou a mão e o jogo fechou logo: ajustes mínimos)
     pub origem: String,
+    /// quantas vezes o jogo fechou logo com erro depois de abrir com este perfil
+    #[serde(default)]
+    pub falhas: u32,
+    /// depois de duas falhas o perfil é desligado (o jogo abre com a configuração do emulador) e a IA não é chamada de novo
+    #[serde(default)]
+    pub desativado: bool,
 }
 
 /// Deixa só chaves permitidas com valores dentro da faixa.
@@ -127,7 +133,26 @@ fn tudo(dados: &Path) -> BTreeMap<String, Perfil> {
 
 /// None se não há perfil ou se ele veio do formato antigo (sem nenhuma chave de hoje): aí o app pede de novo.
 pub fn ler(dados: &Path, id: &str) -> Option<Perfil> {
-    tudo(dados).remove(id).filter(|p| p.ajustes.keys().any(|k| PERMITIDOS.iter().any(|(c, _)| c == k)))
+    tudo(dados).remove(id).filter(|p| p.desativado || p.ajustes.keys().any(|k| PERMITIDOS.iter().any(|(c, _)| c == k)))
+}
+
+/// O jogo fechou logo com erro depois de abrir com o perfil: na 1ª vez volta aos ajustes mínimos, na 2ª desliga o perfil.
+pub fn registrar_falha(dados: &Path, id: &str) {
+    let Some(mut p) = ler(dados, id) else { return };
+    if p.desativado {
+        return;
+    }
+    p.falhas += 1;
+    if p.falhas >= 2 {
+        p.desativado = true;
+        p.ajustes.clear();
+        p.motivo = "Desligado: o jogo fechou logo duas vezes com estes ajustes.".into();
+    } else {
+        p.ajustes = validar(&serde_json::json!({ "resolucao": 1, "msaa": 0, "anisotropia": 0 }));
+        p.origem = "seguro".into();
+        p.motivo = "Ajustes mínimos: o jogo fechou logo com os da IA.".into();
+    }
+    let _ = salvar(dados, id, p);
 }
 
 pub fn salvar(dados: &Path, id: &str, p: Perfil) -> Result<(), String> {
@@ -149,6 +174,9 @@ pub fn limpar(dados: &Path, id: &str) -> Result<(), String> {
 
 /// Aplica o perfil ao plano de lançamento, conforme o emulador que vai abrir o jogo.
 pub fn aplicar(plano: &mut crate::emuladores::Lancamento, p: &Perfil, dados: &Path, id: &str) {
+    if p.desativado {
+        return;
+    }
     match plano.emulador.as_str() {
         "dolphin" => plano.args.extend(args_dolphin(p)),
         "ppsspp" => plano.args.extend(args_ppsspp(p)),
@@ -183,7 +211,7 @@ mod testes {
     use serde_json::json;
 
     fn perfil() -> Perfil {
-        Perfil { ajustes: validar(&json!({"resolucao": 2, "msaa": 4, "vsync": true, "anisotropia": 2, "perigosa": 1})), motivo: "x".into(), origem: "ia".into() }
+        Perfil { ajustes: validar(&json!({"resolucao": 2, "msaa": 4, "vsync": true, "anisotropia": 2, "perigosa": 1})), motivo: "x".into(), origem: "ia".into(), ..Default::default() }
     }
 
     #[test]
@@ -220,6 +248,21 @@ mod testes {
         let mut psp = crate::emuladores::Lancamento { emulador: "ppsspp".into(), programa: "x".into(), args: vec!["rom".into()], diretorio: None, configuracao: None, nucleo: None };
         aplicar(&mut psp, &perfil(), t.path(), "jogo1");
         assert_eq!(psp.args, vec!["rom", "--resolution-scale=2", "--msaa=2"]);
+    }
+
+    #[test]
+    fn falhas_seguidas_voltam_ao_seguro_e_depois_desligam() {
+        let t = tempfile::tempdir().unwrap();
+        salvar(t.path(), "j", perfil()).unwrap();
+        registrar_falha(t.path(), "j");
+        let p = ler(t.path(), "j").unwrap();
+        assert_eq!((p.origem.as_str(), p.falhas, p.ajustes["resolucao"].as_str(), p.ajustes["msaa"].as_str()), ("seguro", 1, "1", "0"));
+        registrar_falha(t.path(), "j");
+        let p = ler(t.path(), "j").unwrap();
+        assert!(p.desativado && p.ajustes.is_empty(), "continua existindo para a IA não ser chamada de novo");
+        let mut plano = crate::emuladores::Lancamento { emulador: "ppsspp".into(), programa: "x".into(), args: vec![], diretorio: None, configuracao: None, nucleo: None };
+        aplicar(&mut plano, &p, t.path(), "j");
+        assert!(plano.args.is_empty());
     }
 
     #[test]

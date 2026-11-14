@@ -53,6 +53,7 @@ pub fn lancar_com_modo(plano: &Lancamento, biblioteca: PathBuf, id: String, relo
     if let Some(d) = plano.diretorio.as_ref().filter(|d| d.is_dir()) {
         cmd.current_dir(d);
     }
+    let inicio = std::time::Instant::now();
     let mut filho = cmd.spawn().map_err(|e| format!("Não consegui abrir o emulador ({}): {e}", plano.programa.display()))?;
     let pid = filho.id();
     {
@@ -71,7 +72,11 @@ pub fn lancar_com_modo(plano: &Lancamento, biblioteca: PathBuf, id: String, relo
     let _ = avisos; // o app mostra os avisos pelo comando "modo_jogo_ativar"; aqui só seguimos
     let sis_fim = sistema.clone();
     std::thread::spawn(move || {
-        let _ = filho.wait();
+        let saiu = filho.wait();
+        // fechou logo e com erro depois de abrir com o perfil da IA: o perfil é suavizado (e desligado se repetir)
+        if inicio.elapsed().as_secs() < 20 && saiu.as_ref().map(|s| !s.success()).unwrap_or(false) {
+            crate::perfil_jogo::registrar_falha(&dados, &id);
+        }
         modo_jogo::desativar(sis_fim.as_ref(), &dados);
         let _g = BLOQUEIO.lock().unwrap_or_else(|e| e.into_inner());
         let mut b = Biblioteca::carregar(&biblioteca);
@@ -236,7 +241,7 @@ pub fn conta_e_saves(comando: &str, args: &Value, rede: &dyn nuvem::Rede) -> Res
             }
             let ajustes = crate::perfil_jogo::validar(v.get("ajustes").unwrap_or(&Value::Null));
             if !ajustes.is_empty() {
-                let p = crate::perfil_jogo::Perfil { ajustes, motivo: v.get("motivo").and_then(|x| x.as_str()).unwrap_or("").chars().take(120).collect(), origem: "ia".into() };
+                let p = crate::perfil_jogo::Perfil { ajustes, motivo: v.get("motivo").and_then(|x| x.as_str()).unwrap_or("").chars().take(120).collect(), origem: "ia".into(), ..Default::default() };
                 crate::perfil_jogo::salvar(&dados, id, p)?;
             }
             Ok(json!(crate::perfil_jogo::ler(&dados, id)))
