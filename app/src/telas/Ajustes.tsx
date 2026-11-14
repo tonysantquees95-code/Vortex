@@ -12,6 +12,7 @@ import { SeletorDeCor } from "./SeletorDeCor";
 import { Dock } from "./Dock";
 import { Icone3D } from "./Icones";
 import { Permissoes } from "./Permissoes";
+import { TelaDrive } from "./Drive";
 
 export function ContaVetorial({ motor, avisar }: { motor: Motor; avisar: (t: string) => void }) {
   const conta = motor.conta!;
@@ -418,7 +419,7 @@ export function TelaAparencia({ tema, aoMudar, jogos = [], avisar, botoesVirtuai
   );
 }
 
-type Tela = "conta" | "gamebar" | "jogos" | "aparencia" | "modo" | "permissoes" | "atualizacoes" | "emuladores" | "sobre";
+type Tela = "conta" | "drive" | "gamebar" | "jogos" | "aparencia" | "modo" | "permissoes" | "atualizacoes" | "emuladores" | "sobre";
 interface Item { id: Tela; icone: string; nome: string; titulo: string; detalhe: string }
 
 /** Ajustes em seções: ícone grande + título no alto, dock para trocar de seção (o foco já troca) e o conteúdo logo abaixo. */
@@ -431,6 +432,7 @@ function OpcaoAnalogico() {
 export function Ajustes({ motor, aoMudarBiblioteca, avisar, atualizacao, tema, aoMudarTema, jogos, plats = [], ocultos, aoMostrarConsole, aoMostrarJogo }: { motor: Motor; aoMudarBiblioteca: () => void; avisar: Avisar; atualizacao: Atualizacao; tema: Tema; aoMudarTema: (t: Tema) => void; jogos: Jogo[]; plats?: ResumoPlataforma[]; ocultos?: Ocultos; aoMostrarConsole?: (id: string) => void; aoMostrarJogo?: (id: string) => void }) {
   const itens: Item[] = [
     ...(motor.conta ? [{ id: "conta" as const, icone: "conta", nome: "Conta", titulo: "Conta e saves na nuvem", detalhe: "Vetorial ID, licença e sincronização dos saves." }] : []),
+    ...(motor.conta && motor.drive ? [{ id: "drive" as const, icone: "conta", nome: "Drive", titulo: "Vetorial Drive", detalhe: "Seu espaço na nuvem para documentos e ROMs, disponível em todos os apps da Vetorial." }] : []),
     { id: "jogos", icone: "jogos", nome: "Jogos", titulo: "Jogos e busca", detalhe: "Buscar jogos no aparelho, pastas, organização por console e faxina de repetidos." },
     { id: "aparencia", icone: "aparencia", nome: "Visual", titulo: "Personalização", detalhe: "Cor, brilho neon, fundo (foto, capa ou modelos), formato, botões do jogo e abertura." },
     { id: "permissoes", icone: "permissoes", nome: "Permissões", titulo: "Permissões", detalhe: "O que o Vortex precisa liberar no aparelho e por quê." },
@@ -453,6 +455,7 @@ export function Ajustes({ motor, aoMudarBiblioteca, avisar, atualizacao, tema, a
       <Dock rotulo="Seções dos ajustes" itens={itens.map((i) => ({ id: i.id, nome: i.nome, icone: i.icone }))} ativo={atual.id} aoEscolher={(id) => setTela(id as Tela)} selecionarAoFocar />
       <div key={"c" + atual.id} className="entrar grid gap-6">
         {atual.id === "conta" && motor.conta && <ContaVetorial motor={motor} avisar={avisar} />}
+        {atual.id === "drive" && motor.drive && <TelaDrive motor={motor} avisar={avisar} aoMudarBiblioteca={aoMudarBiblioteca} />}
         {atual.id === "jogos" && <TelaJogos motor={motor} avisar={avisar} aoMudarBiblioteca={aoMudarBiblioteca} plats={plats} ocultos={ocultos} aoMostrarConsole={aoMostrarConsole} jogos={jogos} aoMostrarJogo={aoMostrarJogo} />}
         {atual.id === "aparencia" && <TelaAparencia tema={tema} aoMudar={aoMudarTema} jogos={jogos} avisar={avisar} botoesVirtuais={Boolean(motor.visualControles)} />}
         {atual.id === "permissoes" && <Permissoes motor={motor} avisar={avisar} />}

@@ -22,6 +22,21 @@ export interface EstadoConta { logado: boolean; email?: string; vortex: boolean;
 export interface PedidoDaVenus { id: string; comando: "abrir_jogo" | "otimizar"; argumento: string }
 export interface SaveNaNuvem { jogo: string; arquivo: string; bytes: number; atualizado: number; dispositivo: string }
 export interface RelatorioSaves { enviados: number; baixados: number; conflitos: string[]; falhas: string[] }
+export interface ArquivoDoDrive { pasta: string; nome: string; bytes: number; atualizado: number }
+export interface ListaDoDrive { arquivos: ArquivoDoDrive[]; usado: number; cota: number; maxArquivo: number }
+export interface ProgressoDoDrive { acao: "enviar" | "baixar"; nome: string; feito: number; total: number }
+/** Vetorial Drive: arquivos da conta (documentos e ROMs). Só no Android por enquanto. */
+export interface DriveVetorial {
+  lista(): Promise<ListaDoDrive>;
+  /** Abre o seletor de arquivos; null se a pessoa desistiu. */
+  escolher(): Promise<{ uri: string; nome: string; bytes: number } | null>;
+  enviar(uri: string, pasta: string, nome: string): Promise<{ bytes: number }>;
+  /** Baixa para a pasta do Vortex no aparelho; devolve onde ficou. */
+  baixar(pasta: string, nome: string): Promise<{ caminho: string; pasta: string }>;
+  apagar(pasta: string, nome: string): Promise<void>;
+  cancelar(): Promise<void>;
+  aoProgredir(f: (p: ProgressoDoDrive) => void): () => void;
+}
 /** Conta Vetorial ID: licença do Vortex e saves na nuvem. */
 export interface ContaVetorial {
   estado(): Promise<EstadoConta>;
@@ -102,6 +117,8 @@ export interface Motor {
   abrirSteam?(appid: number, acao: "jogar" | "instalar"): Promise<void>;
   /** Windows e Android: entrar com o Vetorial ID e sincronizar saves. */
   conta?: ContaVetorial;
+  /** Android: Vetorial Drive. */
+  drive?: DriveVetorial;
   /** Permissões do aparelho (no Windows não há nenhuma a pedir). */
   permissoes(): Promise<Permissao[]>;
   /** Abre a tela do sistema onde a pessoa libera a permissão. */

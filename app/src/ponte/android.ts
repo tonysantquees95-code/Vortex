@@ -1,5 +1,5 @@
 import { registerPlugin } from "@capacitor/core";
-import type { PedidoDaVenus, ContaVetorial, EstadoConta, RelatorioSaves, SaveNaNuvem, Controles, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, RelatorioLimpeza, AppAndroid, ConfigGameBar, Oferta, Permissao } from "./tipos";
+import type { PedidoDaVenus, ContaVetorial, EstadoConta, RelatorioSaves, SaveNaNuvem, Controles, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, RelatorioLimpeza, AppAndroid, ConfigGameBar, Oferta, Permissao, DriveVetorial, ListaDoDrive, ProgressoDoDrive } from "./tipos";
 
 /** Mesmo contrato do Rust, implementado em Java (plugin "Vortex"). */
 interface PluginVortex {
@@ -8,6 +8,11 @@ interface PluginVortex {
   permissoes(): Promise<{ lista: Permissao[] }>;
   pedirPermissao(opcoes: { id: string }): Promise<void>;
   instalarAtualizacao(opcoes: { url: string; sha256: string }): Promise<void>;
+  driveEscolher(): Promise<{ uri: string | null; nome?: string; bytes?: number }>;
+  driveEnviar(opcoes: { uri: string; pasta: string; nome: string }): Promise<{ bytes: number }>;
+  driveBaixar(opcoes: { pasta: string; nome: string }): Promise<{ caminho: string; pasta: string }>;
+  driveCancelar(): Promise<void>;
+  addListener(evento: "driveProgresso", f: (d: ProgressoDoDrive) => void): Promise<{ remove(): Promise<void> }>;
 }
 const Vortex = registerPlugin<PluginVortex>("Vortex");
 
@@ -35,9 +40,19 @@ export function motorAndroid(): Motor {
     fila: async () => (await c<{ pedidos: PedidoDaVenus[] }>("ponte_fila")).pedidos ?? [],
     responder: async (id, ok, resumo) => { await c("ponte_responder", { id, ok, resumo }); },
   };
+  const drive: DriveVetorial = {
+    lista: () => c<ListaDoDrive>("drive_lista"),
+    escolher: async () => { const r = await Vortex.driveEscolher(); return r.uri ? { uri: r.uri, nome: r.nome ?? "arquivo", bytes: r.bytes ?? -1 } : null; },
+    enviar: (uri, pasta, nome) => Vortex.driveEnviar({ uri, pasta, nome }),
+    baixar: (pasta, nome) => Vortex.driveBaixar({ pasta, nome }),
+    apagar: async (pasta, nome) => { await c("drive_apagar", { pasta, nome }); },
+    cancelar: async () => { await Vortex.driveCancelar(); },
+    aoProgredir: (f) => { const h = Vortex.addListener("driveProgresso", f); return () => { void h.then((x) => x.remove()); }; },
+  };
   return {
     plataforma: "android",
     conta,
+    drive,
     controles,
     permissoes: async () => (await Vortex.permissoes()).lista,
     pedirPermissao: async (id) => { await Vortex.pedirPermissao({ id }); },

@@ -89,7 +89,7 @@ public final class Nuvem {
         return id;
     }
 
-    private static JSONObject lerConta(File dados) {
+    static JSONObject lerConta(File dados) {
         try { JSONObject o = new JSONObject(new String(Files.readAllBytes(new File(dados, "conta.json").toPath()), StandardCharsets.UTF_8)); return o.optString("token").isEmpty() ? null : o; } catch (Exception e) { return null; }
     }
 

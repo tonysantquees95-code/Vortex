@@ -78,6 +78,8 @@ public class VortexPlugin extends Plugin {
                     if (comando.equals("emuladores")) r = emuladores();
                     else if (comando.startsWith("controle_") || comando.equals("apps_android")) r = controle(comando, a);
                     else if (comando.startsWith("conta_") || comando.startsWith("ponte_") || comando.equals("saves_sincronizar") || comando.equals("saves_lista") || comando.equals("conta_pedir")) r = contaESaves(comando, a);
+                    else if (comando.equals("drive_lista")) r = Drive.lista(new File(getContext().getFilesDir(), "vortex"));
+                    else if (comando.equals("drive_apagar")) r = Drive.apagar(new File(getContext().getFilesDir(), "vortex"), a.getString("pasta"), a.getString("nome"));
                     else if (comando.equals("preparar_jogo")) r = preparar(a);
                     else if (comando.equals("lancar")) r = lancar(a);
                     else if (comando.equals("indice_capas")) r = indiceCapas(a.getString("sistema"));
@@ -509,4 +511,92 @@ public class VortexPlugin extends Plugin {
         saida.put("pasta", caminho);
         call.resolve(saida);
     }
+
+    private static final java.util.concurrent.atomic.AtomicBoolean driveOcupado = new java.util.concurrent.atomic.AtomicBoolean(false);
+
+    private Drive.Progresso avisoDeProgresso(final String acao, final String nome) {
+        final long[] ultimo = {0};
+        return new Drive.Progresso() {
+            @Override public void aoAvancar(long feito, long total) {
+                long agora = System.currentTimeMillis();
+                if (agora - ultimo[0] < 300 && feito < total) return;
+                ultimo[0] = agora;
+                JSObject d = new JSObject();
+                d.put("acao", acao); d.put("nome", nome); d.put("feito", feito); d.put("total", total);
+                notifyListeners("driveProgresso", d);
+            }
+        };
+    }
+
+    /** Escolhe um arquivo qualquer do aparelho para enviar ao Vetorial Drive. */
+    @PluginMethod
+    public void driveEscolher(PluginCall call) {
+        Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        i.addCategory(Intent.CATEGORY_OPENABLE);
+        i.setType("*/*");
+        startActivityForResult(call, i, "arquivoEscolhido");
+    }
+
+    @ActivityCallback
+    private void arquivoEscolhido(PluginCall call, ActivityResult r) {
+        if (call == null) return;
+        JSObject saida = new JSObject();
+        if (r.getResultCode() != Activity.RESULT_OK || r.getData() == null || r.getData().getData() == null) { saida.put("uri", JSObject.NULL); call.resolve(saida); return; }
+        Uri u = r.getData().getData();
+        String nome = "arquivo"; long bytes = -1;
+        try (android.database.Cursor c = getContext().getContentResolver().query(u, null, null, null, null)) {
+            if (c != null && c.moveToFirst()) {
+                int a = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME), b = c.getColumnIndex(android.provider.OpenableColumns.SIZE);
+                if (a >= 0) nome = c.getString(a);
+                if (b >= 0 && !c.isNull(b)) bytes = c.getLong(b);
+            }
+        } catch (Exception ignora) { }
+        saida.put("uri", u.toString()); saida.put("nome", nome); saida.put("bytes", bytes);
+        call.resolve(saida);
+    }
+
+    @PluginMethod
+    public void driveEnviar(final PluginCall call) {
+        final String uri = call.getString("uri", ""), pasta = call.getString("pasta", ""), nome = call.getString("nome", "");
+        if (!driveOcupado.compareAndSet(false, true)) { call.reject("Já tem uma transferência em andamento."); return; }
+        getBridge().execute(new Runnable() {
+            @Override public void run() {
+                try (android.os.ParcelFileDescriptor pfd = getContext().getContentResolver().openFileDescriptor(Uri.parse(uri), "r")) {
+                    if (pfd == null) throw new Exception("Não consegui abrir o arquivo escolhido.");
+                    long tam = pfd.getStatSize();
+                    if (tam < 1) throw new Exception("O arquivo está vazio ou não dá para ler o tamanho dele.");
+                    JSObject r = new JSObject();
+                    r.put("bytes", Drive.enviar(new File(getContext().getFilesDir(), "vortex"), pfd, tam, pasta, nome, avisoDeProgresso("enviar", nome)).optLong("bytes", tam));
+                    call.resolve(r);
+                } catch (Exception e) {
+                    call.reject(e.getMessage() == null ? e.toString() : e.getMessage());
+                } finally { driveOcupado.set(false); }
+            }
+        });
+    }
+
+    /** Baixa para a pasta do Vortex no aparelho (Android/data/…/files/Drive/<pasta>), que o Vortex já lê sem permissão extra. */
+    @PluginMethod
+    public void driveBaixar(final PluginCall call) {
+        final String pasta = call.getString("pasta", ""), nome = call.getString("nome", "");
+        if (!driveOcupado.compareAndSet(false, true)) { call.reject("Já tem uma transferência em andamento."); return; }
+        getBridge().execute(new Runnable() {
+            @Override public void run() {
+                try {
+                    File raiz = getContext().getExternalFilesDir("Drive");
+                    if (raiz == null) raiz = new File(getContext().getFilesDir(), "Drive");
+                    File dest = new File(new File(raiz, pasta), nome);
+                    Drive.baixar(new File(getContext().getFilesDir(), "vortex"), pasta, nome, dest, avisoDeProgresso("baixar", nome));
+                    JSObject r = new JSObject();
+                    r.put("caminho", dest.getAbsolutePath()); r.put("pasta", dest.getParentFile().getAbsolutePath());
+                    call.resolve(r);
+                } catch (Exception e) {
+                    call.reject(e.getMessage() == null ? e.toString() : e.getMessage());
+                } finally { driveOcupado.set(false); }
+            }
+        });
+    }
+
+    @PluginMethod
+    public void driveCancelar(PluginCall call) { Drive.cancelar = true; call.resolve(); }
 }
