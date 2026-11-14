@@ -38,3 +38,15 @@ test("tempo jogado e capas sem imagem", () => {
   assert.equal(matizDoTexto("abc"), matizDoTexto("abc"));
   assert.ok(matizDoTexto("abc") < 360);
 });
+
+test("controle genérico: setinha (hat) no eixo 9", async () => {
+  const { direcoesDoControle, direcoesDoHat } = await import("../src/navegacao.ts");
+  const eixos = (v) => [0, 0, 0, 0, 0, 0, 0, 0, 0, v];
+  assert.deepEqual(direcoesDoHat(eixos(1.2857)), []); // solta
+  assert.deepEqual(direcoesDoHat(eixos(-1)), ["cima"]);
+  assert.deepEqual(direcoesDoHat(eixos(-0.4286)), ["direita"]);
+  assert.deepEqual(direcoesDoHat(eixos(0.1429)), ["baixo"]);
+  assert.deepEqual(direcoesDoHat(eixos(0.7143)), ["esquerda"]);
+  assert.deepEqual(direcoesDoHat([0, 0]), []);
+  assert.deepEqual(direcoesDoControle([], eixos(0.1429)), ["baixo"]);
+});

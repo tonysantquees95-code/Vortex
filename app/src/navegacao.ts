@@ -29,11 +29,24 @@ export function direcoesDoControle(botoes: boolean[], eixos: number[], zona = 0.
   const r: Direcao[] = [];
   const x = eixos[0] ?? 0;
   const y = eixos[1] ?? 0;
-  if (botoes[12] || y < -zona) r.push("cima");
-  if (botoes[13] || y > zona) r.push("baixo");
-  if (botoes[14] || x < -zona) r.push("esquerda");
-  if (botoes[15] || x > zona) r.push("direita");
+  const h = direcoesDoHat(eixos);
+  if (botoes[12] || y < -zona || h.includes("cima")) r.push("cima");
+  if (botoes[13] || y > zona || h.includes("baixo")) r.push("baixo");
+  if (botoes[14] || x < -zona || h.includes("esquerda")) r.push("esquerda");
+  if (botoes[15] || x > zona || h.includes("direita")) r.push("direita");
   return r;
+}
+
+/**
+ * Controles genéricos (modo DirectInput, muitos Bluetooth e de cabo) não trazem o direcional como botões 12-15: o Chromium entrega a
+ * setinha ("hat") como o eixo 9, com 8 valores de -1 a 1 (norte, nordeste… noroeste) e ~1,29 quando está solta.
+ */
+export function direcoesDoHat(eixos: number[]): Direcao[] {
+  const v = eixos[9];
+  if (eixos.length < 10 || v === undefined || v > 1.1 || v < -1.1) return [];
+  const passo = Math.round((v + 1) * 3.5); // 0 norte, 1 nordeste, 2 leste, 3 sudeste, 4 sul, 5 sudoeste, 6 oeste, 7 noroeste
+  const mapa: Direcao[][] = [["cima"], ["cima", "direita"], ["direita"], ["baixo", "direita"], ["baixo"], ["baixo", "esquerda"], ["esquerda"], ["cima", "esquerda"]];
+  return mapa[passo] ?? [];
 }
 
 /** Formata segundos jogados: "2 h 05 min", "35 min", "—". */

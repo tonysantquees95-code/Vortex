@@ -283,7 +283,6 @@ pub fn configuracao_retroarch(pl: &Plataforma, retroarch: &Path, cfg: &Configura
         "video_vsync = \"true\"".into(),
         "video_smooth = \"false\"".into(),
         "input_autodetect_enable = \"true\"".into(),
-        "input_joypad_driver = \"\"".into(),
         "input_player1_analog_dpad_mode = \"1\"".into(),
         // Start+Select abre o menu do RetroArch; segurar o atalho de saída fecha o jogo e volta ao Vortex
         "input_menu_toggle_gamepad_combo = \"4\"".into(),
