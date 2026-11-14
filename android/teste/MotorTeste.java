@@ -130,7 +130,7 @@ public class MotorTeste {
         // organizador automático
         File solto = new File(t, "Download");
         solto.mkdirs();
-        Files.write(new File(solto, "Sonic (USA).md").toPath(), "x".getBytes());
+        Files.write(new File(solto, "Sonic (USA).md").toPath(), new byte[1024]);
         try (java.util.zip.ZipOutputStream z = new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(new File(solto, "Contra.zip")))) {
             z.putNextEntry(new java.util.zip.ZipEntry("Contra (USA).nes")); z.write("b".getBytes()); z.closeEntry();
         }
@@ -140,7 +140,7 @@ public class MotorTeste {
         }
         new File(solto, "psx").mkdirs();
         Files.write(new File(solto, "psx/Crash.cue").toPath(), "FILE \"Crash.bin\" BINARY\n".getBytes());
-        Files.write(new File(solto, "psx/Crash.bin").toPath(), "e".getBytes());
+        Files.write(new File(solto, "psx/Crash.bin").toPath(), new byte[1024]);
         File vortex = new File(t, "Vortex/Jogos");
         JSONObject sim = (JSONObject) run.apply("organizar", new JSONObject().put("origens", new JSONArray().put(solto.getPath())).put("pasta_vortex", vortex.getPath()).put("simulacao", true));
         confere(sim.getJSONArray("organizados").length() == 4, "simulação acha 4 jogos (achou " + sim.getJSONArray("organizados").length() + ")");
