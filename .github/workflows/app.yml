@@ -128,6 +128,9 @@ jobs:
         run: |
           npm run build
           npx cap add android
+          # a versão do app passa a ser a do build (1.<número>), para o Vindex comparar com a última publicada
+          sed -i "s/versionName \"[^\"]*\"/versionName \"1.${{ github.run_number }}\"/; s/versionCode [0-9]*/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          grep -n "versionName\|versionCode" android/app/build.gradle
           D=android/app/src/main/java/tech/vetorial/vortex
           mkdir -p $D
           cp ../android/src/*.java $D/
