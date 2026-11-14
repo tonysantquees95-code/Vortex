@@ -139,7 +139,7 @@ export function TelaEmuladores({ motor }: { motor: Motor }) {
     <div className="grid gap-4">
     {cen && cen.consoles.length > 0 && (
       <div className="vidro grid gap-2 p-4 text-sm">
-        <p className="text-slate-300">Seu computador: {cen.aparelho.cpu || "processador"} · {cen.aparelho.nucleos} núcleos · {cen.aparelho.ram_gb} GB de RAM</p>
+        <p className="text-slate-300">{cen.aparelho.so === "android" ? "Seu aparelho" : "Seu computador"}: {cen.aparelho.cpu || "processador"} · {cen.aparelho.nucleos} núcleos · {cen.aparelho.ram_gb} GB de RAM</p>
         {cen.consoles.map((l) => (
           <div key={l.id} className="grid gap-0.5">
             <div className="flex flex-wrap items-baseline gap-2"><span className="font-semibold">{l.nome}</span><span className="text-slate-400">{l.jogos} jogo(s)</span><span className={l.estado === "instalar" ? "text-amber-300" : "text-cyan-200"}>{ROTULO[l.estado]}{l.emulador ? ` · ${l.emulador}` : ""}</span></div>

@@ -80,6 +80,7 @@ public class VortexPlugin extends Plugin {
                     else if (comando.startsWith("conta_") || comando.startsWith("ponte_") || comando.equals("saves_sincronizar") || comando.equals("saves_lista") || comando.equals("conta_pedir") || comando.equals("sistema_ia") || comando.equals("faxina_ia")) r = contaESaves(comando, a);
                     else if (comando.equals("drive_lista")) r = Drive.lista(new File(getContext().getFilesDir(), "vortex"));
                     else if (comando.equals("drive_apagar")) r = Drive.apagar(new File(getContext().getFilesDir(), "vortex"), a.getString("pasta"), a.getString("nome"));
+                    else if (comando.equals("central_emuladores")) r = central(a);
                     else if (comando.equals("preparar_jogo")) r = preparar(a);
                     else if (comando.equals("lancar")) r = lancar(a);
                     else if (comando.equals("indice_capas")) r = indiceCapas(a.getString("sistema"));
@@ -283,6 +284,44 @@ public class VortexPlugin extends Plugin {
     }
 
     /** Baixa o núcleo de emulação do console do jogo (só na primeira vez). */
+    /** O que cada console da biblioteca usa e se já está pronto (mesmo formato da central do Windows). */
+    private JSONObject central(JSONObject a) throws Exception {
+        Object lista = motor.executar("plataformas", new JSONObject().put("biblioteca", a.getString("biblioteca")));
+        org.json.JSONArray plats = lista instanceof org.json.JSONArray ? (org.json.JSONArray) lista : new org.json.JSONArray(String.valueOf(lista));
+        org.json.JSONArray saida = new org.json.JSONArray();
+        for (int i = 0; i < plats.length(); i++) {
+            JSONObject pl = plats.getJSONObject(i);
+            String id = pl.getString("id");
+            Plataformas.P p = Plataformas.porId(id);
+            if (p == null || p.tipo.equals("pc") || p.tipo.equals("android")) continue;
+            String estado, emulador = "";
+            if (p.nucleos.length > 0 && NucleosAndroid.arquivo(getContext(), p.nucleos[0]).isFile()) { estado = "pronto"; emulador = "Vortex (" + p.nucleos[0] + ")"; }
+            else {
+                String app = null;
+                for (String[] e : EMULADORES) {
+                    if (e[3].isEmpty() || !java.util.Arrays.asList(e[3].split(",")).contains(id)) continue;
+                    if (instalado(e) != null) { app = e[1]; break; }
+                }
+                if (app != null) { estado = "pronto"; emulador = app; }
+                else if (p.nucleos.length > 0) { estado = "baixa"; emulador = "Vortex (" + p.nucleos[0] + ")"; }
+                else estado = "instalar";
+            }
+            String aviso = null;
+            switch (id) {
+                case "ps1": aviso = "Alguns jogos pedem a BIOS do PlayStation (arquivos SCPH)."; break;
+                case "ps2": aviso = "Precisa da BIOS do seu próprio PS2."; break;
+                case "saturn": case "segacd": case "dreamcast": aviso = "Pode pedir BIOS do console."; break;
+                case "switch": aviso = "Precisa de chaves e firmware do seu próprio Switch."; break;
+                default: break;
+            }
+            saida.put(new JSONObject().put("id", id).put("nome", p.nome).put("jogos", pl.optInt("total", 0)).put("estado", estado).put("emulador", emulador).put("aviso", aviso == null ? JSONObject.NULL : aviso));
+        }
+        android.app.ActivityManager.MemoryInfo mi = new android.app.ActivityManager.MemoryInfo();
+        ((android.app.ActivityManager) getContext().getSystemService(Context.ACTIVITY_SERVICE)).getMemoryInfo(mi);
+        JSONObject ap = new JSONObject().put("so", "android").put("cpu", Build.MODEL).put("nucleos", Runtime.getRuntime().availableProcessors()).put("ram_gb", Math.round(mi.totalMem / 1073741824.0));
+        return new JSONObject().put("consoles", saida).put("aparelho", ap);
+    }
+
     private JSONObject preparar(JSONObject a) throws Exception {
         JSONObject j = (JSONObject) motor.executar("jogo", a);
         Plataformas.P p = Plataformas.porId(j.getString("plataforma"));

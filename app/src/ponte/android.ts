@@ -1,5 +1,5 @@
 import { registerPlugin } from "@capacitor/core";
-import type { PedidoDaVenus, ContaVetorial, EstadoConta, RelatorioSaves, SaveNaNuvem, Controles, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, VarreduraSistema, SugestaoIA, RevisaoFaxina, SugestaoFaxina, RelatorioLimpeza, AppAndroid, ConfigGameBar, Oferta, Permissao, DriveVetorial, ListaDoDrive, ProgressoDoDrive } from "./tipos";
+import type { PedidoDaVenus, ContaVetorial, EstadoConta, RelatorioSaves, SaveNaNuvem, Controles, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, VarreduraSistema, SugestaoIA, RevisaoFaxina, CentralEmuladores, SugestaoFaxina, RelatorioLimpeza, AppAndroid, ConfigGameBar, Oferta, Permissao, DriveVetorial, ListaDoDrive, ProgressoDoDrive } from "./tipos";
 
 /** Mesmo contrato do Rust, implementado em Java (plugin "Vortex"). */
 interface PluginVortex {
@@ -62,6 +62,7 @@ export function motorAndroid(): Motor {
     adicionarPasta: (pasta) => c<string[]>("adicionar_pasta", { pasta }),
     removerPasta: async (pasta) => { await c("remover_pasta", { pasta }); },
     escanear: () => c<ResumoEscaneamento>("escanear"),
+    central: () => c<CentralEmuladores>("central_emuladores"),
     faxinaIA: {
       revisar: () => c<RevisaoFaxina>("faxina_revisao"),
       sugerir: (r) => c<SugestaoFaxina>("faxina_ia", { parecidos: r.parecidos, suspeitos: r.suspeitos }),
