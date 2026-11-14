@@ -42,6 +42,8 @@ test("tempo jogado e capas sem imagem", () => {
 test("controle genérico: setinha (hat) no eixo 9", async () => {
   const { direcoesDoControle, direcoesDoHat } = await import("../src/navegacao.ts");
   const eixos = (v) => [0, 0, 0, 0, 0, 0, 0, 0, 0, v];
+  assert.deepEqual(direcoesDoHat(eixos(0)), []); // eixo 9 parado em 0 não é direcional
+  assert.deepEqual(direcoesDoHat(eixos(0.02)), []);
   assert.deepEqual(direcoesDoHat(eixos(1.2857)), []); // solta
   assert.deepEqual(direcoesDoHat(eixos(-1)), ["cima"]);
   assert.deepEqual(direcoesDoHat(eixos(-0.4286)), ["direita"]);

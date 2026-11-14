@@ -44,7 +44,11 @@ export function direcoesDoControle(botoes: boolean[], eixos: number[], zona = 0.
 export function direcoesDoHat(eixos: number[]): Direcao[] {
   const v = eixos[9];
   if (eixos.length < 10 || v === undefined || v > 1.1 || v < -1.1) return [];
-  const passo = Math.round((v + 1) * 3.5); // 0 norte, 1 nordeste, 2 leste, 3 sudeste, 4 sul, 5 sudoeste, 6 oeste, 7 noroeste
+  const bruto = (v + 1) * 3.5;
+  const passo = Math.round(bruto);
+  // só vale um dos 8 valores exatos da setinha: um eixo 9 parado em 0 (ou ruído) não é direcional e travava "para baixo"
+  if (Math.abs(bruto - passo) > 0.2) return [];
+  // 0 norte, 1 nordeste, 2 leste, 3 sudeste, 4 sul, 5 sudoeste, 6 oeste, 7 noroeste
   const mapa: Direcao[][] = [["cima"], ["cima", "direita"], ["direita"], ["baixo", "direita"], ["baixo"], ["baixo", "esquerda"], ["esquerda"], ["cima", "esquerda"]];
   return mapa[passo] ?? [];
 }
