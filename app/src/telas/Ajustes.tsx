@@ -572,7 +572,11 @@ export function Ajustes({ motor, aoMudarBiblioteca, avisar, atualizacao, tema, a
         {atual.id === "atualizacoes" && <TelaAtualizacoes motor={motor} avisar={avisar} atualizacao={atualizacao} />}
         {atual.id === "sobre" && (
           <div className="grid gap-4">
-            <div><button data-foco className="botao" onClick={() => window.dispatchEvent(new CustomEvent("vortex:termos"))}>Ler os termos de uso</button></div>
+            <div className="flex flex-wrap gap-2">
+              <button data-foco className="botao" onClick={() => window.dispatchEvent(new CustomEvent("vortex:tour"))}>Rever a apresentação</button>
+              <button data-foco className="botao" onClick={() => window.dispatchEvent(new CustomEvent("vortex:termos"))}>Ler os termos de uso</button>
+              <button data-foco className="botao" onClick={() => window.dispatchEvent(new CustomEvent("vortex:novidades"))}>O que há de novo</button>
+            </div>
             <OpcaoAnalogico />
             <p className="text-sm text-slate-400">Controle: direcional ou analógico move · A confirma · B volta · Y favorita · X atualiza a biblioteca · Start confere a versão do Vortex · LB/RB trocam de aba (a barra de baixo só responde a LB/RB). Teclado: setas ou WASD · Enter · Esc · F · Q/E.</p>
             <p className="text-sm text-slate-500">Vortex · Vetorial Tech{BUILD > 0 ? ` · versão 1.${BUILD}` : ""}</p>

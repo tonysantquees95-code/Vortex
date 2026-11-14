@@ -9,6 +9,10 @@ import { FundoDaTela } from "./telas/FundoDaTela";
 import { Configuracao } from "./telas/Configuracao";
 import { tempoJogado } from "./navegacao";
 import { Ajustes } from "./telas/Ajustes";
+import { Tour } from "./telas/Tour";
+import { Novidades } from "./telas/Novidades";
+import { tourVisto } from "./tour";
+import { lerVisto as lerNovidadesVistas, marcarVisto as marcarNovidadesVistas, novasDesde, ultimoId, type Novidade } from "./novidades";
 import { Loja } from "./telas/Loja";
 import { Controles } from "./telas/Controles";
 import { Termos } from "./telas/Termos";
@@ -202,6 +206,11 @@ export function App() {
   }, [motor, avisar]);
 
   const [lendoTermos, setLendoTermos] = useState(false);
+  const [vendoTour, setVendoTour] = useState(false);
+  const [tourInicial, setTourInicial] = useState(() => !tourVisto());
+  const [novidades, setNovidades] = useState<Novidade[]>(() => { const v = lerNovidadesVistas(); return v === null ? [] : novasDesde(v); });
+  const [verNovidades, setVerNovidades] = useState(false);
+  useEffect(() => { const t = () => setVendoTour(true); const n = () => setVerNovidades(true); window.addEventListener("vortex:tour", t); window.addEventListener("vortex:novidades", n); return () => { window.removeEventListener("vortex:tour", t); window.removeEventListener("vortex:novidades", n); }; }, []);
   useEffect(() => { const f = () => setLendoTermos(true); window.addEventListener("vortex:termos", f); return () => window.removeEventListener("vortex:termos", f); }, []);
 
   // ponte de voz: a Vênus pede ("abra o jogo X", "otimize o Vortex") e este aparelho executa
@@ -311,7 +320,8 @@ export function App() {
 
   const vazio = carregado && !todos.length;
   const intro = abertura ? <Abertura aoTerminar={() => setAbertura(false)} /> : null;
-  if (!aceitou) return <>{intro}<FundoDaTela tema={abertura ? { ...tema, fundo: "liso" } : tema} imagem={fundoImg} /><Termos aoAceitar={() => { aceitarTermos(); setAceitou(true); }} /></>;
+  // primeira instalação: o tour explica tudo, então o histórico de novidades já nasce em dia
+  if (!aceitou) return <>{intro}<FundoDaTela tema={abertura ? { ...tema, fundo: "liso" } : tema} imagem={fundoImg} />{tourInicial && !abertura ? <Tour aoTerminar={() => setTourInicial(false)} /> : <Termos aoAceitar={() => { aceitarTermos(); marcarNovidadesVistas(ultimoId()); setNovidades([]); setAceitou(true); }} />}</>;
   return (
     <>
       {intro}
@@ -365,6 +375,9 @@ export function App() {
         aoTirar={() => { mudarOcultos(infoDe.id, "fora"); avisar(`${infoDe.nome} saiu da biblioteca`); setInfoDe(null); }} />}
       {aberto && <Detalhe motor={motor} jogo={aberto} aoJogar={jogar} aoFavoritar={favoritar} aoFechar={() => setAberto(null)} aoEsconder={(j) => { mudarJogos(j.id, "esconder"); avisar(`${j.titulo} escondido do Início`); setAberto(null); }} aoTirar={(j) => { mudarJogos(j.id, "fora"); avisar(`${j.titulo} saiu da biblioteca`); setAberto(null); }} aoAbrirUrl={(u) => { motor.abrirUrl(u).catch(() => avisar("Não consegui abrir o navegador.")); }} />}
       {lendoTermos && <Termos aoFechar={() => setLendoTermos(false)} />}
+      {vendoTour && <Tour rotuloFinal="Fechar" aoTerminar={() => setVendoTour(false)} />}
+      {verNovidades && <Novidades itens={novasDesde(0)} aoFechar={() => setVerNovidades(false)} />}
+      {config && !abertura && novidades.length > 0 && <Novidades itens={novidades} aoFechar={() => setNovidades([])} />}
       {!config && !abertura && <Configuracao motor={motor} tema={tema} aoMudarTema={setTema} avisar={avisar} aoMudarBiblioteca={recarregar} aoTerminar={() => { marcarConfigurado(); setConfig(true); recarregar(); }} />}
       {lancando && (
         <div data-camada className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-[#05060df2] backdrop-blur-xl">
