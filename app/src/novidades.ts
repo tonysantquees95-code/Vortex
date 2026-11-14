@@ -8,6 +8,7 @@ export const NOVIDADES: Novidade[] = [
   { id: 1, data: "2026-11-14", tipo: "novo", titulo: "Apresentação e novidades", texto: "Na primeira abertura o Vortex mostra o que ele faz e como usar, antes dos termos. Depois de cada atualização, esta tela conta o que mudou." },
   { id: 2, data: "2026-11-14", tipo: "novo", titulo: "Aba Controles reformulada", texto: "A aba Controles agora fica por último e funciona no Android e no Windows: mostra o controle conectado, deixa buscar o driver quando ele não é reconhecido e guarda perfis. Em Configurar botões você aperta cada botão e o Vortex aprende onde ele está, mesmo num controle genérico." },
   { id: 3, data: "2026-11-14", tipo: "melhoria", titulo: "Arquivos foi para os Ajustes", texto: "O atalho Arquivos saiu da barra de baixo para ninguém abrir outro aplicativo sem querer. Agora ele fica em Ajustes › Jogos. Também trocamos o ícone de Ajustes por uma engrenagem." },
+  { id: 4, data: "2026-11-14", tipo: "novo", titulo: "Perfil de botões nos jogos", texto: "No Windows, cada perfil da aba Controles tem o botão Usar nos jogos: o Vortex grava os botões que você ensinou no RetroArch, e o controle passa a funcionar do seu jeito dentro dos jogos. Feche e abra o jogo depois." },
 ];
 
 export const ROTULO: Record<TipoNovidade, string> = { novo: "Novo", melhoria: "Melhorou", correcao: "Corrigido" };

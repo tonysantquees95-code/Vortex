@@ -104,6 +104,8 @@ export interface Motor {
   abrirApp?(pacote: string): Promise<void>;
   /** Só no Android: abre o Vindex direto numa pasta. false = o Vindex não está instalado. */
   abrirNoVindex?(pasta: string): Promise<boolean>;
+  /** só no Windows: grava o perfil de botões como autoconfig do RetroArch; devolve os arquivos criados */
+  gravarPerfilNoRetroArch?(perfil: { nome: string; vid: string; pid: string; mapa: unknown }): Promise<string[]>;
   /** Abre um endereço https no navegador do sistema. */
   abrirUrl(url: string): Promise<void>;
   /** Só no Android: aparência dos botões virtuais da tela do jogo (cor do sistema, modelo, tamanho). */

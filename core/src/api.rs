@@ -470,6 +470,15 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
             let consoles: Vec<(String, usize)> = b.plataformas().into_iter().map(|p| (p.id, p.total)).collect();
             Ok(json!({ "consoles": crate::instalador::central(&inst, &pasta_de_dados(&arquivo), &consoles), "aparelho": crate::sistema::aparelho() }))
         }
+        "autoconfig_gravar" => {
+            let amb = Ambiente::atual();
+            let cfg = Configuracao::carregar(&arquivo_de_configuracao(&arquivo));
+            let exe = emuladores::achar_retroarch(&amb, &cfg).ok_or("Não achei o RetroArch. Abra um jogo pelo Vortex uma vez e tente de novo.")?;
+            let pasta = exe.parent().ok_or("Pasta do RetroArch inválida.")?;
+            let mapa = args.get("mapa").cloned().unwrap_or(Value::Null);
+            let criados = crate::autoconfig::gravar(pasta, &texto(args, "nome")?, &texto(args, "vid").unwrap_or_default(), &texto(args, "pid").unwrap_or_default(), &mapa)?;
+            Ok(json!({ "arquivos": criados.iter().map(|p| p.to_string_lossy().to_string()).collect::<Vec<_>>() }))
+        }
         "emuladores" => {
             let amb = Ambiente::atual();
             let cfg = Configuracao::carregar(&arquivo_de_configuracao(&arquivo));

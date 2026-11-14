@@ -148,6 +148,7 @@ export function MeuControle({ motor, avisar }: { motor: Motor; avisar: (t: strin
               <div key={p.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-white/5 p-3">
                 <span className="flex-1 font-medium">{p.nome}{ativo?.id === p.id ? " · em uso" : ""}</span>
                 {ativo?.id !== p.id && <button data-foco className="botao" onClick={() => { usarPerfil(id, p.id); recarregar(); }}>Usar</button>}
+                {motor.gravarPerfilNoRetroArch && <button data-foco className="botao" title="Faz o RetroArch (os jogos) usar estes botões" onClick={() => { void motor.gravarPerfilNoRetroArch?.({ nome: `${id.nome} ${p.nome}`, vid: p.vid, pid: p.pid, mapa: p.mapa }).then(() => avisar("Pronto: os jogos do RetroArch vão usar este perfil. Feche e abra o jogo."), (e) => avisar(String(e instanceof Error ? e.message : e))); }}>Usar nos jogos</button>}
                 <button data-foco className="botao" onClick={() => { apagarPerfil(p.id); recarregar(); }}>Apagar</button>
               </div>
             ))}

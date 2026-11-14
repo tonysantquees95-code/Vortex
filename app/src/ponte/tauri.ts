@@ -61,6 +61,7 @@ export async function motorTauri(): Promise<Motor> {
     lancar: (id) => c<ResultadoLancamento>("lancar", { id }),
     modoJogo: (nova) => c<ModoJogoConfig>("modo_jogo_config", nova ? { configuracao: nova } : {}),
     abrirNoVindex: async (pasta) => { await c("abrir_pasta", { pasta }); return true; },
+    gravarPerfilNoRetroArch: async (p) => (await c<{ arquivos: string[] }>("autoconfig_gravar", { nome: p.nome, vid: p.vid, pid: p.pid, mapa: p.mapa })).arquivos,
     abrirSteam: async (appid, acao) => { await c("abrir_steam", { appid: String(appid), acao }); },
     pc: {
       importar: () => c<{ steam: number; epic: number; novos: number }>("pc_importar"),
