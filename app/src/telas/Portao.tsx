@@ -76,12 +76,15 @@ export function Portao({ children }: { children: ReactNode }) {
     );
   }
   return (
-    <div className="fundo-tela grid min-h-dvh place-items-center p-4">
-      <main className="vidro grid w-[min(440px,94vw)] gap-3 p-6 text-center">
-        <span className="marca-vx"><LogoVortex /></span>
-        {corpo}
-        {msg && <p role="alert" className="text-sm text-rose-300">{msg}</p>}
-      </main>
+    <div className="fundo-tela">
+      {/* a regra ".fundo-tela > *" desliga o clique dos filhos (é para as camadas de fundo): aqui o conteúdo precisa de clique */}
+      <div className="grid place-items-center overflow-y-auto p-4" style={{ pointerEvents: "auto" }}>
+        <main className="vidro grid w-[min(440px,94vw)] gap-3 p-6 text-center">
+          <span className="marca-vx"><LogoVortex /></span>
+          {corpo}
+          {msg && <p role="alert" className="text-sm text-rose-300">{msg}</p>}
+        </main>
+      </div>
     </div>
   );
 }
