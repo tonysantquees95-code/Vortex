@@ -1,4 +1,4 @@
-import type { PedidoDaVenus, ContaVetorial, EstadoConta, RelatorioSaves, SaveNaNuvem, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, VarreduraSistema, SugestaoIA, RevisaoFaxina, SugestaoFaxina, RelatorioLimpeza, Oferta } from "./tipos";
+import type { PedidoDaVenus, ContaVetorial, EstadoConta, RelatorioSaves, SaveNaNuvem, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, VarreduraSistema, SugestaoIA, RevisaoFaxina, PerfilJogo, SugestaoFaxina, RelatorioLimpeza, Oferta } from "./tipos";
 
 /** Windows: fala com o motor em Rust pelo comando "motor" do Tauri (o Rust acrescenta o caminho da biblioteca). */
 export async function motorTauri(): Promise<Motor> {
@@ -29,6 +29,11 @@ export async function motorTauri(): Promise<Motor> {
     adicionarPasta: (pasta) => c<string[]>("adicionar_pasta", { pasta }),
     removerPasta: async (pasta) => { await c("remover_pasta", { pasta }); },
     escanear: () => c<ResumoEscaneamento>("escanear"),
+    perfilIA: {
+      ler: (id) => c<PerfilJogo | null>("perfil_jogo_ler", { id }),
+      gerar: (id) => c<PerfilJogo | null>("perfil_jogo_ia", { id }),
+      limpar: async (id) => { await c("perfil_jogo_limpar", { id }); },
+    },
     faxinaIA: {
       revisar: () => c<RevisaoFaxina>("faxina_revisao"),
       sugerir: (r) => c<SugestaoFaxina>("faxina_ia", { parecidos: r.parecidos, suspeitos: r.suspeitos }),

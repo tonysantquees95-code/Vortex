@@ -272,6 +272,15 @@ export function App() {
       // primeira vez de cada console: o Vortex baixa o motor sozinho (sem a pessoa instalar nada)
       const dica = window.setTimeout(() => setEtapa("Preparando o motor deste console (só na primeira vez)…"), 1500);
       await motor.preparar(j.id).finally(() => window.clearTimeout(dica));
+      // GameCube e Wii: na primeira vez, a IA escolhe os ajustes do Dolphin para este computador (some se não houver conta ou rede)
+      if (motor.perfilIA && (j.plataforma === "gamecube" || j.plataforma === "wii")) {
+        const feito = await motor.perfilIA.ler(j.id).catch(() => null);
+        if (!feito) {
+          setEtapa("Ajustando o jogo para o seu computador…");
+          const p = await Promise.race([motor.perfilIA.gerar(j.id).catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), 9000))]);
+          if (p && p.motivo) avisar(`Ajustado para o seu computador: ${p.motivo}`);
+        }
+      }
       if (motor.conta) { setEtapa("Conferindo os saves na nuvem…"); await Promise.race([motor.conta.sincronizar().catch(() => null), new Promise((r) => setTimeout(r, 6000))]); }
       setEtapa("Abrindo o jogo…");
       const [r] = await Promise.all([motor.lancar(j.id), minimo]);

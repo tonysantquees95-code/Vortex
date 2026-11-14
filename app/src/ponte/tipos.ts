@@ -119,6 +119,12 @@ export interface Motor {
   conta?: ContaVetorial;
   /** Android: Vetorial Drive. */
   drive?: DriveVetorial;
+  /** Windows: ajustes do Dolphin (GameCube/Wii) escolhidos pela IA para este computador; guardados por jogo. */
+  perfilIA?: {
+    ler(id: string): Promise<PerfilJogo | null>;
+    gerar(id: string): Promise<PerfilJogo | null>;
+    limpar(id: string): Promise<void>;
+  };
   /** IA da faxina: nomes parecidos e arquivos pequenos demais. Nada é movido sem a pessoa confirmar. */
   faxinaIA?: {
     revisar(): Promise<RevisaoFaxina>;
@@ -178,3 +184,5 @@ export interface SugestaoIA { pastas: { pasta: string; plataforma: string | null
 export interface ItemRevisao { id: string; titulo: string; plataforma: string; bytes: number; arquivo: string }
 export interface RevisaoFaxina { parecidos: ItemRevisao[][]; suspeitos: ItemRevisao[] }
 export interface SugestaoFaxina { duplicados: { manter: string; remover: string[]; motivo: string }[]; corrompidos: { id: string; motivo: string }[]; observacoes?: string }
+
+export interface PerfilJogo { ajustes: Record<string, string>; motivo: string; origem: string }

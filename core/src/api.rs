@@ -90,7 +90,14 @@ fn plano_do_jogo(b: &Biblioteca, id: &str, biblioteca: &Path) -> Result<Lancamen
     let amb = Ambiente::atual();
     let cfg = Configuracao::carregar(&arquivo_de_configuracao(biblioteca));
     let instalados = emuladores::descobrir(&amb, &cfg);
-    emuladores::planejar(&j.caminho, &j.plataforma, &instalados, &cfg, &amb, &pasta_de_dados(biblioteca))
+    let mut plano = emuladores::planejar(&j.caminho, &j.plataforma, &instalados, &cfg, &amb, &pasta_de_dados(biblioteca))?;
+    // perfil por jogo (IA): só o Dolphin no computador aceita ajustes pela linha de comando
+    if plano.emulador == "dolphin" && amb.so == emuladores::So::Windows {
+        if let Some(p) = crate::perfil_jogo::ler(&pasta_de_dados(biblioteca), id) {
+            plano.args.extend(crate::perfil_jogo::argumentos(&p));
+        }
+    }
+    Ok(plano)
 }
 
 fn texto<'a>(v: &'a Value, campo: &str) -> Result<&'a str, String> {
@@ -183,6 +190,27 @@ pub fn conta_e_saves(comando: &str, args: &Value, rede: &dyn nuvem::Rede) -> Res
         "conta_entrar" => {
             let c = nuvem::entrar(rede, &dados, texto(args, "email")?, texto(args, "senha")?, texto(args, "aparelho").unwrap_or("Computador"), "windows")?;
             Ok(json!({ "logado": true, "email": c.email }))
+        }
+        "perfil_jogo_ia" => {
+            // pede à IA do servidor ajustes para este jogo e este computador; valida tudo e guarda
+            let id = texto(args, "id")?;
+            let j = Biblioteca::carregar(&arquivo).jogos.get(id).cloned().ok_or("Esse jogo não está mais na biblioteca.")?;
+            if !crate::perfil_jogo::plataforma_aceita(&j.plataforma) {
+                return Ok(json!({ "ajustes": {}, "motivo": "" }));
+            }
+            let c = nuvem::conta_salva(&dados).ok_or("Entre na sua conta Vetorial ID para usar a IA.")?;
+            let corpo = serde_json::to_vec(&json!({ "titulo": j.titulo, "plataforma": j.plataforma, "aparelho": crate::sistema::aparelho() })).map_err(|e| e.to_string())?;
+            let r = rede.pedir("POST", "/vortex/ia/perfil", Some(&c.token), Some(&corpo), None)?;
+            let v: Value = serde_json::from_slice(&r.corpo).map_err(|_| "Resposta inesperada do servidor.".to_string())?;
+            if r.status >= 400 {
+                return Err(v.get("mensagem").or_else(|| v.get("erro")).and_then(|x| x.as_str()).unwrap_or("A IA não respondeu agora.").to_string());
+            }
+            let ajustes = crate::perfil_jogo::validar(v.get("ajustes").unwrap_or(&Value::Null));
+            if !ajustes.is_empty() {
+                let p = crate::perfil_jogo::Perfil { ajustes, motivo: v.get("motivo").and_then(|x| x.as_str()).unwrap_or("").chars().take(120).collect(), origem: "ia".into() };
+                crate::perfil_jogo::salvar(&dados, id, p)?;
+            }
+            Ok(json!(crate::perfil_jogo::ler(&dados, id)))
         }
         "faxina_ia" => {
             let c = nuvem::conta_salva(&dados).ok_or("Entre na sua conta Vetorial ID para usar a IA.")?;
@@ -277,7 +305,7 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
     if comando == "preparar_jogo" {
         return preparar_jogo_com(args, &nucleos::baixar_da_libretro);
     }
-    if comando.starts_with("conta_") || comando.starts_with("ponte_") || comando == "saves_sincronizar" || comando == "saves_lista" || comando == "conta_pedir" || comando == "sistema_ia" || comando == "faxina_ia" {
+    if comando.starts_with("conta_") || comando.starts_with("ponte_") || comando == "saves_sincronizar" || comando == "saves_lista" || comando == "conta_pedir" || comando == "sistema_ia" || comando == "faxina_ia" || comando == "perfil_jogo_ia" {
         return conta_e_saves(comando, args, &nuvem::RedeReal);
     }
     if comando == "plataformas_catalogo" {
@@ -320,6 +348,11 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
             b.adicionar_pasta(&PathBuf::from(texto(args, "pasta")?))?;
             mudou = true;
             para(&b.pastas)
+        }
+        "perfil_jogo_ler" => Ok(crate::perfil_jogo::ler(&pasta_de_dados(&arquivo), texto(args, "id")?).map(|p| json!(p)).unwrap_or(Value::Null)),
+        "perfil_jogo_limpar" => {
+            crate::perfil_jogo::limpar(&pasta_de_dados(&arquivo), texto(args, "id")?)?;
+            Ok(json!({ "ok": true }))
         }
         "faxina_revisao" => para(crate::limpeza::revisao(&b)),
         "faxina_ia_aplicar" => {
