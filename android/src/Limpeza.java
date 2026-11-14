@@ -191,6 +191,13 @@ public final class Limpeza {
         List<String> saiu = new ArrayList<String>();
         List<String> ids = Motor.chavesPublicas(jogos);
         Collections.sort(ids);
+        // .bin/.img que só acompanham um .cue/.gdi/.m3u não são jogos à parte: nunca contam como repetidos
+        java.util.Set<String> acomp = new java.util.HashSet<String>();
+        for (String id : ids) {
+            File c = new File(jogos.getJSONObject(id).optString("caminho"));
+            if (java.util.Arrays.asList("cue", "gdi", "m3u", "ccd", "mds").contains(Organizador.ext(c)) && c.isFile())
+                for (File a : Organizador.acompanhantes(c)) acomp.add(a.getPath());
+        }
         // 1) corrompidos
         for (String id : ids) {
             JSONObject j = jogos.getJSONObject(id);
@@ -206,7 +213,7 @@ public final class Limpeza {
         for (String id : ids) {
             if (saiu.contains(id)) continue;
             JSONObject j = jogos.getJSONObject(id);
-            if (!j.optBoolean("disponivel", true) || !new File(j.optString("caminho")).isFile()) continue;
+            if (!j.optBoolean("disponivel", true) || !new File(j.optString("caminho")).isFile() || acomp.contains(j.optString("caminho"))) continue;
             String ext = Organizador.ext(new File(j.optString("caminho")));
             if (ext.equals("m3u")) continue;
             String g = grupo(j);
@@ -231,7 +238,7 @@ public final class Limpeza {
             JSONObject j = jogos.getJSONObject(id);
             File f = new File(j.optString("caminho"));
             String ext = Organizador.ext(f);
-            if (!j.optBoolean("disponivel", true) || !f.isFile() || f.length() == 0 || ext.equals("cue") || ext.equals("m3u") || ext.equals("gdi")) continue;
+            if (!j.optBoolean("disponivel", true) || !f.isFile() || f.length() == 0 || acomp.contains(f.getPath()) || ext.equals("cue") || ext.equals("m3u") || ext.equals("gdi")) continue;
             String k = j.optString("plataforma") + "|" + f.length();
             List<JSONObject> l = porTam.get(k);
             if (l == null) { l = new ArrayList<JSONObject>(); porTam.put(k, l); }
