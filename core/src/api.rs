@@ -454,6 +454,13 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
             mudou = true;
             Ok(json!({ "duracao_s": d }))
         }
+        "central_emuladores" => {
+            let amb = Ambiente::atual();
+            let cfg = Configuracao::carregar(&arquivo_de_configuracao(&arquivo));
+            let inst = emuladores::descobrir(&amb, &cfg);
+            let consoles: Vec<(String, usize)> = b.plataformas().into_iter().map(|p| (p.id, p.total)).collect();
+            Ok(json!({ "consoles": crate::instalador::central(&inst, &pasta_de_dados(&arquivo), &consoles), "aparelho": crate::sistema::aparelho() }))
+        }
         "emuladores" => {
             let amb = Ambiente::atual();
             let cfg = Configuracao::carregar(&arquivo_de_configuracao(&arquivo));

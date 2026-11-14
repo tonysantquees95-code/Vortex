@@ -125,6 +125,8 @@ export interface Motor {
     gerar(id: string): Promise<PerfilJogo | null>;
     limpar(id: string): Promise<void>;
   };
+  /** Windows: o que cada console da biblioteca usa e se já está pronto. */
+  central?(): Promise<CentralEmuladores>;
   /** IA da faxina: nomes parecidos e arquivos pequenos demais. Nada é movido sem a pessoa confirmar. */
   faxinaIA?: {
     revisar(): Promise<RevisaoFaxina>;
@@ -186,3 +188,6 @@ export interface RevisaoFaxina { parecidos: ItemRevisao[][]; suspeitos: ItemRevi
 export interface SugestaoFaxina { duplicados: { manter: string; remover: string[]; motivo: string }[]; corrompidos: { id: string; motivo: string }[]; observacoes?: string }
 
 export interface PerfilJogo { ajustes: Record<string, string>; motivo: string; origem: string }
+
+export interface LinhaCentral { id: string; nome: string; jogos: number; estado: "pronto" | "baixa" | "instalar"; emulador: string; aviso: string | null }
+export interface CentralEmuladores { consoles: LinhaCentral[]; aparelho: { so: string; cpu: string; nucleos: number; ram_gb: number } }

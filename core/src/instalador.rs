@@ -165,6 +165,57 @@ pub fn baixar_do_github(url: &str, destino: &Path) -> Result<(), String> {
     Ok(())
 }
 
+#[derive(Debug, serde::Serialize, PartialEq)]
+pub struct LinhaCentral {
+    pub id: String,
+    pub nome: String,
+    pub jogos: usize,
+    /// "pronto" (já dá para jogar), "baixa" (o Vortex baixa na primeira vez) ou "instalar" (precisa de um emulador instalado pela pessoa)
+    pub estado: String,
+    pub emulador: String,
+    pub aviso: Option<String>,
+}
+
+fn aviso_do_console(id: &str) -> Option<&'static str> {
+    match id {
+        "ps1" => Some("Alguns jogos pedem a BIOS do PlayStation (arquivos SCPH) na pasta system do RetroArch."),
+        "ps2" => Some("O PCSX2 precisa da BIOS do seu próprio PS2."),
+        "ps3" => Some("O RPCS3 precisa do firmware oficial do PS3, que se baixa no site da Sony."),
+        "saturn" | "segacd" | "dreamcast" => Some("Pode pedir BIOS do console na pasta system do RetroArch."),
+        "switch" => Some("Precisa de chaves e firmware do seu próprio Switch."),
+        _ => None,
+    }
+}
+
+/// O que cada console da biblioteca vai usar e se já está pronto. `consoles`: (id, jogos).
+pub fn central(instalados: &[crate::emuladores::Instalado], dados: &Path, consoles: &[(String, usize)]) -> Vec<LinhaCentral> {
+    use crate::emuladores::Modelo;
+    use crate::plataformas::{por_id, Tipo};
+    let mut v = Vec::new();
+    for (id, jogos) in consoles {
+        let Some(p) = por_id(id) else { continue };
+        if matches!(p.tipo, Tipo::Pc | Tipo::Android) {
+            continue;
+        }
+        let proprio = instalados.iter().find(|i| i.modelo == Modelo::Proprio && i.plataformas.iter().any(|x| x == id));
+        let nucleo = p.nucleos.first().copied();
+        let nucleo_pronto = nucleo.is_some_and(|n| dados.join("retroarch").join("cores").join(format!("{n}.dll")).is_file() || instalados.iter().any(|i| i.nucleos.iter().any(|x| x == n)));
+        let (estado, emulador) = if let Some(i) = proprio {
+            ("pronto", i.nome.clone())
+        } else if let Some(f) = fonte_para(id) {
+            ("baixa", f.catalogo.to_string())
+        } else if nucleo_pronto {
+            ("pronto", format!("RetroArch ({})", nucleo.unwrap_or("")))
+        } else if let Some(n) = nucleo {
+            ("baixa", format!("RetroArch ({n})"))
+        } else {
+            ("instalar", String::new())
+        };
+        v.push(LinhaCentral { id: id.clone(), nome: p.nome.to_string(), jogos: *jogos, estado: estado.into(), emulador, aviso: aviso_do_console(id).map(String::from) });
+    }
+    v
+}
+
 #[cfg(test)]
 mod testes {
     use super::*;
@@ -227,5 +278,16 @@ mod testes {
         fs::create_dir_all(&destino).unwrap();
         extrair_zip_inteiro(&z, &destino).unwrap();
         assert!(!t.path().join("fora.txt").exists());
+    }
+
+    #[test]
+    fn central_diz_o_que_cada_console_usa() {
+        let t = tempfile::tempdir().unwrap();
+        let c = central(&[], t.path(), &[("snes".into(), 3), ("ps2".into(), 1), ("switch".into(), 2), ("windows".into(), 9)]);
+        let e = |id: &str| c.iter().find(|l| l.id == id).map(|l| l.estado.clone());
+        assert_eq!(e("snes").as_deref(), Some("baixa"));
+        assert_eq!(e("ps2").as_deref(), Some("baixa"));
+        assert_eq!(e("switch").as_deref(), Some("instalar"));
+        assert!(c.iter().find(|l| l.id == "ps2").unwrap().aviso.is_some());
     }
 }

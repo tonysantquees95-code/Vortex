@@ -1,4 +1,4 @@
-import type { PedidoDaVenus, ContaVetorial, EstadoConta, RelatorioSaves, SaveNaNuvem, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, VarreduraSistema, SugestaoIA, RevisaoFaxina, PerfilJogo, SugestaoFaxina, RelatorioLimpeza, Oferta } from "./tipos";
+import type { PedidoDaVenus, ContaVetorial, EstadoConta, RelatorioSaves, SaveNaNuvem, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, VarreduraSistema, SugestaoIA, RevisaoFaxina, CentralEmuladores, PerfilJogo, SugestaoFaxina, RelatorioLimpeza, Oferta } from "./tipos";
 
 /** Windows: fala com o motor em Rust pelo comando "motor" do Tauri (o Rust acrescenta o caminho da biblioteca). */
 export async function motorTauri(): Promise<Motor> {
@@ -29,6 +29,7 @@ export async function motorTauri(): Promise<Motor> {
     adicionarPasta: (pasta) => c<string[]>("adicionar_pasta", { pasta }),
     removerPasta: async (pasta) => { await c("remover_pasta", { pasta }); },
     escanear: () => c<ResumoEscaneamento>("escanear"),
+    central: () => c<CentralEmuladores>("central_emuladores"),
     perfilIA: {
       ler: (id) => c<PerfilJogo | null>("perfil_jogo_ler", { id }),
       gerar: (id) => c<PerfilJogo | null>("perfil_jogo_ia", { id }),

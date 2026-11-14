@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ConfigGameBar, EmuladoresInfo, EstadoConta, Jogo, ModoDesempenho, ModoJogoConfig, Motor, PosicaoGameBar, RelatorioLimpeza, ResumoPlataforma, CandidataSistema, SugestaoIA, RevisaoFaxina, SugestaoFaxina } from "../ponte";
+import type { ConfigGameBar, EmuladoresInfo, CentralEmuladores, EstadoConta, Jogo, ModoDesempenho, ModoJogoConfig, Motor, PosicaoGameBar, RelatorioLimpeza, ResumoPlataforma, CandidataSistema, SugestaoIA, RevisaoFaxina, SugestaoFaxina } from "../ponte";
 import type { Ocultos } from "../ocultos";
 import { analogicoRola, definirAnalogicoRola, atualizarSozinho, definirAtualizarSozinho, definirLimparSozinho, definirOrganizarAutomatico, limparSozinho, organizarAutomatico } from "../config";
 import { faxinaAutomatica, resumoDaFaxina } from "../faxina";
@@ -132,10 +132,25 @@ export function TelaGameBar({ motor, avisar }: { motor: Motor; avisar: Avisar })
 
 export function TelaEmuladores({ motor }: { motor: Motor }) {
   const [emu, setEmu] = useState<EmuladoresInfo | null>(null);
-  useEffect(() => { motor.emuladores().then(setEmu).catch(() => {}); }, [motor]);
+  const [cen, setCen] = useState<CentralEmuladores | null>(null);
+  useEffect(() => { motor.emuladores().then(setEmu).catch(() => {}); motor.central?.().then(setCen).catch(() => {}); }, [motor]);
+  const ROTULO = { pronto: "Pronto", baixa: "Baixa sozinho", instalar: "Instale um emulador" } as const;
   return (
+    <div className="grid gap-4">
+    {cen && cen.consoles.length > 0 && (
+      <div className="vidro grid gap-2 p-4 text-sm">
+        <p className="text-slate-300">Seu computador: {cen.aparelho.cpu || "processador"} · {cen.aparelho.nucleos} núcleos · {cen.aparelho.ram_gb} GB de RAM</p>
+        {cen.consoles.map((l) => (
+          <div key={l.id} className="grid gap-0.5">
+            <div className="flex flex-wrap items-baseline gap-2"><span className="font-semibold">{l.nome}</span><span className="text-slate-400">{l.jogos} jogo(s)</span><span className={l.estado === "instalar" ? "text-amber-300" : "text-cyan-200"}>{ROTULO[l.estado]}{l.emulador ? ` · ${l.emulador}` : ""}</span></div>
+            {l.aviso && <p className="text-slate-400">{l.aviso}</p>}
+          </div>
+        ))}
+      </div>
+    )}
     <div className="vidro grid gap-2 p-4">
       {emu?.instalados.length ? emu.instalados.map((e) => <div key={e.id}><span className="font-semibold">{e.nome}</span> <span className="text-sm text-slate-400">· {e.plataformas.length} plataformas</span></div>) : <p className="text-slate-400">Nenhum emulador encontrado ainda. O Vortex baixa o motor de cada console sozinho na primeira vez que você abre um jogo.</p>}
+    </div>
     </div>
   );
 }
