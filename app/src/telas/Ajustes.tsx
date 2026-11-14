@@ -91,12 +91,13 @@ export function TelaModoJogo({ motor, avisar }: { motor: Motor; avisar: Avisar }
 const POSICOES: [PosicaoGameBar, string][] = [["oculta", "Escondida"], ["topo", "Em cima"], ["base", "Embaixo"], ["esquerda", "Esquerda"], ["direita", "Direita"]];
 const MODOS: [ModoDesempenho, string, string][] = [["economico", "🔋 Econômico", "Tela em 60 Hz e brilho menor: dura mais."], ["normal", "⚖ Normal", "Do jeito que o aparelho já faz."], ["turbo", "⚡ Turbo", "Taxa de atualização máxima e prioridade alta."]];
 const ITENS_GB: [keyof ConfigGameBar, string, string][] = [
-  ["fps", "FPS", "Quadros por segundo da tela (não o do jogo por dentro)."],
+  ["fps", "FPS", "Quadros por segundo reais do jogo (e o da tela entre parênteses)."],
   ["cpu", "CPU", "Uso de processador só do Vortex."],
   ["gpu", "GPU", "Aparece só nos aparelhos que deixam ler o uso da GPU."],
   ["ram", "Memória", "Memória livre do aparelho."],
   ["temp", "Temperatura", "Temperatura da bateria."],
   ["bateria", "Bateria", "Carga restante."],
+  ["ping", "Conexão", "Tempo de resposta da internet (ping)."],
 ];
 
 /** Game Bar: barra de status por cima do jogo (só nos jogos abertos dentro do Vortex), com troca rápida de modo. */

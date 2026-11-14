@@ -55,7 +55,7 @@ export type PosicaoGameBar = "oculta" | "topo" | "base" | "esquerda" | "direita"
 export type ModoDesempenho = "economico" | "normal" | "turbo";
 export interface ConfigGameBar {
   ligada: boolean; posicao: PosicaoGameBar; modo: ModoDesempenho; /** taxa de atualização da tela em Hz (0 = automática) */ taxa?: number;
-  fps: boolean; cpu: boolean; gpu: boolean; ram: boolean; temp: boolean; bateria: boolean;
+  fps: boolean; cpu: boolean; gpu: boolean; ram: boolean; temp: boolean; bateria: boolean; ping: boolean;
 }
 export interface Filtro { texto?: string; plataforma?: string | null; so_favoritos?: boolean; ordem?: Ordem; limite?: number }
 export interface ModoJogoConfig {

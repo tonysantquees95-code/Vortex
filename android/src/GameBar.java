@@ -38,7 +38,7 @@ public final class GameBar {
     static final String PREFS = "vortex_gamebar";
     static final List<String> POSICOES = Arrays.asList("topo", "base", "esquerda", "direita", "oculta");
     static final List<String> MODOS = Arrays.asList("economico", "normal", "turbo");
-    static final String[] ITENS = {"fps", "cpu", "gpu", "ram", "temp", "bateria"};
+    static final String[] ITENS = {"fps", "cpu", "gpu", "ram", "temp", "bateria", "ping"};
 
     public static JSONObject ler(Context c) throws Exception {
         SharedPreferences p = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
@@ -71,6 +71,11 @@ public final class GameBar {
     private int frames, fps;
     private long ultFps, ultCpuMs, ultCpuTicks = -1;
     private int cpu = -1;
+    // FPS real do jogo: quadros novos que o núcleo entregou (contador do motor de vídeo remendado), contra o FPS da tela
+    private long ultQuadrosJogo = -1, ultQuadrosEm;
+    private int fpsJogo = -1;
+    private volatile int pingMs = -1;
+    private long ultPing;
     private String modoAtual = "normal";
 
     private final Choreographer.FrameCallback quadro = new Choreographer.FrameCallback() {
@@ -376,6 +381,12 @@ public final class GameBar {
         if (texto == null) return;
         long agora = System.nanoTime();
         if (agora - ultFps >= 900_000_000L) { fps = Math.round(frames * 1e9f / (agora - ultFps)); frames = 0; ultFps = agora; }
+        long totalJogo = quadrosDoJogo();
+        if (totalJogo >= 0) {
+            if (ultQuadrosJogo >= 0 && agora - ultQuadrosEm >= 900_000_000L) { fpsJogo = Math.round((totalJogo - ultQuadrosJogo) * 1e9f / (agora - ultQuadrosEm)); ultQuadrosJogo = totalJogo; ultQuadrosEm = agora; }
+            else if (ultQuadrosJogo < 0) { ultQuadrosJogo = totalJogo; ultQuadrosEm = agora; }
+        }
+        if (cfg.optBoolean("ping", true) && System.currentTimeMillis() - ultPing > 5000) { ultPing = System.currentTimeMillis(); medirPing(); }
         long ms = System.currentTimeMillis(), t = ticksProprios();
         if (t >= 0 && ultCpuTicks >= 0 && ms > ultCpuMs) {
             long tck = 100;
@@ -385,7 +396,10 @@ public final class GameBar {
         ultCpuTicks = t; ultCpuMs = ms;
         StringBuilder s = new StringBuilder();
         String sep = cfg.optString("posicao", "topo").equals("esquerda") || cfg.optString("posicao", "topo").equals("direita") ? "\n" : "  ";
-        if (cfg.optBoolean("fps", true)) s.append("FPS ").append(fps).append(sep);
+        if (cfg.optBoolean("fps", true)) {
+            if (fpsJogo >= 0) s.append("FPS ").append(fpsJogo).append(" (tela ").append(fps).append(")").append(sep);
+            else s.append("FPS ").append(fps).append(sep);
+        }
         if (cfg.optBoolean("cpu", true) && cpu >= 0) s.append("CPU ").append(cpu).append("%").append(sep);
         if (cfg.optBoolean("gpu", true)) { int g = lerGpu(); if (g >= 0) s.append("GPU ").append(g).append("%").append(sep); }
         if (cfg.optBoolean("ram", true)) {
@@ -393,6 +407,7 @@ public final class GameBar {
             ((ActivityManager) act.getSystemService(Context.ACTIVITY_SERVICE)).getMemoryInfo(mi);
             if (mi.totalMem > 0) s.append("RAM ").append(100 - mi.availMem * 100 / mi.totalMem).append("%").append(sep);
         }
+        if (cfg.optBoolean("ping", true) && pingMs >= 0) s.append("PING ").append(pingMs).append("ms").append(sep);
         Intent b = act.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
         if (b != null) {
             if (cfg.optBoolean("temp", true)) s.append(String.format(Locale.US, "%.0f°C", b.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) / 10f)).append(sep);
@@ -400,5 +415,24 @@ public final class GameBar {
             if (cfg.optBoolean("bateria", true) && esc > 0) s.append("BAT ").append(b.getIntExtra(BatteryManager.EXTRA_LEVEL, 0) * 100 / esc).append("%");
         }
         texto.setText(s.toString().trim());
+    }
+
+    /** Quadros novos entregues pelo núcleo do jogo desde o começo (-1 quando o motor não tem o contador). */
+    private static long quadrosDoJogo() {
+        try { return (Long) Class.forName("com.swordfish.libretrodroid.LibretroDroid").getMethod("vortexQuadros").invoke(null); }
+        catch (Throwable e) { return -1; }
+    }
+
+    /** Tempo de uma conexão TCP até o DNS da Cloudflare, medido fora da tela principal. */
+    private void medirPing() {
+        new Thread(new Runnable() {
+            @Override public void run() {
+                long t0 = System.nanoTime();
+                try (java.net.Socket so = new java.net.Socket()) {
+                    so.connect(new java.net.InetSocketAddress("1.1.1.1", 53), 1500);
+                    pingMs = (int) ((System.nanoTime() - t0) / 1_000_000L);
+                } catch (Exception e) { pingMs = -1; }
+            }
+        }, "vortex-ping").start();
     }
 }

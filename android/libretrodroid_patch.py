@@ -121,6 +121,7 @@ trocar("libretrodroid.cpp", "uintptr_t LibretroDroid::callback_get_current_frame
 trocar("libretrodroid.cpp", "    if (video) {\n        video->onNewFrame(data, width, height, pitch);\n",
 """    static unsigned vortexQuadros = 0;
     vortexQuadros++;
+    if (data != nullptr) vortexTotalQuadros++; // quadro novo de verdade (o núcleo manda NULL quando repete o anterior)
     if (vortexQuadros <= 6 || vortexQuadros % 600 == 0) {
         LOGI("VORTEX: quadro %u do nucleo: %ux%u dados=%p buffer=%lu", vortexQuadros, width, height, data, video ? (unsigned long) video->getCurrentFramebuffer() : 0UL);
     }
@@ -153,6 +154,24 @@ trocar("environment.cpp", "    bottomLeftOrigin = hw_render_callback->bottom_lef
          (int) hw_render_callback->context_type, hw_render_callback->version_major, hw_render_callback->version_minor,
          (int) useDepth, (int) useStencil, (int) bottomLeftOrigin);
 """)
+
+# 3) contador de quadros reais do núcleo (o FPS do jogo por dentro), lido pelo Vortex via LibretroDroid.vortexQuadros()
+trocar("libretrodroid.cpp", "#include <jni.h>\n", "#include <jni.h>\n#include <atomic>\nstd::atomic<unsigned long long> vortexTotalQuadros(0);\n")
+trocar("libretrodroidjni.cpp", 'extern "C" {\n\nJNIEXPORT jint JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_availableDisks(',
+'''#include <atomic>
+extern std::atomic<unsigned long long> vortexTotalQuadros;
+
+extern "C" {
+
+JNIEXPORT jlong JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_vortexQuadros(
+    JNIEnv* env,
+    jclass obj
+) {
+    return (jlong) vortexTotalQuadros.load();
+}
+
+JNIEXPORT jint JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_availableDisks(''')
+trocar(raiz / "libretrodroid/src/main/java/com/swordfish/libretrodroid/LibretroDroid.java", "    public static native void pause();\n", "    public static native void pause();\n    public static native long vortexQuadros();\n")
 
 # 3) só as ABIs do Vortex
 # 4) o Dolphin deixa o estado do OpenGL "sujo" (vertex array e buffers ligados, recorte, mistura, máscara de cor...).
