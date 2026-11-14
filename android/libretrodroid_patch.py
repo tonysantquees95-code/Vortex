@@ -156,7 +156,8 @@ trocar("environment.cpp", "    bottomLeftOrigin = hw_render_callback->bottom_lef
 """)
 
 # 3) contador de quadros reais do núcleo (o FPS do jogo por dentro), lido pelo Vortex via LibretroDroid.vortexQuadros()
-trocar("libretrodroid.cpp", "#include <jni.h>\n", "#include <jni.h>\n#include <atomic>\nstd::atomic<unsigned long long> vortexTotalQuadros(0);\n")
+trocar("libretrodroid.cpp", "#include <jni.h>\n", "#include <jni.h>\n#include <atomic>\n")
+trocar("libretrodroid.cpp", "namespace libretrodroid {\n", "namespace libretrodroid {\n\nstd::atomic<unsigned long long> vortexTotalQuadros(0);\n")
 trocar("libretrodroidjni.cpp", 'extern "C" {\n\nJNIEXPORT jint JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_availableDisks(',
 '''#include <atomic>
 extern std::atomic<unsigned long long> vortexTotalQuadros;
