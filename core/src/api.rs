@@ -184,6 +184,16 @@ pub fn conta_e_saves(comando: &str, args: &Value, rede: &dyn nuvem::Rede) -> Res
             let c = nuvem::entrar(rede, &dados, texto(args, "email")?, texto(args, "senha")?, texto(args, "aparelho").unwrap_or("Computador"), "windows")?;
             Ok(json!({ "logado": true, "email": c.email }))
         }
+        "faxina_ia" => {
+            let c = nuvem::conta_salva(&dados).ok_or("Entre na sua conta Vetorial ID para usar a IA.")?;
+            let corpo = serde_json::to_vec(args).map_err(|e| e.to_string())?;
+            let r = rede.pedir("POST", "/vortex/ia/faxina", Some(&c.token), Some(&corpo), None)?;
+            let v: Value = serde_json::from_slice(&r.corpo).map_err(|_| "Resposta inesperada do servidor.".to_string())?;
+            if r.status >= 400 {
+                return Err(v.get("mensagem").or_else(|| v.get("erro")).and_then(|x| x.as_str()).unwrap_or("A IA não respondeu agora.").to_string());
+            }
+            Ok(v)
+        }
         "sistema_ia" => {
             // manda o resumo da varredura para a IA do servidor (DeepSeek/Groq); sem conta ou sem rede, o app segue sem IA
             let c = nuvem::conta_salva(&dados).ok_or("Entre na sua conta Vetorial ID para usar a IA na varredura.")?;
@@ -267,7 +277,7 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
     if comando == "preparar_jogo" {
         return preparar_jogo_com(args, &nucleos::baixar_da_libretro);
     }
-    if comando.starts_with("conta_") || comando.starts_with("ponte_") || comando == "saves_sincronizar" || comando == "saves_lista" || comando == "conta_pedir" || comando == "sistema_ia" {
+    if comando.starts_with("conta_") || comando.starts_with("ponte_") || comando == "saves_sincronizar" || comando == "saves_lista" || comando == "conta_pedir" || comando == "sistema_ia" || comando == "faxina_ia" {
         return conta_e_saves(comando, args, &nuvem::RedeReal);
     }
     if comando == "plataformas_catalogo" {
@@ -310,6 +320,21 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
             b.adicionar_pasta(&PathBuf::from(texto(args, "pasta")?))?;
             mudou = true;
             para(&b.pastas)
+        }
+        "faxina_revisao" => para(crate::limpeza::revisao(&b)),
+        "faxina_ia_aplicar" => {
+            let mut feitos = 0usize;
+            let mut falhas: Vec<String> = Vec::new();
+            for (campo, pasta) in [("duplicados", crate::limpeza::PASTA_DUPLICADOS), ("corrompidos", crate::limpeza::PASTA_CORROMPIDOS)] {
+                for id in args.get(campo).and_then(|x| x.as_array()).into_iter().flatten().filter_map(|x| x.as_str()) {
+                    match crate::limpeza::separar(&mut b, id, pasta) {
+                        Ok(()) => feitos += 1,
+                        Err(e) => falhas.push(e),
+                    }
+                }
+            }
+            mudou = true;
+            Ok(json!({ "separados": feitos, "falhas": falhas }))
         }
         "catalogo_ids" => Ok(json!(crate::plataformas::PLATAFORMAS.iter().map(|p| p.id).collect::<Vec<_>>())),
         "decidir_plataforma" => {

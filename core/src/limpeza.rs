@@ -156,6 +156,115 @@ pub fn isolar(b: &mut Biblioteca, id: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Move um jogo para Duplicados ou Corrompidos e tira da biblioteca (usado quando a IA sugere e a pessoa confirma).
+pub fn separar(b: &mut Biblioteca, id: &str, pasta: &str) -> Result<(), String> {
+    if pasta != PASTA_DUPLICADOS && pasta != PASTA_CORROMPIDOS {
+        return Err("Pasta inválida.".into());
+    }
+    let j = b.jogos.get(id).cloned().ok_or("Esse jogo não está mais na biblioteca.")?;
+    let mut falhas = Vec::new();
+    if j.caminho.is_file() && !mover_com_acompanhantes(&j.caminho, &pasta_de(&j, pasta), &mut falhas) {
+        return Err(falhas.into_iter().next().unwrap_or_else(|| "Não consegui mover o arquivo.".into()));
+    }
+    b.jogos.remove(id);
+    Ok(())
+}
+
+fn distancia(a: &[char], b: &[char]) -> usize {
+    let mut anterior: Vec<usize> = (0..=b.len()).collect();
+    for (i, ca) in a.iter().enumerate() {
+        let mut atual = vec![i + 1];
+        for (j, cb) in b.iter().enumerate() {
+            atual.push((anterior[j] + usize::from(ca != cb)).min(anterior[j + 1] + 1).min(atual[j] + 1));
+        }
+        anterior = atual;
+    }
+    anterior[b.len()]
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct ItemRevisao {
+    pub id: String,
+    pub titulo: String,
+    pub plataforma: String,
+    pub bytes: u64,
+    pub arquivo: String,
+}
+
+#[derive(Debug, Serialize, Default)]
+pub struct Revisao {
+    /// grupos de jogos com nomes parecidos que as regras não juntaram
+    pub parecidos: Vec<Vec<ItemRevisao>>,
+    /// arquivos que as regras acham bons, mas que são pequenos demais para o console
+    pub suspeitos: Vec<ItemRevisao>,
+}
+
+fn item(j: &Jogo) -> ItemRevisao {
+    ItemRevisao { id: j.id.clone(), titulo: j.titulo.clone(), plataforma: j.plataforma.clone(), bytes: j.bytes, arquivo: j.caminho.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default() }
+}
+
+/// Casos de borda para a IA opinar: nomes quase iguais (grafia, idioma, "The", números) e arquivos muito menores que o normal do console.
+pub fn revisao(b: &Biblioteca) -> Revisao {
+    let mut r = Revisao::default();
+    let boas: Vec<&Jogo> = b.jogos.values().filter(|j| j.disponivel && !j.escondido && j.caminho.is_file()).collect();
+    // nomes parecidos, dentro do mesmo console
+    let mut baldes: HashMap<(String, String), Vec<&Jogo>> = HashMap::new();
+    for j in &boas {
+        let n: String = plataformas::normalizar(&j.titulo);
+        if n.chars().count() >= 4 {
+            baldes.entry((j.plataforma.clone(), n.chars().take(4).collect())).or_default().push(j);
+        }
+    }
+    let mut usados: std::collections::HashSet<String> = Default::default();
+    for (_, mut v) in baldes {
+        v.sort_by(|a, b| a.id.cmp(&b.id));
+        v.truncate(60);
+        for i in 0..v.len() {
+            if usados.contains(&v[i].id) {
+                continue;
+            }
+            let a: Vec<char> = plataformas::normalizar(&v[i].titulo).chars().collect();
+            let mut grupo = vec![item(v[i])];
+            for k in i + 1..v.len() {
+                if v[k].grupo == v[i].grupo || usados.contains(&v[k].id) {
+                    continue;
+                }
+                let c: Vec<char> = plataformas::normalizar(&v[k].titulo).chars().collect();
+                let limite = (a.len().max(c.len()) * 15 / 100).max(2);
+                if a.len().abs_diff(c.len()) <= limite && distancia(&a, &c) <= limite {
+                    grupo.push(item(v[k]));
+                }
+            }
+            if grupo.len() > 1 {
+                for g in &grupo {
+                    usados.insert(g.id.clone());
+                }
+                r.parecidos.push(grupo);
+            }
+        }
+    }
+    r.parecidos.truncate(40);
+    // muito menores que a mediana do console
+    let mut por_console: HashMap<&str, Vec<u64>> = HashMap::new();
+    for j in &boas {
+        por_console.entry(j.plataforma.as_str()).or_default().push(j.bytes);
+    }
+    for j in &boas {
+        let t = &por_console[j.plataforma.as_str()];
+        if t.len() < 5 {
+            continue;
+        }
+        let mut o = t.clone();
+        o.sort_unstable();
+        let mediana = o[o.len() / 2];
+        if j.bytes * 25 < mediana && motivo_de_corrupcao(&j.caminho).is_none() {
+            r.suspeitos.push(item(j));
+        }
+    }
+    r.suspeitos.truncate(40);
+    r
+}
+
 /// Move corrompidos e cópias repetidas para fora da biblioteca. Com `simulacao` só conta.
 pub fn limpar(b: &mut Biblioteca, simulacao: bool) -> RelatorioLimpeza {
     let mut r = RelatorioLimpeza { simulacao, ..Default::default() };
