@@ -12,7 +12,7 @@ use crate::plataformas::PLATAFORMAS;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Quem lê e grava a biblioteca (a tela e o vigia de jogo aberto) passa por aqui, uma de cada vez.
@@ -28,6 +28,12 @@ fn arquivo_de_configuracao(biblioteca: &Path) -> PathBuf {
 
 fn pasta_de_dados(biblioteca: &Path) -> PathBuf {
     biblioteca.parent().map(Path::to_path_buf).unwrap_or_default()
+}
+
+/// Chamado quando um jogo/emulador aberto pelo Vortex fecha (o app do Windows usa para trazer o Vortex de volta à frente com o foco).
+static AO_FECHAR_JOGO: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
+pub fn definir_ao_fechar_jogo(f: impl Fn() + Send + Sync + 'static) {
+    let _ = AO_FECHAR_JOGO.set(Box::new(f));
 }
 
 /// Abre o emulador e, quando ele fecha, soma o tempo jogado. Devolve o número do processo.
@@ -71,6 +77,10 @@ pub fn lancar_com_modo(plano: &Lancamento, biblioteca: PathBuf, id: String, relo
         let mut b = Biblioteca::carregar(&biblioteca);
         b.encerrar_sessao(&id, relogio());
         let _ = b.salvar(&biblioteca);
+        drop(_g);
+        if let Some(f) = AO_FECHAR_JOGO.get() {
+            f();
+        }
     });
     Ok(pid)
 }
@@ -719,22 +729,37 @@ fn pc_adicionar(args: &Value) -> Result<Value, String> {
     Ok(json!({ "ok": true, "atalho": saida }))
 }
 
-/// Abre uma pasta existente no gerenciador de arquivos do sistema (Explorer no Windows).
+/// Caminho do jeito que o Explorer entende: sem o prefixo \\?\ e com barras invertidas (barra normal faz o Explorer abrir "Documentos").
+pub fn caminho_para_explorer(p: &str) -> String {
+    let sem = p.strip_prefix("\\\\?\\").unwrap_or(p);
+    sem.replace('/', "\\")
+}
+
+/// Abre uma pasta existente no gerenciador de arquivos do sistema (Explorer no Windows). Se vier o caminho de um arquivo, abre a pasta dele com o arquivo marcado.
 fn abrir_pasta(pasta: &str) -> Result<(), String> {
     let p = std::path::Path::new(pasta);
-    if !p.is_dir() {
+    let arquivo = p.is_file();
+    if !p.is_dir() && !arquivo {
         return Err("Essa pasta não existe mais.".into());
     }
     #[cfg(windows)]
-    let r = Command::new("explorer").arg(p).spawn();
+    let r = {
+        let c = caminho_para_explorer(pasta);
+        if arquivo { Command::new("explorer").arg(format!("/select,{c}")).spawn() } else { Command::new("explorer").arg(c).spawn() }
+    };
     #[cfg(not(windows))]
-    let r = Command::new("xdg-open").arg(p).spawn();
+    let r = Command::new("xdg-open").arg(if arquivo { p.parent().unwrap_or(p) } else { p }).spawn();
     r.map(|_| ()).map_err(|e| format!("Não consegui abrir a pasta: {e}"))
 }
 
 #[cfg(test)]
 mod testes_url {
-    use super::url_segura;
+    use super::{caminho_para_explorer, url_segura};
+    #[test]
+    fn caminho_do_explorer_usa_barra_invertida() {
+        assert_eq!(caminho_para_explorer("D:/Jogos/GBA"), "D:\\Jogos\\GBA");
+        assert_eq!(caminho_para_explorer("\\\\?\\C:\\Roms"), "C:\\Roms");
+    }
     #[test]
     fn so_aceita_https_limpo() {
         assert!(url_segura("https://www.youtube.com/results?search_query=zelda+guia"));

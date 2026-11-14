@@ -67,13 +67,22 @@ export function useNavegacao() {
       if (!digitando && (e.key === "e" || e.key === "PageDown")) avisar("vortex:aba", 1);
       if (!digitando && e.key === "f") avisar("vortex:favorito");
     };
-    window.addEventListener("keydown", tecla);
-
     let quadro = 0;
     const anterior = new Map<string, boolean>();
     let ultimoMov = 0;
     let ultimoQuadro = 0;
     let conectado = false;
+    window.addEventListener("keydown", tecla);
+    // o Chromium só entrega o controle à janela que tem o foco e depois de um botão apertado: ao voltar de um jogo (ou do Alt+Tab),
+    // reinicia a leitura do zero para o primeiro botão apertado já ser reconhecido
+    const reiniciar = () => { conectado = false; anterior.clear(); ultimoMov = 0; try { window.focus(); } catch { /* sem foco */ } };
+    const aoConectar = () => reiniciar();
+    window.addEventListener("focus", reiniciar);
+    window.addEventListener("gamepadconnected", aoConectar);
+    window.addEventListener("gamepaddisconnected", aoConectar);
+    window.addEventListener("vortex:jogo-fechou", reiniciar);
+    document.addEventListener("visibilitychange", reiniciar);
+
     const ler = (agora: number) => {
       const pad = (navigator.getGamepads?.() ?? []).find((g) => g && g.connected) ?? null;
       if (!!pad !== conectado) { conectado = !!pad; avisar("vortex:controle", conectado); }
@@ -109,6 +118,10 @@ export function useNavegacao() {
       quadro = requestAnimationFrame(ler);
     };
     quadro = requestAnimationFrame(ler);
-    return () => { window.removeEventListener("keydown", tecla); cancelAnimationFrame(quadro); };
+    return () => {
+      window.removeEventListener("keydown", tecla); cancelAnimationFrame(quadro);
+      window.removeEventListener("focus", reiniciar); window.removeEventListener("gamepadconnected", aoConectar); window.removeEventListener("gamepaddisconnected", aoConectar);
+      window.removeEventListener("vortex:jogo-fechou", reiniciar); document.removeEventListener("visibilitychange", reiniciar);
+    };
   }, []);
 }

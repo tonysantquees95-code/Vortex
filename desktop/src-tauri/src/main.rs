@@ -70,6 +70,19 @@ fn instalar_atualizacao(url: String, sha256: String) -> Result<(), String> {
 
 fn main() {
     tauri::Builder::default()
+        .setup(|app| {
+            // quando o jogo fecha, o Vortex volta para a frente com o foco: sem isso o controle só volta a ser lido depois de um clique
+            let h = app.handle().clone();
+            vortex_core::api::definir_ao_fechar_jogo(move || {
+                if let Some(j) = h.get_webview_window("main") {
+                    let _ = j.unminimize();
+                    let _ = j.show();
+                    let _ = j.set_focus();
+                    let _ = j.eval("window.focus(); window.dispatchEvent(new CustomEvent('vortex:jogo-fechou'));");
+                }
+            });
+            Ok(())
+        })
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![motor, instalar_atualizacao])
         .run(tauri::generate_context!())
