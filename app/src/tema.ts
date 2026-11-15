@@ -25,7 +25,15 @@ export const TRACOS: Record<Traco, number> = { fino: 1.3, medio: 1.8, grosso: 2.
 export type ModeloBotoes = "circulo" | "quadrado" | "neon" | "vidro";
 export const MODELOS_BOTOES: ModeloBotoes[] = ["circulo", "quadrado", "neon", "vidro"];
 
+/** A luz que corre em volta das letras do logo: padrão (branca + cor do tema), RGB (muda de cor), branca ou uma cor escolhida. */
+export type ModoLuz = "padrao" | "rgb" | "branca" | "cor";
+export const MODOS_LUZ: { id: ModoLuz; nome: string }[] = [
+  { id: "padrao", nome: "Padrão" }, { id: "rgb", nome: "RGB" }, { id: "branca", nome: "Branca" }, { id: "cor", nome: "Cor escolhida" },
+];
+
 export interface Tema {
+  luz: ModoLuz;           // luz do logo
+  luzCor: string;         // "#rrggbb" usada no modo "cor"
   cor: string;            // id de uma cor pronta ou "#rrggbb" personalizada
   brilho: number;         // 0 a 100
   fundo: Fundo;
@@ -42,7 +50,7 @@ export interface Tema {
   capaFundo: string | null; // fundo "capa": endereço da capa escolhida
 }
 
-export const TEMA_PADRAO: Tema = { cor: "vermelho", brilho: 70, fundo: "console", formato: "futurista", cartas: "medio", icones: "medio", botoes: "circulo", tamanhoBotoes: "medio", opacidadeBotoes: 85, disposicoes: {}, animacoes: true, abertura: true, foto: null, capaFundo: null };
+export const TEMA_PADRAO: Tema = { luz: "padrao", luzCor: "#19e3ff", cor: "vermelho", brilho: 70, fundo: "console", formato: "futurista", cartas: "medio", icones: "medio", botoes: "circulo", tamanhoBotoes: "medio", opacidadeBotoes: 85, disposicoes: {}, animacoes: true, abertura: true, foto: null, capaFundo: null };
 
 const CHAVE = "vortex:tema";
 
@@ -54,6 +62,8 @@ export function limparTema(bruto: unknown): Tema {
   const cor = typeof o.cor === "string" && (CORES.some((c) => c.id === o.cor) || hexValido(o.cor)) ? (o.cor as string) : TEMA_PADRAO.cor;
   const b = Number(o.brilho);
   return {
+    luz: MODOS_LUZ.some((m) => m.id === o.luz) ? (o.luz as ModoLuz) : TEMA_PADRAO.luz,
+    luzCor: hexValido(o.luzCor) ? o.luzCor : TEMA_PADRAO.luzCor,
     cor,
     brilho: Number.isFinite(b) ? Math.max(0, Math.min(100, Math.round(b))) : TEMA_PADRAO.brilho,
     fundo: FUNDOS_VALIDOS.includes(o.fundo as Fundo) ? (o.fundo as Fundo) : TEMA_PADRAO.fundo, // "vortex" (antigo) cai no padrão
@@ -116,6 +126,8 @@ export function aplicarTema(t: Tema, raiz: HTMLElement = document.documentElemen
   s.setProperty("--brilho", String(t.brilho / 100));
   s.setProperty("--carta-min", t.cartas === "pequeno" ? "130px" : t.cartas === "grande" ? "200px" : "160px");
   s.setProperty("--traco", String(TRACOS[t.icones]));
+  s.setProperty("--luz-cor", t.luzCor);
+  raiz.dataset.luz = t.luz;
   raiz.dataset.fundo = t.fundo;
   raiz.dataset.formato = t.formato;
   raiz.dataset.animacoes = t.animacoes ? "1" : "0";

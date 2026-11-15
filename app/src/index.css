@@ -201,6 +201,13 @@ html[data-formato="futurista"] .cascata-item { border-radius: 4px; }
 .vx-logo .vx-corre { stroke-width: 5; stroke-dasharray: 13 87; stroke-dashoffset: 0; animation: vx-corre 3.4s linear infinite; }
 .vx-logo .vx-corre.a { stroke: #fff; stroke-opacity: .95; }
 .vx-logo .vx-corre.b { stroke: var(--neon2); stroke-width: 4; }
+/* luz do logo escolhida em Ajustes: RGB (muda de cor), branca ou uma cor só */
+@keyframes vx-matiz { 0%, 100% { stroke: #ff2a2a; } 33% { stroke: #2aff5a; } 66% { stroke: #2a6bff; } }
+html[data-luz="rgb"] .vx-logo .vx-corre { stroke: #ff2a2a; animation: vx-corre 3.4s linear infinite, vx-matiz 5s linear infinite; }
+html[data-luz="branca"] .vx-logo .vx-corre { stroke: #fff; }
+html[data-luz="cor"] .vx-logo .vx-corre { stroke: var(--luz-cor); }
+html[data-luz] .vx-logo.parado .vx-corre { animation: none; }
+@media (prefers-reduced-motion: reduce) { html[data-luz="rgb"] .vx-logo .vx-corre { animation: none; } }
 .marca-vx { display: inline-block; width: clamp(150px, 24vw, 270px); }
 /* na abertura o logo fica parado: filtro de desfoque + traços animados + clarão do WebGL juntos engasgavam no celular */
 .vx-logo.parado .vx-corre { animation: none; }

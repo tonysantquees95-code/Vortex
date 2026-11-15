@@ -37,3 +37,12 @@ test("linksDeDriver: com código do aparelho busca no catálogo da Microsoft; se
   assert.equal(linksDeDriver({ nome: "Pad", vid: "", pid: "" }).length, 1);
   assert.equal(new Set(PASSOS.map((p) => p.id)).size, PASSOS.length);
 });
+
+import { limparTema, TEMA_PADRAO } from "../src/tema.ts";
+test("luz do logo: valores estranhos voltam ao padrão e os bons ficam", () => {
+  assert.equal(limparTema({}).luz, "padrao");
+  assert.equal(limparTema({ luz: "rgb" }).luz, "rgb");
+  assert.equal(limparTema({ luz: "laser" }).luz, TEMA_PADRAO.luz);
+  assert.equal(limparTema({ luzCor: "#12abef" }).luzCor, "#12abef");
+  assert.equal(limparTema({ luzCor: "vermelho" }).luzCor, TEMA_PADRAO.luzCor);
+});

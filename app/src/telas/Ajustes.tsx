@@ -7,7 +7,8 @@ import { capaConhecida } from "../capas";
 import { BUILD } from "../atualizacao";
 import type { Atualizacao } from "../useAtualizacao";
 import { CONSOLES_VIRTUAIS, ESCOLHAS, type Escolha } from "../controlesVirtuais.ts";
-import { CORES, TEMA_PADRAO, coresDoTema, hexValido, type Fundo, type ModeloBotoes, type Tema } from "../tema";
+import { LogoVortex } from "./LogoVortex";
+import { CORES, MODOS_LUZ, TEMA_PADRAO, coresDoTema, hexValido, type Fundo, type ModeloBotoes, type Tema } from "../tema";
 import { Interruptor } from "./pecas";
 import { SeletorDeCor } from "./SeletorDeCor";
 import { Dock } from "./Dock";
@@ -495,6 +496,7 @@ export function TelaAparencia({ tema, aoMudar, jogos = [], avisar, botoesVirtuai
   };
   const personalizada = hexValido(tema.cor);
   const [escolhendoCor, setEscolhendoCor] = useState(false);
+  const [escolhendoLuz, setEscolhendoLuz] = useState(false);
   return (
     <div className="grid gap-6">
       <section className="grid gap-3">
@@ -507,6 +509,18 @@ export function TelaAparencia({ tema, aoMudar, jogos = [], avisar, botoesVirtuai
         </div>
         {escolhendoCor && <SeletorDeCor inicial={personalizada ? tema.cor : "#ff2a3d"} aoCancelar={() => setEscolhendoCor(false)} aoDefinir={(hex) => { m({ cor: hex }); setEscolhendoCor(false); }} />}
         <p className="text-sm text-slate-400">{CORES.find((c) => c.id === tema.cor)?.nome ?? "Personalizada"} · o último círculo deixa você escolher qualquer cor.</p>
+      </section>
+      <section className="grid gap-3">
+        <h3 className="text-lg font-bold text-cyan-100/90">Luz do logo (LED)</h3>
+        <div className="mx-auto w-full max-w-xs"><LogoVortex /></div>
+        <div className="flex flex-wrap gap-2">
+          {MODOS_LUZ.map((l) => (
+            <button key={l.id} data-foco className="chip" data-ativa={tema.luz === l.id} onClick={() => { m({ luz: l.id }); if (l.id === "cor") setEscolhendoLuz(true); }}>{l.nome}</button>
+          ))}
+        </div>
+        {tema.luz === "cor" && <button data-foco className="amostra" title="Escolher a cor da luz" aria-label="Escolher a cor da luz" onClick={() => setEscolhendoLuz(true)} style={{ background: tema.luzCor }} />}
+        {escolhendoLuz && <SeletorDeCor inicial={tema.luzCor} aoCancelar={() => setEscolhendoLuz(false)} aoDefinir={(hex) => { m({ luz: "cor", luzCor: hex }); setEscolhendoLuz(false); }} />}
+        <p className="text-sm text-slate-400">A luz que corre em volta das letras do Vortex: a padrão, RGB (muda de cor), branca ou a cor que você escolher.</p>
       </section>
       <section className="grid gap-2">
         <h3 className="text-lg font-bold text-cyan-100/90">Brilho neon: {tema.brilho}%</h3>
