@@ -399,10 +399,10 @@ export function TelaAtualizacoes({ motor, avisar, atualizacao }: { motor: Motor;
         <div className="text-sm text-slate-300">{BUILD > 0 ? `Você está na versão 1.${BUILD}.` : "Versão de desenvolvimento."}{atualizacao.nova ? ` Tem a 1.${atualizacao.nova.numero} esperando.` : ""}</div>
         <div className="flex flex-wrap gap-3">
           <button data-foco className="botao" disabled={atualizacao.conferindo || BUILD === 0} onClick={() => { atualizacao.conferir().then((v) => avisar(v ? `Versão nova: 1.${v.numero}` : "O Vortex já está na versão mais recente.")).catch((e) => avisar(String(e instanceof Error ? e.message : e))); }}>{atualizacao.conferindo ? "Verificando…" : "Verificar atualizações"}</button>
-          {atualizacao.nova && <button data-foco className="botao primario" disabled={atualizacao.instalando} onClick={() => { void atualizacao.atualizar(); }}>{atualizacao.instalando ? "Atualizando…" : `Atualizar para a 1.${atualizacao.nova.numero}`}</button>}
+          {atualizacao.nova && <button data-foco className="botao primario" disabled={atualizacao.instalando} onClick={() => { void atualizacao.atualizar(); }}>{atualizacao.fase === "baixando" ? `Baixando… ${atualizacao.total > 0 ? Math.min(100, Math.round((atualizacao.feitos / atualizacao.total) * 100)) + "%" : ""}` : atualizacao.fase === "pronta" ? "Instalar agora" : `Baixar a 1.${atualizacao.nova.numero}`}</button>}
         </div>
       </div>
-      <Interruptor ligado={autoAtualizar} rotulo="Atualizar sozinho" detalhe="Quando sai versão nova, o Vortex baixa e instala (nunca com um jogo abrindo)." aoMudar={(v) => { setAutoAtualizar(v); definirAtualizarSozinho(v); }} />
+      <Interruptor ligado={autoAtualizar} rotulo="Atualizar sozinho" detalhe="Quando sai versão nova, o Vortex baixa (nunca com um jogo abrindo) e mostra a barra. Você escolhe a hora de instalar." aoMudar={(v) => { setAutoAtualizar(v); definirAtualizarSozinho(v); }} />
     </div>
   );
 }

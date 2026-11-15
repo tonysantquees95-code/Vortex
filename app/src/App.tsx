@@ -30,6 +30,7 @@ import { BarraStatus } from "./telas/BarraStatus";
 import { androidParaJogos, favoritarAndroid, ehAndroid, pacoteDe, falhaDeAbertura, limparFalhas } from "./androidApps";
 import { capaConhecida, resolverCapa, usarIndiceDeCapas } from "./capas";
 import { faxinaAutomatica, resumoDaFaxina } from "./faxina";
+import { tamanho } from "./telas/Drive";
 
 type Aba = "inicio" | "biblioteca" | "loja" | "controles" | "favoritos" | "ajustes";
 const ABAS: [Aba, string, string][] = [["inicio", "Início", "inicio"], ["biblioteca", "Biblioteca", "biblioteca"], ["loja", "Loja", "loja"], ["favoritos", "Favoritos", "favoritos"], ["ajustes", "Ajustes", "ajustes"], ["controles", "Controles", "controles"]];
@@ -391,8 +392,15 @@ export function App() {
       )}
       {atualizacao.nova && !lancando && (
         <div className="entrar fixed right-6 top-6 z-[60] flex items-center gap-4 rounded-2xl border border-cyan-300/40 bg-[#0b1226ee] px-5 py-3 text-sm shadow-[0_0_30px_rgba(25,227,255,.3)]" role="status">
-          <span>Tem versão nova do Vortex (1.{atualizacao.nova.numero}).</span>
-          <button data-foco className="botao primario" disabled={atualizacao.instalando} onClick={() => { void atualizacao.atualizar(); }}>{atualizacao.instalando ? "Atualizando…" : "Atualizar"}</button>
+          <div className="flex flex-col gap-1.5">
+            <span>{atualizacao.fase === "nova" ? `Tem versão nova do Vortex (1.${atualizacao.nova.numero}).` : atualizacao.fase === "baixando" ? `Baixando o Vortex 1.${atualizacao.nova.numero}${atualizacao.total > 0 ? ` · ${Math.min(100, Math.round((atualizacao.feitos / atualizacao.total) * 100))}% (${tamanho(atualizacao.feitos)} de ${tamanho(atualizacao.total)})` : "…"}` : `O Vortex 1.${atualizacao.nova.numero} está pronto para instalar.`}</span>
+            {atualizacao.fase !== "nova" && (
+              <div className="h-2 w-64 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={atualizacao.fase === "pronta" ? 100 : atualizacao.total > 0 ? Math.round((atualizacao.feitos / atualizacao.total) * 100) : undefined}>
+                <div className="h-full rounded-full bg-gradient-to-r from-violet-400 to-cyan-300 transition-all" style={{ width: `${atualizacao.fase === "pronta" ? 100 : atualizacao.total > 0 ? Math.min(100, (atualizacao.feitos / atualizacao.total) * 100) : 10}%` }} />
+              </div>
+            )}
+          </div>
+          {atualizacao.fase !== "baixando" && <button data-foco className="botao primario" onClick={() => { void atualizacao.atualizar(); }}>{atualizacao.fase === "pronta" ? "Instalar agora" : "Baixar"}</button>}
         </div>
       )}
       {ocupado && <div className="fixed right-8 top-[4.5rem] z-[60] flex items-center gap-3 rounded-full border border-cyan-300/40 bg-[#0b1226ee] px-5 py-2.5 text-sm shadow-[0_0_24px_rgba(25,227,255,.25)]" role="status" aria-live="polite"><span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-cyan-300/30 border-t-cyan-300" /><span>Atualizando biblioteca… aguarde</span></div>}

@@ -13,6 +13,7 @@ export const NOVIDADES: Novidade[] = [
   { id: 6, data: "2026-11-15", tipo: "novo", titulo: "Teclado no Windows", texto: "No computador, sem controle ligado, o rodapé mostra as teclas: setas para navegar, Enter para abrir, A e D para trocar de aba, R para atualizar a biblioteca, U para ver se há versão nova, F para favoritar e Esc para voltar." },
   { id: 7, data: "2026-11-15", tipo: "novo", titulo: "Luz do logo com a cor que você quiser", texto: "Em Ajustes você escolhe a luz que corre em volta das letras do Vortex: a padrão, RGB (muda de cor), branca ou uma cor de sua escolha." },
   { id: 8, data: "2026-11-15", tipo: "correcao", titulo: "Jogo em destaque sem corte e luz do logo sempre correndo", texto: "Quando um jogo fica maior ao ser selecionado, o brilho e as bordas não são mais cortados nas pontas da lista. A luz em volta do nome Vortex agora corre mesmo se o Windows estiver com os efeitos de animação desligados. Jogos em .zip com imagem de PSP (.iso/.cso) agora são reconhecidos ao organizar a biblioteca." },
+  { id: 9, data: "2026-11-15", tipo: "melhoria", titulo: "Atualização com barra de download", texto: "Ao achar uma versão nova do Vortex, o aviso mostra a barra do download e, quando termina, você escolhe a hora de tocar em Instalar agora. É o mesmo jeito da Vênus, no Android e no Windows." },
 ];
 
 export const ROTULO: Record<TipoNovidade, string> = { novo: "Novo", melhoria: "Melhorou", correcao: "Corrigido" };

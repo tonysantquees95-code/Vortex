@@ -149,6 +149,10 @@ export interface Motor {
   pedirPermissao(id: string): Promise<void>;
   /** Baixa o instalador da versão nova (só do GitHub, com SHA-256) e instala. */
   instalarAtualizacao(url: string, sha256: string): Promise<void>;
+  /** Atualização em duas etapas: baixa com andamento e só instala quando a pessoa escolher. */
+  baixarAtualizacao(url: string, sha256: string, tamanho: number): Promise<void>;
+  progressoAtualizacao(): Promise<ProgressoAtualizacao>;
+  instalarBaixada(): Promise<void>;
   pastas(): Promise<string[]>;
   escolherPasta(): Promise<string | null>;
   adicionarPasta(pasta: string): Promise<string[]>;
@@ -195,3 +199,5 @@ export interface PerfilJogo { ajustes: Record<string, string>; motivo: string; o
 
 export interface LinhaCentral { id: string; nome: string; jogos: number; estado: "pronto" | "baixa" | "instalar"; emulador: string; aviso: string | null }
 export interface CentralEmuladores { consoles: LinhaCentral[]; aparelho: { so: string; cpu: string; nucleos: number; ram_gb: number } }
+
+export interface ProgressoAtualizacao { estado: "parada" | "baixando" | "pronta" | "erro"; feitos: number; total: number; erro: string }
