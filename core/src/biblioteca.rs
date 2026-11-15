@@ -335,7 +335,7 @@ impl Biblioteca {
                 };
                 let pl: Option<&'static Plataforma> = match plataformas::identificar(caminho, raiz).or_else(decidida) {
                     Some(p) => Some(p),
-                    None if plataformas::eh_pacote(&ext) => plataformas::identificar_dentro(&espiar_zip(caminho)),
+                    None if plataformas::eh_pacote(&ext) => plataformas::identificar_dentro(&espiar_zip(caminho)).or_else(|| plataformas::plataforma_do_zip(caminho)),
                     None => None,
                 };
                 let Some(pl) = pl else { continue };

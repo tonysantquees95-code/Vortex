@@ -202,7 +202,7 @@ pub fn organizar(origens: &[PathBuf], pasta_vortex: &Path, simulacao: bool) -> (
             let (plat, do_zip) = if plataformas::eh_pacote(&ext) {
                 match plataformas::plataforma_da_pasta(&arq, raiz) {
                     Some(p) if p.id == "arcade" => (Some(p), false),
-                    _ => (plataformas::identificar_dentro(&nomes_do_zip(&arq)), true),
+                    _ => (plataformas::plataforma_do_zip(&arq), true),
                 }
             } else {
                 (plataformas::identificar(&arq, raiz), false)
@@ -284,6 +284,34 @@ mod testes {
             w.write_all(c.as_bytes()).unwrap();
         }
         w.finish().unwrap();
+    }
+
+    #[test]
+    fn zip_com_iso_de_psp_vai_para_a_pasta_do_psp() {
+        let t = tempfile::tempdir().unwrap();
+        let dl = t.path().join("Downloads");
+        fs::create_dir_all(&dl).unwrap();
+        // imagem com a pasta PSP_GAME no começo, como os UMD de verdade
+        let mut iso = vec![0u8; 80_000];
+        iso[40_000..40_008].copy_from_slice(b"PSP_GAME");
+        let f = fs::File::create(dl.join("God of War_ Ghost of Sparta.zip")).unwrap();
+        let mut w = zip::ZipWriter::new(f);
+        w.start_file("God of War - Ghost of Sparta.iso", zip::write::SimpleFileOptions::default()).unwrap();
+        std::io::Write::write_all(&mut w, &iso).unwrap();
+        w.finish().unwrap();
+        // um .iso qualquer (sem PSP_GAME) continua sem dono: fica quieto
+        let g = fs::File::create(dl.join("misterio.zip")).unwrap();
+        let mut w2 = zip::ZipWriter::new(g);
+        w2.start_file("disco.iso", zip::write::SimpleFileOptions::default()).unwrap();
+        std::io::Write::write_all(&mut w2, &vec![0u8; 80_000]).unwrap();
+        w2.finish().unwrap();
+        let vortex = t.path().join("Vortex/Jogos");
+        let (r, _) = organizar(&[dl.clone()], &vortex, false);
+        assert_eq!(r.organizados.len(), 1, "{:?}", r.falhas);
+        let it = &r.organizados[0];
+        assert_eq!(it.plataforma, "psp");
+        assert!(it.extraido && it.destino.is_file() && it.destino.ends_with("God of War - Ghost of Sparta.iso"));
+        assert!(dl.join("misterio.zip").exists());
     }
 
     #[test]

@@ -110,10 +110,6 @@ pub fn normalizar(texto: &str) -> String {
         .collect()
 }
 
-pub fn por_id(id: &str) -> Option<&'static Plataforma> {
-    PLATAFORMAS.iter().find(|p| p.id == id)
-}
-
 pub fn extensao(caminho: &Path) -> String {
     caminho.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase()
 }
@@ -180,6 +176,64 @@ pub fn identificar_dentro(nomes: &[String]) -> Option<&'static Plataforma> {
     None
 }
 
+pub fn por_id(id: &str) -> Option<&'static Plataforma> {
+    PLATAFORMAS.iter().find(|p| p.id == id)
+}
+
+/// Descobre o console de uma imagem de disco pelo começo do conteúdo (para .iso/.cso/.pbp de dentro de um zip,
+/// onde não há pasta com o nome do console). `cabeca` é o início do arquivo já descompactado (até ~1 MB).
+pub fn identificar_pelo_miolo(nome: &str, cabeca: &[u8]) -> Option<&'static Plataforma> {
+    let tem = |ini: usize, txt: &[u8]| cabeca.len() >= ini + txt.len() && &cabeca[ini..ini + txt.len()] == txt;
+    match extensao(Path::new(nome)).as_str() {
+        // UMD do PSP: .cso e .pbp são quase sempre do PSP
+        "cso" | "pbp" => por_id("psp"),
+        "iso" => {
+            if tem(0x1C, &[0xC2, 0x33, 0x9F, 0x3D]) {
+                por_id("gamecube")
+            } else if tem(0x18, &[0x5D, 0x1C, 0x9E, 0xA3]) {
+                por_id("wii")
+            } else if cabeca.windows(8).any(|j| j == b"PSP_GAME") {
+                por_id("psp")
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Plataforma de um zip: primeiro pelos nomes dos arquivos de dentro; se forem imagens de disco ambíguas (.iso, .cso),
+/// espia o começo do arquivo para descobrir o console (ex.: PSP_GAME dentro do .iso).
+pub fn plataforma_do_zip(caminho: &Path) -> Option<&'static Plataforma> {
+    if let Some(p) = identificar_dentro(&nomes_do_zip(caminho)) {
+        return Some(p);
+    }
+    use std::io::Read;
+    let f = std::fs::File::open(caminho).ok()?;
+    let mut z = zip::ZipArchive::new(f).ok()?;
+    for i in 0..z.len().min(200) {
+        let Ok(e) = z.by_index(i) else { continue };
+        if e.is_dir() {
+            continue;
+        }
+        let nome = e.name().to_string();
+        let mut cabeca = Vec::new();
+        if e.take(1 << 20).read_to_end(&mut cabeca).is_err() {
+            continue;
+        }
+        if let Some(p) = identificar_pelo_miolo(&nome, &cabeca) {
+            return Some(p);
+        }
+    }
+    None
+}
+
+fn nomes_do_zip(caminho: &Path) -> Vec<String> {
+    let Ok(f) = std::fs::File::open(caminho) else { return vec![] };
+    let Ok(mut z) = zip::ZipArchive::new(f) else { return vec![] };
+    (0..z.len().min(200)).filter_map(|i| z.by_index(i).ok().filter(|e| !e.is_dir()).map(|e| e.name().to_string())).collect()
+}
+
 #[cfg(test)]
 mod testes {
     use super::*;
@@ -206,6 +260,18 @@ mod testes {
         assert_eq!(normalizar("Mega_Drive"), "megadrive");
         assert_eq!(normalizar("Jogos PC"), "jogospc");
         assert_eq!(normalizar("Pokémon"), "pokemon");
+    }
+
+    #[test]
+    fn imagem_de_disco_e_reconhecida_pelo_conteudo() {
+        let mut psp = vec![0u8; 70_000];
+        psp[40_000..40_008].copy_from_slice(b"PSP_GAME");
+        assert_eq!(identificar_pelo_miolo("God of War.iso", &psp).unwrap().id, "psp");
+        assert_eq!(identificar_pelo_miolo("jogo.cso", b"CISO").unwrap().id, "psp");
+        let mut gc = vec![0u8; 64];
+        gc[0x1C..0x20].copy_from_slice(&[0xC2, 0x33, 0x9F, 0x3D]);
+        assert_eq!(identificar_pelo_miolo("x.iso", &gc).unwrap().id, "gamecube");
+        assert!(identificar_pelo_miolo("qualquer.iso", &[0u8; 100]).is_none());
     }
 
     #[test]

@@ -70,8 +70,8 @@ export function Loja({ motor, aoInstalar, aoJogar, avisar }: { motor: Motor; aoI
       {lista && !grupos.length && <p className="py-10 text-slate-400">Nada encontrado.</p>}
       {grupos.map(([plat, itens]) => (
         <section key={plat} className="mb-8">
-          <h3 className="mb-3 text-lg font-bold text-cyan-100/90">{NOMES[plat] ?? plat.toUpperCase()}</h3>
-          <div className="rolagem flex gap-5 py-5 -my-5">
+          <h3 className="mb-3 px-6 text-lg font-bold text-cyan-100/90">{NOMES[plat] ?? plat.toUpperCase()}</h3>
+          <div className="rolagem flex gap-5 px-6 py-12 -my-12">
             {itens.map((o) => (
               <button key={o.id} data-foco className="carta" style={{ width: 170 }} onClick={() => setAberta(o)} title={o.titulo}>
                 <Capa j={comoJogo(o)} />

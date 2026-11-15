@@ -57,8 +57,8 @@ export function Carrossel({ titulo, jogos, aoAbrir }: { titulo: string; jogos: J
   if (!jogos.length) return null;
   return (
     <section className="entrar mb-8">
-      <h3 className="mb-3 px-10 text-lg font-bold tracking-wide text-cyan-100/90">{titulo}</h3>
-      <div className="rolagem flex gap-5 px-10 py-5 -my-5">{jogos.map((j) => <Carta key={j.id} j={j} aoAbrir={aoAbrir} />)}</div>
+      <h3 className="mb-3 px-16 text-lg font-bold tracking-wide text-cyan-100/90">{titulo}</h3>
+      <div className="rolagem flex gap-5 px-16 py-12 -my-12">{jogos.map((j) => <Carta key={j.id} j={j} aoAbrir={aoAbrir} />)}</div>
     </section>
   );
 }

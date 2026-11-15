@@ -206,9 +206,8 @@ html[data-formato="futurista"] .cascata-item { border-radius: 4px; }
 html[data-luz="rgb"] .vx-logo .vx-corre { stroke: #ff2a2a; animation: vx-corre 3.4s linear infinite, vx-matiz 5s linear infinite; }
 html[data-luz="branca"] .vx-logo .vx-corre { stroke: #fff; }
 html[data-luz="cor"] .vx-logo .vx-corre { stroke: var(--luz-cor); }
+/* a luz corre sempre (mesmo com "efeitos de animação" desligados no Windows): é um enfeite pequeno e foi escolhida pelo usuário */
 html[data-luz] .vx-logo.parado .vx-corre { animation: none; }
-@media (prefers-reduced-motion: reduce) { html[data-luz="rgb"] .vx-logo .vx-corre { animation: none; } }
 .marca-vx { display: inline-block; width: clamp(150px, 24vw, 270px); }
 /* na abertura o logo fica parado: filtro de desfoque + traços animados + clarão do WebGL juntos engasgavam no celular */
 .vx-logo.parado .vx-corre { animation: none; }
-@media (prefers-reduced-motion: reduce) { .vx-logo .vx-corre { animation: none; } }
