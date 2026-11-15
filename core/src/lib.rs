@@ -8,6 +8,7 @@ pub mod biblioteca;
 pub mod api;
 pub mod emuladores;
 pub mod modo_jogo;
+pub mod pacotes;
 pub mod organizador;
 pub mod limpeza;
 pub mod nucleos;

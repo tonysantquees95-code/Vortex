@@ -110,7 +110,8 @@ fn basico(caminho: &Path) -> Option<String> {
         }
         "m3u" | "gdi" | "ccd" | "mds" | "sub" => {}
         "zip" => {
-            if c.len() < 4 || &c[..2] != b"PK" {
+            // vale o que o arquivo é de verdade: um RAR ou 7z com nome .zip não é "danificado"
+            if crate::pacotes::tipo_pelo_conteudo(caminho).is_none() {
                 return Some("zip danificado".into());
             }
         }
@@ -127,7 +128,7 @@ fn basico(caminho: &Path) -> Option<String> {
             }
         }
     }
-    if ext == "zip" {
+    if ext == "zip" && crate::pacotes::tipo_pelo_conteudo(caminho) == Some(crate::pacotes::Tipo::Zip) {
         let ok = fs::File::open(caminho).ok().and_then(|f| zip::ZipArchive::new(f).ok()).is_some();
         if !ok {
             return Some("zip danificado".into());

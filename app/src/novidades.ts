@@ -14,6 +14,7 @@ export const NOVIDADES: Novidade[] = [
   { id: 7, data: "2026-11-15", tipo: "novo", titulo: "Luz do logo com a cor que você quiser", texto: "Em Ajustes você escolhe a luz que corre em volta das letras do Vortex: a padrão, RGB (muda de cor), branca ou uma cor de sua escolha." },
   { id: 8, data: "2026-11-15", tipo: "correcao", titulo: "Jogo em destaque sem corte e luz do logo sempre correndo", texto: "Quando um jogo fica maior ao ser selecionado, o brilho e as bordas não são mais cortados nas pontas da lista. A luz em volta do nome Vortex agora corre mesmo se o Windows estiver com os efeitos de animação desligados. Jogos em .zip com imagem de PSP (.iso/.cso) agora são reconhecidos ao organizar a biblioteca." },
   { id: 9, data: "2026-11-15", tipo: "melhoria", titulo: "Atualização com barra de download", texto: "Ao achar uma versão nova do Vortex, o aviso mostra a barra do download e, quando termina, você escolhe a hora de tocar em Instalar agora. É o mesmo jeito da Vênus, no Android e no Windows." },
+  { id: 10, data: "2026-11-15", tipo: "novo", titulo: "Descompacta 7z e RAR, e ZIP com nome trocado", texto: "Ao achar jogos soltos, o Vortex agora também descompacta arquivos 7z e RAR, e ZIP que na verdade são RAR ou 7z com o nome trocado. O jogo vai para a pasta do console certo e aparece na biblioteca, como já acontecia com ZIP. Esses arquivos deixam de ir para a pasta Corrompidos por engano." },
 ];
 
 export const ROTULO: Record<TipoNovidade, string> = { novo: "Novo", melhoria: "Melhorou", correcao: "Corrigido" };

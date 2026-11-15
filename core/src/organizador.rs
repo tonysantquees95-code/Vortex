@@ -1,5 +1,6 @@
 //! Organizador automático: acha jogos retrô soltos no computador (Downloads, Documentos, pastas de ROMs…), identifica o console,
 //! descompacta o que for preciso e guarda tudo na pasta do Vortex, uma pasta por console. Cada movimento fica num registro para desfazer.
+use crate::pacotes;
 use crate::plataformas::{self, Plataforma};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -142,6 +143,66 @@ fn extrair(zipado: &Path, pasta: &Path, plat: &Plataforma) -> Result<PathBuf, St
     Ok(principal)
 }
 
+/// 7z, RAR (ou um ZIP com extensão trocada que na verdade é um deles): descompacta numa pasta de trabalho, descobre o console
+/// e guarda como o ZIP (um arquivo só vai direto para a pasta do console; vários ganham subpasta com o nome do pacote).
+/// Ok(None): não parece ser de jogo (ou não deu para saber o console): o arquivo fica quieto onde está.
+fn organizar_pacote(arq: &Path, tipo: pacotes::Tipo, pasta_vortex: &Path, simulacao: bool) -> Result<Option<Item>, String> {
+    let nomes = pacotes::nomes(arq, tipo, 200);
+    let tem_jogo = nomes.iter().any(|n| plataformas::PLATAFORMAS.iter().any(|p| p.extensoes.contains(&plataformas::extensao(Path::new(n)).as_str())));
+    if !tem_jogo {
+        return Ok(None);
+    }
+    let mut plat = plataformas::identificar_dentro(&nomes);
+    if simulacao {
+        return Ok(plat.map(|p| Item { origem: arq.to_path_buf(), destino: pasta_vortex.join(nome_de_pasta(p)), plataforma: p.id.into(), extraido: true }));
+    }
+    let stem = arq.file_stem().and_then(|s| s.to_str()).unwrap_or("jogo").to_string();
+    let tmp = livre(pasta_vortex.join(".extraindo").join(&stem));
+    let feitos = match pacotes::extrair_tudo(arq, tipo, &tmp) {
+        Ok(f) => f,
+        Err(e) => {
+            let _ = fs::remove_dir_all(&tmp);
+            return Err(format!("{}: {e}", arq.display()));
+        }
+    };
+    if plat.is_none() {
+        // .iso/.cso ambíguos: espia o começo de cada arquivo (PSP_GAME, GameCube, Wii…)
+        for f in &feitos {
+            let mut cabeca = Vec::new();
+            if let Ok(a) = fs::File::open(f) {
+                use std::io::Read;
+                if a.take(1 << 20).read_to_end(&mut cabeca).is_err() {
+                    continue;
+                }
+            }
+            let nome = f.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if let Some(p) = plataformas::identificar_pelo_miolo(nome, &cabeca) {
+                plat = Some(p);
+                break;
+            }
+        }
+    }
+    let Some(plat) = plat else {
+        let _ = fs::remove_dir_all(&tmp);
+        return Ok(None);
+    };
+    let pasta = pasta_vortex.join(nome_de_pasta(plat));
+    let so_um = feitos.len() <= 1;
+    let base = if so_um { pasta.clone() } else { livre(pasta.join(&stem)) };
+    let mut principal = base.clone();
+    for f in &feitos {
+        let rel = f.strip_prefix(&tmp).unwrap_or(f);
+        let alvo = if so_um { livre(base.join(rel.file_name().unwrap_or_default())) } else { base.join(rel) };
+        mover_arquivo(f, &alvo)?;
+        if so_um || (principal == base && plat.extensoes.contains(&plataformas::extensao(&alvo).as_str())) {
+            principal = alvo;
+        }
+    }
+    let _ = fs::remove_dir_all(&tmp);
+    let _ = fs::remove_dir(pasta_vortex.join(".extraindo"));
+    Ok(Some(Item { origem: arq.to_path_buf(), destino: principal, plataforma: plat.id.into(), extraido: true }))
+}
+
 fn percorrer(dir: &Path, fora: &Path, nivel: u32, saida: &mut Vec<PathBuf>) {
     if nivel > 6 {
         return;
@@ -194,6 +255,26 @@ pub fn organizar(origens: &[PathBuf], pasta_vortex: &Path, simulacao: bool) -> (
                         if let Err(e) = mover_arquivo(&arq, &livre(pasta_vortex.join(crate::limpeza::PASTA_CORROMPIDOS).join(arq.file_name().unwrap_or_default()))) {
                             rel.falhas.push(e);
                         }
+                    }
+                    continue;
+                }
+            }
+            // 7z, RAR ou ZIP com extensão trocada: descompacta e guarda na pasta do console (arcade usa o pacote fechado)
+            let real = if matches!(ext.as_str(), "zip" | "7z" | "rar") { pacotes::tipo_pelo_conteudo(&arq) } else { None };
+            if let Some(t) = real.filter(|t| *t != pacotes::Tipo::Zip) {
+                let arcade = plataformas::plataforma_da_pasta(&arq, raiz).is_some_and(|p| p.id == "arcade");
+                if !arcade {
+                    feitos.insert(arq.clone());
+                    match organizar_pacote(&arq, t, pasta_vortex, simulacao) {
+                        Ok(Some(it)) => {
+                            if !simulacao {
+                                let _ = fs::remove_file(&arq);
+                                reg.movimentos.push(it.clone());
+                            }
+                            rel.organizados.push(it);
+                        }
+                        Ok(None) => {}
+                        Err(e) => rel.falhas.push(e),
                     }
                     continue;
                 }
@@ -312,6 +393,35 @@ mod testes {
         assert_eq!(it.plataforma, "psp");
         assert!(it.extraido && it.destino.is_file() && it.destino.ends_with("God of War - Ghost of Sparta.iso"));
         assert!(dl.join("misterio.zip").exists());
+    }
+
+    #[test]
+    fn sete_z_e_pacote_com_extensao_trocada_sao_descompactados_na_pasta_do_console() {
+        let t = tempfile::tempdir().unwrap();
+        let dl = t.path().join("Downloads");
+        fs::create_dir_all(&dl).unwrap();
+        // um 7z de verdade com um jogo de NES
+        let orig = t.path().join("orig");
+        fs::create_dir_all(&orig).unwrap();
+        fs::write(orig.join("Contra (USA).nes"), "b").unwrap();
+        sevenz_rust::compress_to_path(&orig, &dl.join("Contra.7z")).unwrap();
+        // o mesmo 7z, mas com o nome .zip (como um RAR renomeado)
+        fs::copy(dl.join("Contra.7z"), dl.join("Outro.zip")).unwrap();
+        // 7z sem jogo dentro fica quieto
+        let docs = t.path().join("docs");
+        fs::create_dir_all(&docs).unwrap();
+        fs::write(docs.join("relatorio.pdf"), "d").unwrap();
+        sevenz_rust::compress_to_path(&docs, &dl.join("papeis.7z")).unwrap();
+        let vortex = t.path().join("Vortex/Jogos");
+
+        let (r, reg) = organizar(&[dl.clone()], &vortex, false);
+        assert_eq!(r.organizados.len(), 2, "{:?}", r.falhas);
+        assert!(r.organizados.iter().all(|i| i.plataforma == "nes" && i.extraido && i.destino.is_file()));
+        assert!(!dl.join("Contra.7z").exists() && !dl.join("Outro.zip").exists(), "pacote descompactado sai da pasta de origem");
+        assert!(dl.join("papeis.7z").exists(), "o que não é jogo fica quieto");
+        assert!(!vortex.join("Corrompidos").exists(), "extensão trocada não é arquivo corrompido");
+        assert_eq!(reg.movimentos.len(), 2);
+        assert!(!vortex.join(".extraindo").exists(), "pasta de trabalho é apagada");
     }
 
     #[test]

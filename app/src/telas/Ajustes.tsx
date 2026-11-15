@@ -286,7 +286,7 @@ export function TelaJogos({ motor, avisar, aoMudarBiblioteca, plats = [], oculto
     <div className="grid gap-6">
       <section className="grid gap-3">
         <h3 className="text-lg font-bold text-cyan-100/90">Buscar jogos</h3>
-        <Interruptor ligado={auto} rotulo="Achar e organizar jogos sozinho" detalhe="Ao abrir, o Vortex procura jogos retrô soltos (Download, Roms, Games, pastas com nome de console), descompacta e guarda cada um na pasta do console." aoMudar={(v) => { setAuto(v); definirOrganizarAutomatico(v); }} />
+        <Interruptor ligado={auto} rotulo="Achar e organizar jogos sozinho" detalhe="Ao abrir, o Vortex procura jogos retrô soltos (Download, Roms, Games, pastas com nome de console), descompacta (ZIP, 7z e RAR) e guarda cada um na pasta do console." aoMudar={(v) => { setAuto(v); definirOrganizarAutomatico(v); }} />
         <div className="flex flex-wrap gap-3">
           <button data-foco className="botao primario" disabled={ocupado} onClick={organizarAgora}>{ocupado ? "Procurando…" : "⚡ Buscar e organizar agora"}</button>
           <button data-foco className="botao" disabled={ocupado} onClick={desfazer}>↶ Desfazer a organização</button>
