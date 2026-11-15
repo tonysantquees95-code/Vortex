@@ -7,7 +7,7 @@ import { aplicarTema, coresDoTema, guardarTema, lerTema, type Tema } from "./tem
 import { Abertura } from "./telas/Abertura";
 import { FundoDaTela } from "./telas/FundoDaTela";
 import { Configuracao } from "./telas/Configuracao";
-import { tempoJogado } from "./navegacao";
+import { tempoJogado, DICAS_TECLADO, ehWindows } from "./navegacao";
 import { Ajustes } from "./telas/Ajustes";
 import { Tour } from "./telas/Tour";
 import { Novidades } from "./telas/Novidades";
@@ -365,7 +365,9 @@ export function App() {
               ...(aba === "inicio" || aba === "biblioteca" || aba === "loja" ? [{ id: "atualizar", nome: atualizandoBib ? "Atualizando…" : "Atualizar biblioteca", icone: "atualizar", acao: true, girando: atualizandoBib, desligado: atualizandoBib }] : []),
             ]}
             aoEscolher={(id) => { if (id === "atualizar") void atualizarBiblioteca(true); else setAba(id as Aba); }} />
-          <div className="dicas max-md:hidden" aria-hidden><span><b>A</b> Abrir</span><span><b>B</b> Voltar</span><span><b>LB</b>/<b>RB</b> Abas</span><span><b>X</b> Atualizar biblioteca</span><span><b>Start</b> Atualização</span></div>
+          {!controle && ehWindows(navigator.userAgent)
+            ? <div className="dicas max-md:hidden" aria-hidden>{DICAS_TECLADO.map((d) => <span key={d.texto}>{d.teclas.map((t) => <b key={t}>{t}</b>)} {d.texto}</span>)}</div>
+            : <div className="dicas max-md:hidden" aria-hidden><span><b>A</b> Abrir</span><span><b>B</b> Voltar</span><span><b>LB</b>/<b>RB</b> Abas</span><span><b>X</b> Atualizar biblioteca</span><span><b>Start</b> Atualização</span></div>}
         </footer>
       </div>
 

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { analogicoRola } from "./config";
 import { lerId, normalizar, perfilAtivoDe, estaEscutando } from "./controle";
-import { direcoesDoControle, proximoFoco, type Candidato, type Direcao } from "./navegacao";
+import { acaoDaTecla, direcoesDoControle, proximoFoco, type Candidato, type Direcao } from "./navegacao";
 
 /** Elementos que podem receber foco: o que estiver na camada de cima (modal) ou, sem modal, a tela inteira. */
 function focaveis(): HTMLElement[] {
@@ -55,18 +55,16 @@ const avisar = (nome: string, detalhe?: unknown) => window.dispatchEvent(new Cus
 export function useNavegacao() {
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
-      const digitando = (e.target as HTMLElement)?.tagName === "INPUT";
-      const mapa: Record<string, Direcao> = { ArrowUp: "cima", ArrowDown: "baixo", ArrowLeft: "esquerda", ArrowRight: "direita" };
-      if (!digitando) { mapa.w = "cima"; mapa.s = "baixo"; mapa.a = "esquerda"; mapa.d = "direita"; }
-      const d = mapa[e.key];
-      if (d) {
-        if (digitando && (d === "esquerda" || d === "direita")) return;
-        e.preventDefault(); mover(d); return;
-      }
-      if (e.key === "Escape" || (e.key === "Backspace" && !digitando)) { avisar("vortex:voltar"); return; }
-      if (!digitando && (e.key === "q" || e.key === "PageUp")) avisar("vortex:aba", -1);
-      if (!digitando && (e.key === "e" || e.key === "PageDown")) avisar("vortex:aba", 1);
-      if (!digitando && e.key === "f") avisar("vortex:favorito");
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const alvo = e.target as HTMLElement | null;
+      const digitando = alvo?.tagName === "INPUT" || alvo?.tagName === "TEXTAREA" || !!alvo?.isContentEditable;
+      const acao = acaoDaTecla(e.key, digitando);
+      if (!acao) return;
+      if (acao.tipo === "mover") { e.preventDefault(); mover(acao.direcao); return; }
+      if (acao.tipo === "evento") { avisar(acao.nome, acao.detalhe); return; }
+      // Enter: botões e links já abrem sozinhos; os outros itens da tela (cartões de jogo) recebem o clique aqui
+      const atual = document.activeElement as HTMLElement | null;
+      if (atual?.hasAttribute("data-foco") && !["BUTTON", "A", "LABEL", "INPUT", "SELECT", "TEXTAREA", "SUMMARY"].includes(atual.tagName)) { e.preventDefault(); atual.click(); }
     };
     let quadro = 0;
     const anterior = new Map<string, boolean>();

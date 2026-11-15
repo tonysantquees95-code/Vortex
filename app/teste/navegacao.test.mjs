@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { proximoFoco, direcoesDoControle, tempoJogado, iniciais, matizDoTexto } from "../src/navegacao.ts";
+import { acaoDaTecla, ehWindows, DICAS_TECLADO, proximoFoco, direcoesDoControle, tempoJogado, iniciais, matizDoTexto } from "../src/navegacao.ts";
 
 const c = (id, x, y) => ({ id, caixa: { x, y, w: 100, h: 100 } });
 
@@ -51,4 +51,26 @@ test("controle genérico: setinha (hat) no eixo 9", async () => {
   assert.deepEqual(direcoesDoHat(eixos(0.7143)), ["esquerda"]);
   assert.deepEqual(direcoesDoHat([0, 0]), []);
   assert.deepEqual(direcoesDoControle([], eixos(0.1429)), ["baixo"]);
+});
+
+test("teclado: setas navegam, Enter abre, A e D trocam de aba", () => {
+  assert.deepEqual(acaoDaTecla("ArrowDown", false), { tipo: "mover", direcao: "baixo" });
+  assert.deepEqual(acaoDaTecla("Enter", false), { tipo: "abrir" });
+  assert.deepEqual(acaoDaTecla("a", false), { tipo: "evento", nome: "vortex:aba", detalhe: -1 });
+  assert.deepEqual(acaoDaTecla("D", false), { tipo: "evento", nome: "vortex:aba", detalhe: 1 });
+  assert.deepEqual(acaoDaTecla("r", false), { tipo: "evento", nome: "vortex:atualizar-biblioteca" });
+  assert.deepEqual(acaoDaTecla("u", false), { tipo: "evento", nome: "vortex:atualizacao" });
+  assert.deepEqual(acaoDaTecla("Escape", true), { tipo: "evento", nome: "vortex:voltar" });
+});
+
+test("teclado: digitando num campo, as letras não viram comando", () => {
+  for (const t of ["a", "d", "r", "u", "f", "Enter", "ArrowLeft", "ArrowRight"]) assert.equal(acaoDaTecla(t, true), null, t);
+  assert.deepEqual(acaoDaTecla("ArrowDown", true), { tipo: "mover", direcao: "baixo" });
+  assert.equal(acaoDaTecla("w", false), null);
+});
+
+test("dicas de teclado só no Windows", () => {
+  assert.equal(ehWindows("Mozilla/5.0 (Windows NT 10.0; Win64; x64)"), true);
+  assert.equal(ehWindows("Mozilla/5.0 (Linux; Android 14)"), false);
+  assert.ok(DICAS_TECLADO.some((d) => d.teclas.includes("Enter")));
 });

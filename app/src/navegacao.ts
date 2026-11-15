@@ -53,6 +53,43 @@ export function direcoesDoHat(eixos: number[]): Direcao[] {
   return mapa[passo] ?? [];
 }
 
+/** O que cada tecla faz (teclado do computador). Setas escolhem o jogo, Enter abre, A/D trocam de aba. */
+export type AcaoDeTecla =
+  | { tipo: "mover"; direcao: Direcao }
+  | { tipo: "evento"; nome: string; detalhe?: number }
+  | { tipo: "abrir" };
+
+export function acaoDaTecla(tecla: string, digitando: boolean): AcaoDeTecla | null {
+  const setas: Record<string, Direcao> = { ArrowUp: "cima", ArrowDown: "baixo", ArrowLeft: "esquerda", ArrowRight: "direita" };
+  if (setas[tecla]) return digitando && (tecla === "ArrowLeft" || tecla === "ArrowRight") ? null : { tipo: "mover", direcao: setas[tecla] };
+  if (tecla === "Escape") return { tipo: "evento", nome: "vortex:voltar" };
+  if (digitando) return null;
+  const t = tecla.length === 1 ? tecla.toLowerCase() : tecla;
+  switch (t) {
+    case "Backspace": return { tipo: "evento", nome: "vortex:voltar" };
+    case "Enter": return { tipo: "abrir" };
+    case "a": case "q": case "PageUp": return { tipo: "evento", nome: "vortex:aba", detalhe: -1 };
+    case "d": case "e": case "PageDown": return { tipo: "evento", nome: "vortex:aba", detalhe: 1 };
+    case "r": return { tipo: "evento", nome: "vortex:atualizar-biblioteca" };
+    case "u": return { tipo: "evento", nome: "vortex:atualizacao" };
+    case "f": return { tipo: "evento", nome: "vortex:favorito" };
+    default: return null;
+  }
+}
+
+/** Dicas de rodapé do teclado (Windows sem controle ligado). */
+export const DICAS_TECLADO: { teclas: string[]; texto: string }[] = [
+  { teclas: ["↑", "↓", "←", "→"], texto: "Navegar" },
+  { teclas: ["Enter"], texto: "Abrir" },
+  { teclas: ["A", "D"], texto: "Trocar de aba" },
+  { teclas: ["R"], texto: "Atualizar biblioteca" },
+  { teclas: ["U"], texto: "Atualização" },
+  { teclas: ["F"], texto: "Favoritar" },
+  { teclas: ["Esc"], texto: "Voltar" },
+];
+
+export const ehWindows = (ua: string): boolean => /Windows/i.test(ua) && !/Android/i.test(ua);
+
 /** Formata segundos jogados: "2 h 05 min", "35 min", "—". */
 export function tempoJogado(s: number): string {
   if (!s || s < 60) return s > 0 ? "menos de 1 min" : "—";
