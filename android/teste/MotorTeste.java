@@ -297,6 +297,25 @@ public class MotorTeste {
         confere(nomes.contains("Emuladores/ROMs/") || nomes.contains("Emuladores/"), "acha a pasta de emuladores (" + nomes + ")");
         confere(nomes.contains("Super Nintendo/"), "acha pasta com nome de console (" + nomes + ")");
         confere(!nomes.toString().contains("Android") && !nomes.toString().contains("Fotos"), "ignora Android/data e pastas sem relação (" + nomes + ")");
+        // controle virtual de cada console
+        DisposicaoControles psp = DisposicaoControles.automatica("psp");
+        confere(psp.analogicoEsq && !psp.analogicoDir && psp.direcional == DisposicaoControles.PEQUENO && DisposicaoControles.PS.equals(psp.botoes), "PSP: analógico à esquerda, direcional pequeno e botões de PlayStation");
+        DisposicaoControles nes = DisposicaoControles.automatica("nes");
+        confere(!nes.temAnalogico() && nes.direcional == DisposicaoControles.GRANDE && DisposicaoControles.AB.equals(nes.botoes) && DisposicaoControles.NENHUM.equals(nes.ombros), "NES: só direcional e 2 botões");
+        confere(DisposicaoControles.automatica("snes").ombros.equals(DisposicaoControles.LR) && !DisposicaoControles.automatica("snes").temAnalogico(), "SNES: direcional, 4 botões e L/R");
+        confere(DisposicaoControles.automatica("n64").analogicoEsq && DisposicaoControles.automatica("n64").analogicoDir, "N64: analógico e botões C (analógico direito)");
+        confere(DisposicaoControles.automatica("ps1").analogicoEsq && DisposicaoControles.automatica("ps1").analogicoDir && DisposicaoControles.automatica("ps1").ombros.equals(DisposicaoControles.LR2), "PS1: dois analógicos e L1/R1/L2/R2");
+        confere(DisposicaoControles.automatica("gamecube").ombros.equals(DisposicaoControles.GC) && DisposicaoControles.automatica("wii").analogicoDir, "GameCube/Wii mantêm o desenho de antes");
+        confere(DisposicaoControles.automatica("dreamcast").ombros.equals(DisposicaoControles.GATILHOS) && DisposicaoControles.automatica("dreamcast").analogicoEsq, "Dreamcast: analógico e gatilhos");
+        confere(!DisposicaoControles.automatica("mastersystem").select && DisposicaoControles.automatica("mastersystem").start, "Master System: só Start");
+        confere(DisposicaoControles.automatica("nao-existe").direcional == DisposicaoControles.GRANDE && DisposicaoControles.automatica(null).start, "console desconhecido cai no padrão");
+        confere(DisposicaoControles.de("psp", "direcional").direcional == DisposicaoControles.GRANDE && !DisposicaoControles.de("psp", "direcional").temAnalogico(), "escolha 'só direcional' tira o analógico");
+        confere(DisposicaoControles.de("nes", "analogico").analogicoEsq && DisposicaoControles.de("nes", "analogico").direcional == DisposicaoControles.SEM, "escolha 'só analógico' tira o direcional");
+        confere(DisposicaoControles.de("snes", "ambos").analogicoEsq && DisposicaoControles.de("snes", "ambos").direcional == DisposicaoControles.PEQUENO, "escolha 'os dois' junta direcional e analógico");
+        confere(DisposicaoControles.de("n64", "analogico").analogicoDir, "escolher o modelo não tira o analógico direito (botões C) do N64");
+        confere(DisposicaoControles.de("psp", "lixo").resumo.equals(DisposicaoControles.automatica("psp").resumo) && DisposicaoControles.de("psp", null).direcional == psp.direcional, "escolha inválida volta ao automático");
+        confere(DisposicaoControles.escolhaDe("{\"psp\":\"ambos\"}", "psp").equals("ambos") && DisposicaoControles.escolhaDe("{\"psp\":\"x\"}", "psp").equals("auto") && DisposicaoControles.escolhaDe("não é json", "psp").equals("auto") && DisposicaoControles.escolhaDe("{}", "psp").equals("auto"), "lê a escolha por console do texto gravado");
+        for (Plataformas.P pl : Plataformas.TODAS) confere(DisposicaoControles.automatica(pl.id) != null, "controle virtual definido para " + pl.id);
         System.out.println(falhas == 0 ? "TUDO CERTO" : falhas + " FALHAS");
         System.exit(falhas == 0 ? 0 : 1);
     }

@@ -6,6 +6,7 @@ import { faxinaAutomatica, resumoDaFaxina } from "../faxina";
 import { capaConhecida } from "../capas";
 import { BUILD } from "../atualizacao";
 import type { Atualizacao } from "../useAtualizacao";
+import { CONSOLES_VIRTUAIS, ESCOLHAS, type Escolha } from "../controlesVirtuais.ts";
 import { CORES, TEMA_PADRAO, coresDoTema, hexValido, type Fundo, type ModeloBotoes, type Tema } from "../tema";
 import { Interruptor } from "./pecas";
 import { SeletorDeCor } from "./SeletorDeCor";
@@ -451,10 +452,35 @@ function BotoesVirtuais({ tema, m }: { tema: Tema; m: (p: Partial<Tema>) => void
       <label className="grid gap-1 text-sm text-slate-300">Transparência: {tema.opacidadeBotoes}%
         <input data-foco type="range" min={30} max={100} step={5} value={tema.opacidadeBotoes} onChange={(e) => m({ opacidadeBotoes: Number(e.target.value) })} className="barra" aria-label="Opacidade dos botões" />
       </label>
+      <ControlePorConsole tema={tema} m={m} />
       <div className="vidro flex items-center justify-center gap-4 bg-black p-4" style={{ background: "#05060d" }} aria-hidden>
         {["A", "B", "X", "Y"].map((t, i) => <div key={t} style={{ ...estiloExemplo(tema.botoes, cor, tema.opacidadeBotoes, i === 1), transform: `scale(${esc})` }}>{t}</div>)}
       </div>
     </section>
+  );
+}
+
+/** O controle virtual de cada console já vem pronto (direcional, analógico, botões certos); aqui a pessoa troca o modelo de um console. */
+function ControlePorConsole({ tema, m }: { tema: Tema; m: (p: Partial<Tema>) => void }) {
+  const [console_, setConsole] = useState("psp");
+  const info = CONSOLES_VIRTUAIS.find((c) => c.id === console_) ?? CONSOLES_VIRTUAIS[0];
+  const atual: Escolha = tema.disposicoes[info.id] ?? "auto";
+  const escolher = (e: Escolha) => {
+    const resto = { ...tema.disposicoes };
+    if (e === "auto") delete resto[info.id]; else resto[info.id] = e;
+    m({ disposicoes: resto });
+  };
+  return (
+    <div className="grid gap-2 rounded-xl border border-white/10 p-3">
+      <h4 className="font-bold text-cyan-100/90">Controle de cada console</h4>
+      <p className="text-sm text-slate-400">O Vortex já sabe o que cada console usa e abre o jogo com o controle certo. Se preferir outro para um console, escolha aqui.</p>
+      <select data-foco value={info.id} onChange={(e) => setConsole(e.target.value)} className="vidro bg-transparent px-3 py-3 text-sm outline-none" aria-label="Console">
+        {CONSOLES_VIRTUAIS.map((c) => <option key={c.id} value={c.id} className="bg-slate-900">{c.nome}{tema.disposicoes[c.id] ? " ✎" : ""}</option>)}
+      </select>
+      <p className="text-sm text-slate-300">Automático neste console: <b>{info.auto}</b></p>
+      <div className="flex flex-wrap gap-2">{ESCOLHAS.map((e) => <button key={e.id} data-foco className="chip" data-ativa={atual === e.id} title={e.dica} onClick={() => escolher(e.id)}>{e.nome}</button>)}</div>
+      <p className="text-xs text-slate-500">{ESCOLHAS.find((e) => e.id === atual)?.dica}</p>
+    </div>
   );
 }
 

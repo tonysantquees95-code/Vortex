@@ -63,6 +63,8 @@ public class JogoActivity extends AppCompatActivity {
         dados.setSavesDirectory(savesDir.getAbsolutePath());
         new File(dados.getSystemDirectory()).mkdirs();
         nucleoAtual = nucleo == null ? "" : nucleo;
+        String platExtra = getIntent().getStringExtra("plataforma");
+        plataforma = platExtra == null ? "" : platExtra;
         // modo de teste do GameCube/Wii: desenho por software (lento, mas mostra se o problema é a placa de vídeo)
         if (nucleoAtual.startsWith("dolphin")) { ajustesDeImagemDolphin(dados); definirVariaveis(dados, juntar(variaveisDeQualidade(qualidadeDaImagem()), variaveisDeCorrecao(correcaoDeCores()))); }
         if (getIntent().getBooleanExtra("software", false) && nucleoAtual.startsWith("dolphin")) definirVariavel(dados, "dolphin_renderer", "Software");
@@ -442,6 +444,15 @@ public class JogoActivity extends AppCompatActivity {
     private String modelo = "circulo";
     private float escala = 1f;
     private int opac = 85;
+    private String plataforma = "";
+    private String disposicoesJson = "{}";
+
+    /** Controle virtual deste console: o automático, ou o que a pessoa escolheu para ele em Ajustes. */
+    private DisposicaoControles disposicao() {
+        String plat = plataforma;
+        if ((plat == null || plat.isEmpty()) && nucleoAtual.startsWith("dolphin")) plat = "gamecube"; // jogo aberto sem a plataforma: o núcleo diz
+        return DisposicaoControles.de(plat, DisposicaoControles.escolhaDe(disposicoesJson, plat));
+    }
 
     /** Chamado pelo app sempre que a pessoa muda a cor do sistema ou o modelo dos botões. */
     public static Object gravarVisual(Context ctx, org.json.JSONObject a) throws Exception {
@@ -450,6 +461,7 @@ public class JogoActivity extends AppCompatActivity {
             .putString("modelo", a.optString("modelo", "circulo"))
             .putString("tamanho", a.optString("tamanho", "medio"))
             .putInt("opacidade", a.optInt("opacidade", 85))
+            .putString("disposicoes", a.optString("disposicoes", "{}"))
             .apply();
         return new org.json.JSONObject().put("ok", true);
     }
@@ -461,6 +473,7 @@ public class JogoActivity extends AppCompatActivity {
         String t = sp.getString("tamanho", "medio");
         escala = "pequeno".equals(t) ? 0.85f : "grande".equals(t) ? 1.2f : 1f;
         opac = Math.max(30, Math.min(100, sp.getInt("opacidade", 85)));
+        disposicoesJson = sp.getString("disposicoes", "{}");
     }
 
     private int comAlfa(int c, int alfa) { return Color.argb(Math.max(0, Math.min(255, alfa)), Color.red(c), Color.green(c), Color.blue(c)); }
@@ -554,42 +567,67 @@ public class JogoActivity extends AppCompatActivity {
         lerVisual();
         FrameLayout f = new FrameLayout(this);
         int L = Gravity.START | Gravity.BOTTOM, R = Gravity.END | Gravity.BOTTOM;
-        final boolean gc = nucleoAtual.startsWith("dolphin");
-        if (gc) {
-            // GameCube: o analógico é quem guia (carro, personagem); o direcional pequeno serve para menus e opções
+        final DisposicaoControles d = disposicao();
+        // esquerda: direcional e/ou analógico, conforme o que o console usa (ou o que a pessoa escolheu para ele)
+        if (d.analogicoEsq && d.direcional == DisposicaoControles.SEM) {
+            f.addView(new Analogico(1), pAnalogico(L, 24, 24, 130));
+        } else if (d.analogicoEsq) {
+            // o analógico guia (personagem, carro); o direcional pequeno serve para menus e opções
             f.addView(new Analogico(1), pAnalogico(L, 24, 14, 120));
             por(f, botao("▲", KeyEvent.KEYCODE_DPAD_UP, false), 34, L, 67, 206);
             por(f, botao("◀", KeyEvent.KEYCODE_DPAD_LEFT, false), 34, L, 33, 172);
             por(f, botao("▶", KeyEvent.KEYCODE_DPAD_RIGHT, false), 34, L, 101, 172);
             por(f, botao("▼", KeyEvent.KEYCODE_DPAD_DOWN, false), 34, L, 67, 138);
-            f.addView(new Analogico(2), pAnalogico(R, 56, 214, 90));
         } else {
-        // direcional (esquerda)
-        por(f, botao("▲", KeyEvent.KEYCODE_DPAD_UP, false), 56, L, 72, 150);
-        por(f, botao("▼", KeyEvent.KEYCODE_DPAD_DOWN, false), 56, L, 72, 20);
-        por(f, botao("◀", KeyEvent.KEYCODE_DPAD_LEFT, false), 56, L, 14, 85);
-        por(f, botao("▶", KeyEvent.KEYCODE_DPAD_RIGHT, false), 56, L, 130, 85);
+            por(f, botao("▲", KeyEvent.KEYCODE_DPAD_UP, false), 56, L, 72, 150);
+            por(f, botao("▼", KeyEvent.KEYCODE_DPAD_DOWN, false), 56, L, 72, 20);
+            por(f, botao("◀", KeyEvent.KEYCODE_DPAD_LEFT, false), 56, L, 14, 85);
+            por(f, botao("▶", KeyEvent.KEYCODE_DPAD_RIGHT, false), 56, L, 130, 85);
         }
-        // botões de ação no padrão do RetroPad: B embaixo, A à direita, Y à esquerda, X em cima
-        por(f, botao("X", KeyEvent.KEYCODE_BUTTON_X, false), 56, R, 72, 150);
-        por(f, botao("B", KeyEvent.KEYCODE_BUTTON_B, false), 56, R, 72, 20);
-        por(f, botao("Y", KeyEvent.KEYCODE_BUTTON_Y, false), 56, R, 130, 85);
-        por(f, botao("A", KeyEvent.KEYCODE_BUTTON_A, false), 56, R, 14, 85);
-        // ombros e menu
-        if (gc) {
+        // direita: botões de ação no padrão do RetroPad (B embaixo, A à direita, Y à esquerda, X em cima)
+        boolean ps = DisposicaoControles.PS.equals(d.botoes);
+        if (DisposicaoControles.AB.equals(d.botoes)) {
+            por(f, botao("B", KeyEvent.KEYCODE_BUTTON_B, false), 60, R, 100, 70);
+            por(f, botao("A", KeyEvent.KEYCODE_BUTTON_A, false), 60, R, 30, 104);
+        } else {
+            por(f, botao(ps ? "△" : "X", KeyEvent.KEYCODE_BUTTON_X, false), 56, R, 72, 150);
+            por(f, botao(ps ? "✕" : "B", KeyEvent.KEYCODE_BUTTON_B, false), 56, R, 72, 20);
+            por(f, botao(ps ? "□" : "Y", KeyEvent.KEYCODE_BUTTON_Y, false), 56, R, 130, 85);
+            por(f, botao(ps ? "○" : "A", KeyEvent.KEYCODE_BUTTON_A, false), 56, R, 14, 85);
+        }
+        if (d.analogicoDir) f.addView(new Analogico(2), pAnalogico(R, 56, 214, 90));
+        // ombros
+        int TL = Gravity.START | Gravity.TOP, TR = Gravity.END | Gravity.TOP;
+        String o = d.ombros;
+        if (DisposicaoControles.GC.equals(o)) {
             // GameCube: os gatilhos L e R (acelerar e frear) são o L2 e o R2 do núcleo; o Z é o R1
-            por(f, botao("L", KeyEvent.KEYCODE_BUTTON_L2, false), 44, Gravity.START | Gravity.TOP, 20, 12);
-            por(f, botao("R", KeyEvent.KEYCODE_BUTTON_R2, false), 44, Gravity.END | Gravity.TOP, 20, 12);
-            por(f, botao("Z", KeyEvent.KEYCODE_BUTTON_R1, false), 44, Gravity.END | Gravity.TOP, 74, 12);
-        } else {
-            por(f, botao("L", KeyEvent.KEYCODE_BUTTON_L1, false), 44, Gravity.START | Gravity.TOP, 20, 12);
-            por(f, botao("R", KeyEvent.KEYCODE_BUTTON_R1, false), 44, Gravity.END | Gravity.TOP, 20, 12);
+            por(f, botao("L", KeyEvent.KEYCODE_BUTTON_L2, false), 44, TL, 20, 12);
+            por(f, botao("R", KeyEvent.KEYCODE_BUTTON_R2, false), 44, TR, 20, 12);
+            por(f, botao("Z", KeyEvent.KEYCODE_BUTTON_R1, false), 44, TR, 74, 12);
+        } else if (DisposicaoControles.N64.equals(o)) {
+            por(f, botao("L", KeyEvent.KEYCODE_BUTTON_L1, false), 44, TL, 20, 12);
+            por(f, botao("Z", KeyEvent.KEYCODE_BUTTON_L2, false), 44, TL, 74, 12);
+            por(f, botao("R", KeyEvent.KEYCODE_BUTTON_R1, false), 44, TR, 20, 12);
+        } else if (DisposicaoControles.GATILHOS.equals(o)) {
+            por(f, botao("LT", KeyEvent.KEYCODE_BUTTON_L2, false), 44, TL, 20, 12);
+            por(f, botao("RT", KeyEvent.KEYCODE_BUTTON_R2, false), 44, TR, 20, 12);
+        } else if (DisposicaoControles.LR2.equals(o)) {
+            boolean n3ds = "3ds".equals(plataforma);
+            por(f, botao(ps ? "L1" : "L", KeyEvent.KEYCODE_BUTTON_L1, false), 44, TL, 20, 12);
+            por(f, botao(ps ? "R1" : "R", KeyEvent.KEYCODE_BUTTON_R1, false), 44, TR, 20, 12);
+            por(f, botao(ps ? "L2" : n3ds ? "ZL" : "L2", KeyEvent.KEYCODE_BUTTON_L2, false), 44, TL, 74, 12);
+            por(f, botao(ps ? "R2" : n3ds ? "ZR" : "R2", KeyEvent.KEYCODE_BUTTON_R2, false), 44, TR, 74, 12);
+        } else if (DisposicaoControles.LR.equals(o)) {
+            por(f, botao("L", KeyEvent.KEYCODE_BUTTON_L1, false), 44, TL, 20, 12);
+            por(f, botao("R", KeyEvent.KEYCODE_BUTTON_R1, false), 44, TR, 20, 12);
         }
-        FrameLayout.LayoutParams ps = new FrameLayout.LayoutParams(ds(54), ds(32), Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM);
-        ps.setMargins(ds(-34), 0, 0, ds(14));
-        f.addView(botao("Select", KeyEvent.KEYCODE_BUTTON_SELECT, true), ps);
+        if (d.select) {
+            FrameLayout.LayoutParams psel = new FrameLayout.LayoutParams(ds(54), ds(32), Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM);
+            psel.setMargins(ds(-34), 0, 0, ds(14));
+            f.addView(botao("Select", KeyEvent.KEYCODE_BUTTON_SELECT, true), psel);
+        }
         FrameLayout.LayoutParams pt = new FrameLayout.LayoutParams(ds(54), ds(32), Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM);
-        pt.setMargins(ds(34), 0, 0, ds(14));
+        pt.setMargins(d.select ? ds(34) : 0, 0, 0, ds(14));
         f.addView(botao("Start", KeyEvent.KEYCODE_BUTTON_START, true), pt);
         Button sair = new Button(this);
         sair.setText("✕");

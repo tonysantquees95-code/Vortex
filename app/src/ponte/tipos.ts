@@ -92,7 +92,7 @@ export interface Oferta {
   url: string; sha256: string; bytes: number; instalado: boolean; jogo_id: string | null;
 }
 
-export interface VisualControles { cor: string; cor2: string; modelo: string; tamanho: string; opacidade: number }
+export interface VisualControles { cor: string; cor2: string; modelo: string; tamanho: string; opacidade: number; disposicoes?: Record<string, string> }
 
 export interface Motor {
   plataforma: "windows" | "android" | "demo";

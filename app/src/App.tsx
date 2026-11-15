@@ -70,8 +70,8 @@ export function App() {
   useEffect(() => {
     if (!motor.visualControles) return;
     const c = coresDoTema(tema);
-    void motor.visualControles({ cor: c.principal, cor2: c.segunda, modelo: tema.botoes, tamanho: tema.tamanhoBotoes, opacidade: tema.opacidadeBotoes }).catch(() => {});
-  }, [motor, tema.cor, tema.botoes, tema.tamanhoBotoes, tema.opacidadeBotoes]);
+    void motor.visualControles({ cor: c.principal, cor2: c.segunda, modelo: tema.botoes, tamanho: tema.tamanhoBotoes, opacidade: tema.opacidadeBotoes, disposicoes: tema.disposicoes }).catch(() => {});
+  }, [motor, tema.cor, tema.botoes, tema.tamanhoBotoes, tema.opacidadeBotoes, tema.disposicoes]);
   useEffect(() => { const f = () => setAbertura(true); window.addEventListener("vortex:abertura", f); return () => window.removeEventListener("vortex:abertura", f); }, []);
   const temporizador = useRef<number | undefined>(undefined);
 

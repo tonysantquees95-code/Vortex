@@ -341,7 +341,7 @@ public class VortexPlugin extends Plugin {
         // preferência: o motor embutido do próprio Vortex (sem instalar emulador)
         if (p != null && p.nucleos.length > 0 && NucleosAndroid.arquivo(getContext(), p.nucleos[0]).isFile()) {
             Intent jogo = new Intent(getContext(), JogoActivity.class);
-            jogo.putExtra("rom", rom.getAbsolutePath()).putExtra("nucleo", p.nucleos[0]).putExtra("id", j.getString("id"));
+            jogo.putExtra("rom", rom.getAbsolutePath()).putExtra("nucleo", p.nucleos[0]).putExtra("plataforma", p.id).putExtra("id", j.getString("id"));
             jogo.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getContext().startActivity(jogo);
             motor.executar("sessao_iniciar", new JSONObject().put("biblioteca", a.getString("biblioteca")).put("id", j.getString("id")));
