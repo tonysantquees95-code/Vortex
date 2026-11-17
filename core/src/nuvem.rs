@@ -104,7 +104,7 @@ fn mensagem(r: &Resposta) -> String {
 
 pub fn entrar(rede: &dyn Rede, dados: &Path, email: &str, senha: &str, nome_aparelho: &str, plataforma: &str) -> Result<Conta, String> {
     let dispositivo = id_do_aparelho(dados);
-    let corpo = json!({ "email": email.trim(), "senha": senha, "dispositivo": { "id": dispositivo, "nome": nome_aparelho, "plataforma": plataforma } });
+    let corpo = json!({ "email": email.trim(), "senha": senha, "app": "vortex", "dispositivo": { "id": dispositivo, "nome": nome_aparelho, "plataforma": plataforma } });
     let r = rede.pedir("POST", "/id/entrar", None, Some(corpo.to_string().as_bytes()), None)?;
     if r.status != 200 {
         return Err(mensagem(&r));

@@ -96,7 +96,7 @@ public final class Nuvem {
     public static JSONObject entrar(Rede rede, File dados, String email, String senha, String nomeAparelho) throws Exception {
         String disp = idDoAparelho(dados);
         JSONObject corpo = new JSONObject().put("email", email.trim()).put("senha", senha)
-                .put("dispositivo", new JSONObject().put("id", disp).put("nome", nomeAparelho).put("plataforma", "android"));
+                .put("app", "vortex").put("dispositivo", new JSONObject().put("id", disp).put("nome", nomeAparelho).put("plataforma", "android"));
         Resposta r = rede.pedir("POST", "/id/entrar", null, corpo.toString().getBytes(StandardCharsets.UTF_8), null);
         if (r.status != 200) throw new Exception(mensagem(r));
         JSONObject resp = new JSONObject(r.texto());
