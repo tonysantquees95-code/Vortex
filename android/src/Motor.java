@@ -32,6 +32,25 @@ public class Motor {
 
     public Motor(Relogio relogio, Baixador baixador) { this.relogio = relogio; this.baixador = baixador != null ? baixador : new Baixador() { public void baixar(String u, File d) throws Exception { baixarHttps(u, d); } }; }
 
+    /**
+     * Confere se o arquivo baixado é mesmo um núcleo (.so) do tipo de processador deste aparelho: cabeçalho ELF, 32/64 bits e
+     * arquitetura certos, e tamanho mínimo. Pega página de erro baixada no lugar do núcleo, arquivo cortado e núcleo de outro
+     * processador. Não substitui assinatura: o servidor da Libretro não publica hash fixo para a versão "latest".
+     */
+    public static boolean nucleoValido(byte[] cab, long tamanho, String abi) {
+        if (cab == null || cab.length < 20 || tamanho < 100_000 || abi == null) return false;
+        if (cab[0] != 0x7F || cab[1] != 'E' || cab[2] != 'L' || cab[3] != 'F') return false;
+        if (cab[5] != 1) return false; // little-endian
+        int classe = cab[4];
+        int maquina = (cab[18] & 0xFF) | ((cab[19] & 0xFF) << 8);
+        switch (abi) {
+            case "arm64-v8a": return classe == 2 && maquina == 0xB7;
+            case "armeabi-v7a": return classe == 1 && maquina == 0x28;
+            case "x86_64": return classe == 2 && maquina == 0x3E;
+            default: return false;
+        }
+    }
+
     static boolean hospedeiroPermitido(String url) { return url.startsWith("https://raw.githubusercontent.com/"); }
 
     /** Download de verdade (HTTPS), só dos servidores do catálogo. */

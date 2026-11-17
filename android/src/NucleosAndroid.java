@@ -55,6 +55,12 @@ public final class NucleosAndroid {
             }
         } finally { h.disconnect(); }
         if (!achou) { tmp.delete(); throw new Exception("O motor baixado veio incompleto. Tente de novo."); }
+        byte[] cab = new byte[20];
+        try (InputStream in = new java.io.FileInputStream(tmp)) {
+            int lidos = 0, r;
+            while (lidos < cab.length && (r = in.read(cab, lidos, cab.length - lidos)) > 0) lidos += r;
+        }
+        if (!Motor.nucleoValido(cab, tmp.length(), abi)) { tmp.delete(); throw new Exception("O motor baixado não é válido para este aparelho. Tente de novo mais tarde."); }
         so.delete();
         if (!tmp.renameTo(so)) throw new Exception("Não consegui guardar o motor baixado.");
         so.setReadOnly(); // o Android recusa carregar código gravável baixado depois da instalação

@@ -50,14 +50,14 @@ Estado em 2026-11-17: 48 testes da interface, 111 do motor em Rust e 150 verific
 ## Limites conhecidos
 
 - Não foi feita ainda uma bateria de testes em aparelhos reais variados (cada celular e cada controle se comporta de um jeito); a cobertura automática não substitui isso.
-- Os núcleos de emulador do Android são baixados do servidor oficial do libretro sem conferência de assinatura própria (a loja de jogos tem SHA-256; os núcleos ainda não).
+- Os núcleos de emulador do Android são baixados do servidor oficial do libretro (versão "latest", sem hash fixo). O Vortex confere o formato (ELF), o processador e o tamanho antes de usar, mas não há assinatura criptográfica; para isso seria preciso hospedar núcleos já conferidos nas releases do próprio repositório.
 - Jogos de console exigem que a pessoa tenha os próprios arquivos de jogo e, em alguns consoles, a BIOS; o Vortex não distribui jogos comerciais.
 - Ainda não há versão para Mac, Linux nem iPhone.
 
 ## Próximos passos
 
 - Testar o caminho completo em aparelhos reais: instalar, achar jogo, abrir, salvar na nuvem.
-- Conferência de integridade dos núcleos baixados.
+- Hospedar os núcleos nas releases do repositório com SHA-256 fixo.
 - Mais jogos no catálogo da loja e voz da Vênus dentro do Vortex.
 
 ## Regras para quem mexe no código

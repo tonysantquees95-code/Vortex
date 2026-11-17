@@ -316,6 +316,12 @@ public class MotorTeste {
         confere(DisposicaoControles.de("psp", "lixo").resumo.equals(DisposicaoControles.automatica("psp").resumo) && DisposicaoControles.de("psp", null).direcional == psp.direcional, "escolha inválida volta ao automático");
         confere(DisposicaoControles.escolhaDe("{\"psp\":\"ambos\"}", "psp").equals("ambos") && DisposicaoControles.escolhaDe("{\"psp\":\"x\"}", "psp").equals("auto") && DisposicaoControles.escolhaDe("não é json", "psp").equals("auto") && DisposicaoControles.escolhaDe("{}", "psp").equals("auto"), "lê a escolha por console do texto gravado");
         for (Plataformas.P pl : Plataformas.TODAS) confere(DisposicaoControles.automatica(pl.id) != null, "controle virtual definido para " + pl.id);
+        byte[] elf64 = new byte[20]; elf64[0] = 0x7F; elf64[1] = 'E'; elf64[2] = 'L'; elf64[3] = 'F'; elf64[4] = 2; elf64[5] = 1; elf64[18] = (byte) 0xB7;
+        byte[] elf32 = new byte[20]; elf32[0] = 0x7F; elf32[1] = 'E'; elf32[2] = 'L'; elf32[3] = 'F'; elf32[4] = 1; elf32[5] = 1; elf32[18] = 0x28;
+        byte[] html = "<html><body>erro 404</body></html>".getBytes();
+        confere(Motor.nucleoValido(elf64, 2_000_000, "arm64-v8a") && Motor.nucleoValido(elf32, 2_000_000, "armeabi-v7a"), "núcleo ELF do processador certo é aceito");
+        confere(!Motor.nucleoValido(elf32, 2_000_000, "arm64-v8a") && !Motor.nucleoValido(elf64, 2_000_000, "x86_64"), "núcleo de outro processador é recusado");
+        confere(!Motor.nucleoValido(html, 2_000_000, "arm64-v8a") && !Motor.nucleoValido(elf64, 5_000, "arm64-v8a") && !Motor.nucleoValido(null, 0, "arm64-v8a") && !Motor.nucleoValido(elf64, 2_000_000, null), "página de erro, arquivo pequeno demais e dados vazios são recusados");
         System.out.println(falhas == 0 ? "TUDO CERTO" : falhas + " FALHAS");
         System.exit(falhas == 0 ? 0 : 1);
     }

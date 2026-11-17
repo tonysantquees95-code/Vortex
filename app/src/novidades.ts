@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
   { id: 9, data: "2026-11-15", tipo: "melhoria", titulo: "Atualização com barra de download", texto: "Ao achar uma versão nova do Vortex, o aviso mostra a barra do download e, quando termina, você escolhe a hora de tocar em Instalar agora. É o mesmo jeito da Vênus, no Android e no Windows." },
   { id: 10, data: "2026-11-15", tipo: "novo", titulo: "Descompacta 7z e RAR, e ZIP com nome trocado", texto: "Ao achar jogos soltos, o Vortex agora também descompacta arquivos 7z e RAR, e ZIP que na verdade são RAR ou 7z com o nome trocado. O jogo vai para a pasta do console certo e aparece na biblioteca, como já acontecia com ZIP. Esses arquivos deixam de ir para a pasta Corrompidos por engano." },
   { id: 11, data: "2026-11-17", tipo: "correcao", titulo: "Apresentação rola no celular deitado", texto: "Com o celular deitado, a janela da apresentação ficava cortada e não dava para chegar nos botões. Agora o texto rola e os botões Voltar, Próximo e Pular ficam sempre à vista." },
+  { id: 12, data: "2026-11-17", tipo: "melhoria", titulo: "Motor do console mais seguro", texto: "Antes de usar o motor de um console baixado, o Vortex confere se o arquivo é mesmo um motor do tipo certo para o seu aparelho. Se vier uma página de erro, um arquivo cortado ou um motor de outro processador, ele recusa e pede para tentar de novo, em vez de travar o jogo." },
 ];
 
 export const ROTULO: Record<TipoNovidade, string> = { novo: "Novo", melhoria: "Melhorou", correcao: "Corrigido" };
