@@ -10,3 +10,7 @@
 - Tour (`app/src/tour.ts`, `telas/Tour.tsx`) → termos (`termos.ts`, `telas/Termos.tsx`) → configuração com as permissões explicadas (`telas/Configuracao.tsx`).
 - Função nova: acrescente (ou ajuste) um passo em `TOUR`. Permissão nova: explique o porquê antes de pedir. Mudou o texto dos termos: suba `VERSAO_DOS_TERMOS`.
 - A apresentação e os termos também ficam em Ajustes › Sobre.
+
+## Teste visual das telas
+- `app/teste-visual/telas.mjs` (motor) + `config.mjs` (telas a visitar) — `npm run build && npm run test:visual` abre o app (motor de demonstração, sem celular) em 7 tamanhos (celular pequeno até janela do Windows) e confere se cada tela e janela cabe, não estoura para o lado e se todo botão dá para alcançar. Roda na publicação e guarda as fotos como artefato `fotos-das-telas`.
+- Tela ou janela nova: acrescente um cenário em `config.mjs`.

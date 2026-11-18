@@ -211,3 +211,6 @@ html[data-luz] .vx-logo.parado .vx-corre { animation: none; }
 .marca-vx { display: inline-block; width: clamp(150px, 24vw, 270px); }
 /* na abertura o logo fica parado: filtro de desfoque + traços animados + clarão do WebGL juntos engasgavam no celular */
 .vx-logo.parado .vx-corre { animation: none; }
+
+/* celular em pé: a barra de status do topo aperta para caber ao lado do logo */
+@media (max-width: 420px) { .status-topo { gap: .5rem; font-size: .78rem; } .cabeca { padding-left: .75rem; padding-right: .75rem; } }

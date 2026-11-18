@@ -33,6 +33,18 @@ jobs:
         working-directory: app
       - run: npm run test && npm run typecheck && npm run build
         working-directory: app
+      - name: Teste visual das telas (7 tamanhos)
+        run: npm run test:visual
+        working-directory: app
+        env:
+          CHROME: C:/Program Files/Google/Chrome/Application/chrome.exe
+      - name: Guardar as fotos das telas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fotos-das-telas
+          path: app/teste-visual/fotos
+          if-no-files-found: ignore
 
   windows:
     needs: verificar

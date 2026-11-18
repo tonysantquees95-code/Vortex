@@ -17,6 +17,7 @@ export const NOVIDADES: Novidade[] = [
   { id: 10, data: "2026-11-15", tipo: "novo", titulo: "Descompacta 7z e RAR, e ZIP com nome trocado", texto: "Ao achar jogos soltos, o Vortex agora também descompacta arquivos 7z e RAR, e ZIP que na verdade são RAR ou 7z com o nome trocado. O jogo vai para a pasta do console certo e aparece na biblioteca, como já acontecia com ZIP. Esses arquivos deixam de ir para a pasta Corrompidos por engano." },
   { id: 11, data: "2026-11-17", tipo: "correcao", titulo: "Apresentação rola no celular deitado", texto: "Com o celular deitado, a janela da apresentação ficava cortada e não dava para chegar nos botões. Agora o texto rola e os botões Voltar, Próximo e Pular ficam sempre à vista." },
   { id: 12, data: "2026-11-17", tipo: "melhoria", titulo: "Motor do console mais seguro", texto: "Antes de usar o motor de um console baixado, o Vortex confere se o arquivo é mesmo um motor do tipo certo para o seu aparelho. Se vier uma página de erro, um arquivo cortado ou um motor de outro processador, ele recusa e pede para tentar de novo, em vez de travar o jogo." },
+  { id: 13, data: "2026-11-18", tipo: "correcao", titulo: "Cabe na tela do celular em pé", texto: "No celular em pé, a barra de cima (hora, bateria, controle e internet) não passa mais da largura da tela e o app deixa de sair para o lado." },
 ];
 
 export const ROTULO: Record<TipoNovidade, string> = { novo: "Novo", melhoria: "Melhorou", correcao: "Corrigido" };

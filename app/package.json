@@ -7,7 +7,8 @@
     "dev": "vite --port 5178",
     "build": "tsc -p tsconfig.json && vite build",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --test teste/*.test.mjs"
+    "test": "node --test teste/*.test.mjs",
+    "test:visual": "node teste-visual/telas.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.0",
@@ -24,6 +25,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
+    "playwright-core": "^1.65.1",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.0",
     "vite": "^6.0.0"

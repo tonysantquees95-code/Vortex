@@ -329,7 +329,7 @@ export function App() {
       <FundoDaTela tema={abertura ? { ...tema, fundo: "liso" } : tema} imagem={fundoImg} />
       <div className="relative flex h-full flex-col">
         <header className="cabeca grid gap-2 pb-1">
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
             <BarraStatus lado="esquerda" hora={hora} controle={controle} demo={motor.plataforma === "demo"} />
             <div className="text-center"><span className="marca-vx"><LogoVortex /></span></div>
             <BarraStatus lado="direita" hora={hora} controle={controle} demo={motor.plataforma === "demo"} />
