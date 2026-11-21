@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FeedbackDoApp } from "./telas/FeedbackDoApp";
 import { useMotor } from "./estado";
 import { focar, primeiroSemCampo, useNavegacao } from "./foco";
 import type { Estatisticas, Jogo, ResumoPlataforma } from "./ponte";
@@ -207,6 +208,8 @@ export function App() {
   }, [motor, avisar]);
 
   const [lendoTermos, setLendoTermos] = useState(false);
+  const [verFeedback, setVerFeedback] = useState(false);
+  useEffect(() => { const f = () => setVerFeedback(true); window.addEventListener("vortex:feedback", f); return () => window.removeEventListener("vortex:feedback", f); }, []);
   const [vendoTour, setVendoTour] = useState(false);
   const [tourInicial, setTourInicial] = useState(() => !tourVisto());
   const [novidades, setNovidades] = useState<Novidade[]>(() => { const v = lerNovidadesVistas(); return v === null ? [] : novasDesde(v); });
@@ -378,6 +381,7 @@ export function App() {
       {aberto && <Detalhe motor={motor} jogo={aberto} aoJogar={jogar} aoFavoritar={favoritar} aoFechar={() => setAberto(null)} aoEsconder={(j) => { mudarJogos(j.id, "esconder"); avisar(`${j.titulo} escondido do Início`); setAberto(null); }} aoTirar={(j) => { mudarJogos(j.id, "fora"); avisar(`${j.titulo} saiu da biblioteca`); setAberto(null); }} aoAbrirUrl={(u) => { motor.abrirUrl(u).catch(() => avisar("Não consegui abrir o navegador.")); }} />}
       {lendoTermos && <Termos aoFechar={() => setLendoTermos(false)} />}
       {vendoTour && <Tour rotuloFinal="Fechar" aoTerminar={() => setVendoTour(false)} />}
+      {verFeedback && <FeedbackDoApp aoFechar={() => setVerFeedback(false)} />}
       {verNovidades && <Novidades itens={novasDesde(0)} aoFechar={() => setVerNovidades(false)} />}
       {config && !abertura && novidades.length > 0 && <Novidades itens={novidades} aoFechar={() => setNovidades([])} />}
       {!config && !abertura && <Configuracao motor={motor} tema={tema} aoMudarTema={setTema} avisar={avisar} aoMudarBiblioteca={recarregar} aoTerminar={() => { marcarConfigurado(); setConfig(true); recarregar(); }} />}
