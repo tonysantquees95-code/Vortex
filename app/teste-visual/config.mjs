@@ -13,7 +13,7 @@ export default {
   },
   respostas: {},
   cenarios: [
-    ["primeira-abertura", "primeira", async () => {}],
+    ["primeira-abertura", "primeira", async (p) => { await p.waitForTimeout(1000); }],
     ["o-que-ha-de-novo", "atualizou", async (p) => { await p.getByText("O que há de novo").first().waitFor(); }],
     ...ABAS.map((a) => [`aba-${a.toLowerCase().normalize("NFD").replace(/[^a-z]/g, "")}`, "normal", async (p, ajuda) => { await ajuda.aba(p, a); }]),
     ["feedback", "normal", async (p, ajuda) => { await ajuda.aba(p, "Ajustes"); await p.getByRole("navigation", { name: "Seções dos ajustes" }).getByRole("button", { name: "Sobre", exact: true }).click(); await p.getByRole("button", { name: "Enviar feedback" }).evaluate((e) => e.click()); await p.getByText(/^FEEDBACK/).waitFor(); await p.waitForTimeout(300); }],
