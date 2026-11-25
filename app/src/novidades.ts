@@ -25,6 +25,7 @@ export const NOVIDADES: Novidade[] = [
   { id: 18, data: "2026-11-25", tipo: "novo", titulo: "Estados salvos, voltar no tempo e foto da tela (Android)", texto: "Na Game Bar, por cima do jogo, você salva e carrega o jogo em 3 espaços, volta 3 ou 6 segundos para desfazer um erro (nos consoles leves, como NES, Super Nintendo, Game Boy e Mega Drive) e tira uma foto da tela. As fotos ficam em Imagens › Vortex." },
   { id: 19, data: "2026-11-25", tipo: "novo", titulo: "Filtros de imagem (Android)", texto: "Ainda na Game Bar, escolha o filtro da imagem: Padrão, Nítido, Suave, TV de tubo ou LCD. O Vortex lembra a sua escolha." },
   { id: 20, data: "2026-11-25", tipo: "novo", titulo: "Dentro do jogo (Windows)", texto: "Em Ajustes › Emuladores, escolha o filtro de imagem de todos os jogos e ligue o retroceder. No jogo: F2 salva, F4 carrega, segure R para voltar no tempo, segure Espaço para acelerar e F8 tira uma foto da tela. Com controle, aperte Start e Select juntos para abrir o menu do RetroArch." },
+  { id: 21, data: "2026-11-25", tipo: "novo", titulo: "Vortex grátis, sem login", texto: "O Vortex agora é 100% grátis: abra e jogue sem criar conta e sem pagar nada. O Vetorial ID ficou opcional, só para quem quer os saves na nuvem. Os termos foram atualizados para dizer isso." },
 ];
 
 export const ROTULO: Record<TipoNovidade, string> = { novo: "Novo", melhoria: "Melhorou", correcao: "Corrigido" };
