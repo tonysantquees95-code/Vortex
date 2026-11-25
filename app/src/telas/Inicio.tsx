@@ -217,7 +217,12 @@ export function Inicio({ colecoes, inicial, aoFocar, aoFocarJogo, aoLembrar, aoJ
             {atual.jogos.slice(0, 4).map((j) => <div key={j.id} className="mini-capa"><Capa j={j} /></div>)}
           </div>
           {atual.tipo === "console" && <button data-foco className="botao mt-2 w-fit" onClick={() => aoInfoConsole(atual)}>ⓘ Informações do console</button>}
-          {jogoParaContinuar && <button data-foco className="botao continuar mt-2" onClick={() => aoContinuar(jogoParaContinuar)}>▶ Continuar: {jogoParaContinuar.titulo}</button>}
+          {jogoParaContinuar && (
+            <button data-foco className="continuar-cartao mt-2" onClick={() => aoContinuar(jogoParaContinuar)} aria-label={`Continuar de onde parou: ${jogoParaContinuar.titulo}`}>
+              <span className="mini-capa"><Capa j={jogoParaContinuar} /></span>
+              <span className="min-w-0 flex-1"><span className="rotulo">▶ Continuar de onde parou</span><span className="titulo">{jogoParaContinuar.titulo}</span><span className="detalhe">{jogoParaContinuar.plataforma.toUpperCase()}{jogoParaContinuar.sessoes ? ` · ${tempoJogado(jogoParaContinuar.tempo_total_s)} jogados` : ""}</span></span>
+            </button>
+          )}
         </div>
       )}
     </div>

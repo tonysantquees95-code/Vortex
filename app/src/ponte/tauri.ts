@@ -1,4 +1,9 @@
-import type { PedidoDaVenus, ContaVetorial, EstadoConta, RelatorioSaves, SaveNaNuvem, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, VarreduraSistema, SugestaoIA, RevisaoFaxina, CentralEmuladores, PerfilJogo, SugestaoFaxina, RelatorioLimpeza, Oferta } from "./tipos";
+import { FILTROS_DE_IMAGEM, type AjustesDeJogo, type FiltroDeImagem, type PedidoDaVenus, ContaVetorial, EstadoConta, RelatorioSaves, SaveNaNuvem, EmuladoresInfo, Estatisticas, Jogo, Motor, ModoJogoConfig, ResumoEscaneamento, ResumoPlataforma, ResultadoLancamento, RelatorioOrganizacao, VarreduraSistema, SugestaoIA, RevisaoFaxina, CentralEmuladores, PerfilJogo, SugestaoFaxina, RelatorioLimpeza, Oferta } from "./tipos";
+
+const ajustesDe = (cfg?: Record<string, unknown>): AjustesDeJogo => ({
+  filtro: (FILTROS_DE_IMAGEM as string[]).includes(String(cfg?.filtro ?? "")) ? (String(cfg?.filtro ?? "") as FiltroDeImagem) : "",
+  retroceder: cfg?.sem_retroceder !== true,
+});
 
 /** Windows: fala com o motor em Rust pelo comando "motor" do Tauri (o Rust acrescenta o caminho da biblioteca). */
 export async function motorTauri(): Promise<Motor> {
@@ -58,6 +63,10 @@ export async function motorTauri(): Promise<Motor> {
     estatisticas: () => c<Estatisticas>("estatisticas"),
     favoritar: async (id, favorito) => { await c("favoritar", { id, favorito }); },
     emuladores: () => c<EmuladoresInfo>("emuladores"),
+    ajustesDeJogo: {
+      ler: async () => ajustesDe((await c<{ configuracao?: Record<string, unknown> }>("emuladores")).configuracao),
+      gravar: async (parte) => ajustesDe(await c<Record<string, unknown>>("configurar", { ...(parte.filtro !== undefined ? { filtro: parte.filtro } : {}), ...(parte.retroceder !== undefined ? { retroceder: parte.retroceder } : {}) })),
+    },
     preparar: (id) => c<{ nucleo: string; baixou: boolean }>("preparar_jogo", { id }),
     lojaCatalogo: () => c<Oferta[]>("loja_catalogo"),
     lojaInstalar: (id) => c<{ instalado: boolean; jogo_id: string | null }>("loja_instalar", { id }),

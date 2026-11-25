@@ -1,4 +1,4 @@
-import type { Filtro, Jogo, ModoJogoConfig, Motor, Oferta } from "./tipos";
+import type { AjustesDeJogo, Filtro, Jogo, ModoJogoConfig, Motor, Oferta } from "./tipos";
 
 const base = (id: string, titulo: string, plataforma: string, extra: Partial<Jogo> = {}): Jogo => ({
   id, titulo, plataforma, caminho: `C:\\Jogos\\${titulo}`, bytes: 40_000_000, regioes: ["USA"], idiomas: [], tags: [],
@@ -52,6 +52,7 @@ export async function motorDemo(): Promise<Motor> {
     plataformas: async () => Object.keys(NOMES).map((id) => ({ id, nome: NOMES[id], tipo: "console", total: jogos.filter((j) => j.plataforma === id).length })).filter((p) => p.total > 0),
     estatisticas: async () => ({ jogos: jogos.length, plataformas: new Set(jogos.map((j) => j.plataforma)).size, favoritos: jogos.filter((j) => j.favorito).length, tempo_total_s: jogos.reduce((s, j) => s + j.tempo_total_s, 0), sessoes: jogos.reduce((s, j) => s + j.sessoes, 0) }),
     favoritar: async (id, fav) => { jogos = jogos.map((j) => (j.id === id ? { ...j, favorito: fav } : j)); },
+    ajustesDeJogo: (() => { let a: AjustesDeJogo = { filtro: "", retroceder: true }; return { ler: async () => a, gravar: async (p: Partial<AjustesDeJogo>) => { a = { ...a, ...p }; return a; } }; })(),
     emuladores: async () => ({ instalados: [{ id: "retroarch", nome: "RetroArch", plataformas: Object.keys(NOMES) }] }),
     preparar: async () => { await new Promise((r) => setTimeout(r, 800)); return { nucleo: "snes9x_libretro", baixou: false }; },
     lojaCatalogo: async () => loja,

@@ -44,3 +44,32 @@ test("fundos novos, foto e capa só entram se forem válidos", () => {
   assert.equal(limparTema({ capaFundo: "https://x/y\") ; alert(1" }).capaFundo, null);
   assert.equal(limparTema({ capaFundo: "http://insegura/x.png" }).capaFundo, null);
 });
+
+import { TEMAS_PRONTOS, aplicarPronto, prontoAtual, FUNDOS_VALIDOS } from "../src/tema.ts";
+
+test("temas prontos: ids únicos, fundos e cores válidos", () => {
+  const ids = TEMAS_PRONTOS.map((p) => p.id);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.ok(TEMAS_PRONTOS.length >= 8);
+  for (const p of TEMAS_PRONTOS) {
+    assert.ok(FUNDOS_VALIDOS.includes(p.ajustes.fundo), p.id);
+    assert.ok(p.nome.length > 2 && p.descricao.length > 10, p.id);
+  }
+});
+
+test("aplicar um tema pronto troca a aparência e preserva foto, capa e botões do jogo", () => {
+  const base = { ...TEMA_PADRAO, foto: "data:image/png;base64,AAAA", botoes: "neon", opacidadeBotoes: 60 };
+  const t = aplicarPronto(base, "tubo");
+  assert.equal(t.fundo, "crt");
+  assert.equal(t.cor, "dourado");
+  assert.equal(t.foto, "data:image/png;base64,AAAA");
+  assert.equal(t.botoes, "neon");
+  assert.equal(t.opacidadeBotoes, 60);
+  assert.equal(prontoAtual(t), "tubo");
+  assert.equal(prontoAtual({ ...t, brilho: 3 }), null);
+  assert.equal(aplicarPronto(base, "nao-existe"), base);
+});
+
+test("os fundos novos sobrevivem ao salvar e ler", () => {
+  for (const f of ["crt", "vidro", "preto"]) assert.equal(limparTema({ fundo: f }).fundo, f);
+});

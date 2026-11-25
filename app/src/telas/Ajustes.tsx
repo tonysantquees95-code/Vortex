@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { FILTROS_DE_IMAGEM, type AjustesDeJogo, type FiltroDeImagem } from "../ponte/tipos.ts";
 import type { ConfigGameBar, EmuladoresInfo, CentralEmuladores, EstadoConta, Jogo, ModoDesempenho, ModoJogoConfig, Motor, PosicaoGameBar, RelatorioLimpeza, ResumoPlataforma, CandidataSistema, SugestaoIA, RevisaoFaxina, SugestaoFaxina } from "../ponte";
 import type { Ocultos } from "../ocultos";
 import { analogicoRola, definirAnalogicoRola, atualizarSozinho, definirAtualizarSozinho, definirLimparSozinho, definirOrganizarAutomatico, limparSozinho, organizarAutomatico } from "../config";
@@ -8,11 +9,12 @@ import { BUILD } from "../atualizacao";
 import type { Atualizacao } from "../useAtualizacao";
 import { CONSOLES_VIRTUAIS, ESCOLHAS, type Escolha } from "../controlesVirtuais.ts";
 import { LogoVortex } from "./LogoVortex";
-import { CORES, MODOS_LUZ, TEMA_PADRAO, coresDoTema, hexValido, type Fundo, type ModeloBotoes, type Tema } from "../tema";
+import { CORES, MODOS_LUZ, TEMAS_PRONTOS, TEMA_PADRAO, aplicarPronto, coresDoTema, hexValido, prontoAtual, type Fundo, type ModeloBotoes, type Tema } from "../tema";
 import { Interruptor } from "./pecas";
 import { SeletorDeCor } from "./SeletorDeCor";
 import { Dock } from "./Dock";
-import { Icone3D } from "./Icones";
+import { Icone, Icone3D } from "./Icones";
+import { conquistasDe, guardarVistas, progressoEscrito } from "../conquistas.ts";
 import { Permissoes } from "./Permissoes";
 import { TelaDrive } from "./Drive";
 
@@ -132,13 +134,50 @@ export function TelaGameBar({ motor, avisar }: { motor: Motor; avisar: Avisar })
   );
 }
 
-export function TelaEmuladores({ motor }: { motor: Motor }) {
+const NOMES_FILTRO: Record<FiltroDeImagem, [string, string]> = {
+  "": ["Automático", "TV de tubo nos consoles de 8 e 16 bits, grade de LCD nos portáteis e imagem limpa nos jogos em 3D."],
+  crt: ["TV de tubo", "Linhas de TV antiga em todos os consoles."],
+  lcd: ["Tela de portátil", "Grade fina de pixels, como num Game Boy."],
+  suave: ["Suave", "Imagem alisada, sem efeito de tela antiga."],
+  nenhum: ["Pixels puros", "Sem nenhum filtro: cada pixel do jogo nítido."],
+};
+
+/** Windows: o que o Vortex pede ao RetroArch em cada jogo (filtro de imagem e retroceder) e os atalhos que já vêm nele. */
+function AjustesDoJogo({ motor, avisar }: { motor: Motor; avisar: Avisar }) {
+  const api = motor.ajustesDeJogo!;
+  const [a, setA] = useState<AjustesDeJogo | null>(null);
+  useEffect(() => { api.ler().then(setA).catch(() => setA({ filtro: "", retroceder: true })); }, [api]);
+  const mudar = (parte: Partial<AjustesDeJogo>) => { api.gravar(parte).then(setA).catch((e) => avisar(String(e instanceof Error ? e.message : e))); };
+  if (!a) return null;
+  return (
+    <section className="vidro grid gap-3 p-4">
+      <h3 className="text-lg font-bold text-cyan-100/90">Dentro do jogo</h3>
+      <p className="text-sm text-slate-300">Vale para os jogos abertos pelo Vortex. Feche e abra o jogo depois de mudar.</p>
+      <div className="grid gap-2">
+        <span className="text-sm font-semibold text-slate-200">Filtro de imagem</span>
+        <div className="flex flex-wrap gap-2">
+          {FILTROS_DE_IMAGEM.map((f) => <button key={f || "auto"} data-foco className="chip" data-ativa={a.filtro === f} aria-pressed={a.filtro === f} onClick={() => mudar({ filtro: f })}>{NOMES_FILTRO[f][0]}</button>)}
+        </div>
+        <p className="text-sm text-slate-400">{NOMES_FILTRO[a.filtro][1]}</p>
+      </div>
+      <Interruptor ligado={a.retroceder} rotulo="Retroceder" detalhe="Segure R no teclado para voltar alguns segundos e desfazer um erro. Funciona nos consoles leves (NES, Super Nintendo, Game Boy, Game Boy Advance, Mega Drive e parecidos)." aoMudar={(v) => mudar({ retroceder: v })} />
+      <div className="rounded-xl bg-white/5 p-3 text-sm text-slate-300">
+        <p className="font-semibold text-slate-200">Atalhos do teclado no jogo</p>
+        <p>F2 salva o estado · F4 carrega · F6 e F7 trocam o espaço de save · R (segure) retrocede · Espaço (segure) acelera · F8 tira uma foto da tela.</p>
+        <p className="mt-1">Com controle: aperte Start e Select juntos para abrir o menu do RetroArch e use Salvar estado, Carregar estado e Capturar tela.</p>
+      </div>
+    </section>
+  );
+}
+
+export function TelaEmuladores({ motor, avisar }: { motor: Motor; avisar?: Avisar }) {
   const [emu, setEmu] = useState<EmuladoresInfo | null>(null);
   const [cen, setCen] = useState<CentralEmuladores | null>(null);
   useEffect(() => { motor.emuladores().then(setEmu).catch(() => {}); motor.central?.().then(setCen).catch(() => {}); }, [motor]);
   const ROTULO = { pronto: "Pronto", baixa: "Baixa sozinho", instalar: "Instale um emulador" } as const;
   return (
     <div className="grid gap-4">
+    {motor.ajustesDeJogo && avisar && <AjustesDoJogo motor={motor} avisar={avisar} />}
     {cen && cen.consoles.length > 0 && (
       <div className="vidro grid gap-2 p-4 text-sm">
         <p className="text-slate-300">{cen.aparelho.so === "android" ? "Seu aparelho" : "Seu computador"}: {cen.aparelho.cpu || "processador"} · {cen.aparelho.nucleos} núcleos · {cen.aparelho.ram_gb} GB de RAM</p>
@@ -411,6 +450,7 @@ const FUNDOS: [Fundo, string, string][] = [
   ["console", "Segue o console", "O fundo troca para a capa do console ou jogo em foco."],
   ["aurora", "Aurora", "Luzes suaves na cor do tema."], ["grade", "Grade", "Linhas de neon, estilo futurista."],
   ["circuito", "Circuito", "Trilhas de placa de circuito."], ["pontos", "Pontos", "Pontinhos de luz."], ["liso", "Liso", "Só a cor, sem desenho."],
+  ["crt", "TV de tubo", "Linhas de TV antiga e cantos escurecidos."], ["vidro", "Vidro", "A capa em foco bem desfocada, como vidro fosco."], ["preto", "Preto total", "Preto de verdade, bom para telas OLED."],
 ];
 
 /** Reduz a foto escolhida (até 1280 px) para caber no armazenamento do aparelho. */
@@ -497,8 +537,26 @@ export function TelaAparencia({ tema, aoMudar, jogos = [], avisar, botoesVirtuai
   const personalizada = hexValido(tema.cor);
   const [escolhendoCor, setEscolhendoCor] = useState(false);
   const [escolhendoLuz, setEscolhendoLuz] = useState(false);
+  const pronto = prontoAtual(tema);
   return (
     <div className="grid gap-6">
+      <section className="grid gap-3">
+        <h3 className="text-lg font-bold text-cyan-100/90">Temas prontos</h3>
+        <div className="temas-prontos">
+          {TEMAS_PRONTOS.map((p) => {
+            const cor = coresDoTema({ ...tema, cor: p.ajustes.cor ?? tema.cor });
+            return (
+              <button key={p.id} data-foco className="pronto" data-ativa={pronto === p.id} aria-pressed={pronto === p.id} onClick={() => aoMudar(aplicarPronto(tema, p.id))}>
+                <span className="previa-pronto" style={{ background: p.ajustes.fundo === "preto" ? `radial-gradient(60px 40px at 70% 30%, ${cor.principal}55, #000)` : `linear-gradient(135deg, ${cor.segunda}, ${cor.principal})` }} aria-hidden />
+                <span className="nome-pronto">{p.nome}</span>
+                <span className="desc-pronto">{p.descricao}</span>
+                {pronto === p.id && <span className="marca-pronto">✓ Em uso</span>}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-sm text-slate-400">Um toque muda cor, fundo, formato e tamanho das cartas. Depois dá para ajustar cada detalhe aqui embaixo.</p>
+      </section>
       <section className="grid gap-3">
         <h3 className="text-lg font-bold text-cyan-100/90">Cor do Vortex</h3>
         <div className="flex flex-wrap gap-4">
@@ -566,7 +624,34 @@ export function TelaAparencia({ tema, aoMudar, jogos = [], avisar, botoesVirtuai
   );
 }
 
-type Tela = "conta" | "drive" | "gamebar" | "jogos" | "aparencia" | "modo" | "permissoes" | "atualizacoes" | "emuladores" | "sobre";
+/** Conquistas: lista com barra de progresso; as já cumpridas vêm primeiro e levam o selo. */
+export function TelaConquistas({ jogos }: { jogos: Jogo[] }) {
+  const lista = useMemo(() => conquistasDe(jogos), [jogos]);
+  const feitas = lista.filter((c) => c.feita).length;
+  useEffect(() => { guardarVistas(lista.filter((c) => c.feita).map((c) => c.id)); }, [lista]);
+  const ordem = [...lista].sort((a, b) => Number(b.feita) - Number(a.feita));
+  return (
+    <div className="grid gap-4">
+      <p className="text-center text-slate-300"><strong className="text-xl text-white">{feitas}</strong> de {lista.length} conquistas</p>
+      <ul className="grid gap-3 sm:grid-cols-2">
+        {ordem.map((c) => (
+          <li key={c.id} className="conquista" data-feita={c.feita}>
+            <span className="conquista-selo" aria-hidden><Icone nome={c.feita ? "conquistas" : "favoritos"} className="size-6" /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-bold leading-tight">{c.nome}{c.feita && <span className="ml-2 text-xs font-extrabold uppercase tracking-wider text-[var(--neon)]">Feita</span>}</span>
+              <span className="block text-sm text-slate-300">{c.descricao}</span>
+              <span className="conquista-barra" role="progressbar" aria-valuemin={0} aria-valuemax={c.meta} aria-valuenow={c.atual} aria-label={c.nome}><span style={{ width: `${Math.round((c.atual / c.meta) * 100)}%` }} /></span>
+              <span className="block text-xs text-slate-400">{progressoEscrito(c)}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="text-sm text-slate-400">As conquistas são calculadas com o que o Vortex já sabe da sua biblioteca. Nada é enviado para a internet.</p>
+    </div>
+  );
+}
+
+type Tela = "conta" | "drive" | "gamebar" | "jogos" | "aparencia" | "conquistas" | "modo" | "permissoes" | "atualizacoes" | "emuladores" | "sobre";
 interface Item { id: Tela; icone: string; nome: string; titulo: string; detalhe: string }
 
 /** Ajustes em seções: ícone grande + título no alto, dock para trocar de seção (o foco já troca) e o conteúdo logo abaixo. */
@@ -582,6 +667,7 @@ export function Ajustes({ motor, aoAbrirArquivos, aoMudarBiblioteca, avisar, atu
     ...(motor.conta && motor.drive ? [{ id: "drive" as const, icone: "drive", nome: "Drive", titulo: "Vetorial Drive", detalhe: "Seu espaço na nuvem para documentos e ROMs, disponível em todos os apps da Vetorial." }] : []),
     { id: "jogos", icone: "jogos", nome: "Jogos", titulo: "Jogos e busca", detalhe: "Buscar jogos no aparelho, pastas, organização por console e faxina de repetidos." },
     { id: "aparencia", icone: "aparencia", nome: "Visual", titulo: "Personalização", detalhe: "Cor, brilho neon, fundo (foto, capa ou modelos), formato, botões do jogo e abertura." },
+    { id: "conquistas", icone: "conquistas", nome: "Conquistas", titulo: "Conquistas", detalhe: "Marcos do seu jeito de jogar. Ficam só neste aparelho." },
     { id: "permissoes", icone: "permissoes", nome: "Permissões", titulo: "Permissões", detalhe: "O que o Vortex precisa liberar no aparelho e por quê." },
     { id: "modo", icone: "modo", nome: "Modo Jogo", titulo: "Modo Jogo", detalhe: "Desempenho máximo enquanto você joga." },
     ...(motor.gameBar ? [{ id: "gamebar" as const, icone: "controles", nome: "Game Bar", titulo: "Game Bar", detalhe: "Barra com FPS, CPU, GPU e temperatura por cima do jogo, e modos Turbo, Normal e Econômico." }] : []),
@@ -612,10 +698,11 @@ export function Ajustes({ motor, aoAbrirArquivos, aoMudarBiblioteca, avisar, atu
           </section>
         )}
         {atual.id === "aparencia" && <TelaAparencia tema={tema} aoMudar={aoMudarTema} jogos={jogos} avisar={avisar} botoesVirtuais={Boolean(motor.visualControles)} />}
+        {atual.id === "conquistas" && <TelaConquistas jogos={jogos} />}
         {atual.id === "permissoes" && <Permissoes motor={motor} avisar={avisar} />}
         {atual.id === "modo" && <TelaModoJogo motor={motor} avisar={avisar} />}
         {atual.id === "gamebar" && <TelaGameBar motor={motor} avisar={avisar} />}
-        {atual.id === "emuladores" && <TelaEmuladores motor={motor} />}
+        {atual.id === "emuladores" && <TelaEmuladores motor={motor} avisar={avisar} />}
         {atual.id === "atualizacoes" && <TelaAtualizacoes motor={motor} avisar={avisar} atualizacao={atualizacao} />}
         {atual.id === "sobre" && (
           <div className="grid gap-4">

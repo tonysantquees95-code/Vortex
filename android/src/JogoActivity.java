@@ -39,6 +39,7 @@ public class JogoActivity extends AppCompatActivity {
     private GameBar gameBar;
     private boolean controleDetectado;
     private InputManager.InputDeviceListener ouvinte;
+    private String jogoId = "jogo";
 
     @Override
     protected void onCreate(Bundle b) {
@@ -48,6 +49,7 @@ public class JogoActivity extends AppCompatActivity {
         String id = getIntent().getStringExtra("id");
         File savesDir = new File(getFilesDir(), "saves");
         savesDir.mkdirs();
+        jogoId = id == null ? "jogo" : id.replaceAll("[^A-Za-z0-9_.-]", "_");
         srm = new File(savesDir, (id == null ? "jogo" : id) + ".srm");
 
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
@@ -131,6 +133,17 @@ public class JogoActivity extends AppCompatActivity {
                     aplicarQualidadeAoVivo(q);
                 }
             };
+        }
+        ligarEstadosEFoto();
+        if (!nucleoAtual.startsWith("dolphin")) {
+            gameBar.filtroAtual = filtroDaImagem();
+            gameBar.aoTrocarFiltro = new GameBar.AoTrocar() {
+                public void definir(int f) {
+                    getSharedPreferences("vortex_visual", MODE_PRIVATE).edit().putInt("filtro", f).apply();
+                    aplicarFiltroAoVivo(f, true);
+                }
+            };
+            if (filtroDaImagem() != 0) retro.postDelayed(new Runnable() { public void run() { aplicarFiltroAoVivo(filtroDaImagem(), false); } }, 2600);
         }
         gameBar.iniciar();
         if (nucleoAtual.startsWith("dolphin")) mostrarBotaoDiagnostico();
@@ -243,6 +256,137 @@ public class JogoActivity extends AppCompatActivity {
             Object cfg = k.getField("INSTANCE").get(null);
             for (java.lang.reflect.Method m : retro.getClass().getMethods()) if (m.getName().equals("setShader") && m.getParameterTypes().length == 1) { m.invoke(retro, cfg); break; }
         } catch (Throwable ignora) { }
+    }
+
+    // ------------------------------------------------------------ estados salvos, voltar no tempo, foto da tela e filtros
+    /** Consoles leves: guardam os últimos segundos na memória para "voltar no tempo". Os pesados (3D, disco) ficam de fora. */
+    private static final java.util.List<String> LEVES = java.util.Arrays.asList("nes", "snes", "gb", "gbc", "gba", "mastersystem", "genesis", "megadrive", "gamegear", "pcengine", "atari2600", "atari7800", "neogeo", "arcade");
+    private static final int PASSADO_MAX = 14; // 7 segundos, uma foto do estado a cada meio segundo
+    private final java.util.ArrayList<byte[]> passado = new java.util.ArrayList<byte[]>();
+    private android.os.HandlerThread fioDoPassado;
+    private android.os.Handler maoDoPassado;
+    private boolean voltarDisponivel;
+    private volatile boolean ocupadoComEstado;
+
+    private File pastaDeEstados() { File f = new File(getFilesDir(), "states"); f.mkdirs(); return f; }
+    private File arquivoDoEstado(int espaco) { return new File(pastaDeEstados(), jogoId + "-" + espaco + ".state"); }
+
+    /** Roda algo na linha do vídeo do jogo (a mesma que dá um passo do núcleo), esperando o fim, para nunca mexer no núcleo no meio de um quadro. */
+    private boolean naLinhaDoJogo(final Runnable tarefa) {
+        final java.util.concurrent.CountDownLatch fim = new java.util.concurrent.CountDownLatch(1);
+        Runnable r = new Runnable() { public void run() { try { tarefa.run(); } catch (Throwable ignora) { } fim.countDown(); } };
+        try { retro.getClass().getMethod("queueEvent", Runnable.class).invoke(retro, r); } catch (Throwable e) { r.run(); }
+        try { return fim.await(2, java.util.concurrent.TimeUnit.SECONDS); } catch (InterruptedException e) { return false; }
+    }
+
+    private byte[] serializarEstado() {
+        final byte[][] saida = new byte[1][];
+        naLinhaDoJogo(new Runnable() { public void run() {
+            try { saida[0] = (byte[]) retro.getClass().getMethod("serializeState").invoke(retro); } catch (Throwable e) { saida[0] = null; }
+        } });
+        return saida[0];
+    }
+    private boolean restaurarEstado(final byte[] b) {
+        if (b == null || b.length == 0) return false;
+        final boolean[] ok = new boolean[1];
+        naLinhaDoJogo(new Runnable() { public void run() {
+            try { Object r = retro.getClass().getMethod("unserializeState", byte[].class).invoke(retro, (Object) b); ok[0] = r == null || Boolean.TRUE.equals(r); } catch (Throwable e) { ok[0] = false; }
+        } });
+        return ok[0];
+    }
+
+    private void ligarEstadosEFoto() {
+        voltarDisponivel = LEVES.contains(plataforma);
+        gameBar.acoes = new GameBar.AcoesDoJogo() {
+            public boolean salvar(int espaco) {
+                byte[] b = serializarEstado();
+                if (b == null || b.length == 0) return false;
+                try { try (FileOutputStream o = new FileOutputStream(arquivoDoEstado(espaco))) { o.write(b); } return true; } catch (Exception e) { return false; }
+            }
+            public boolean carregar(int espaco) {
+                try { File f = arquivoDoEstado(espaco); if (!f.isFile()) return false; return restaurarEstado(Files.readAllBytes(f.toPath())); } catch (Exception e) { return false; }
+            }
+            public boolean existe(int espaco) { return arquivoDoEstado(espaco).isFile(); }
+            public boolean podeVoltar() { return voltarDisponivel; }
+            public boolean voltar(int segundos) {
+                final byte[] alvo;
+                synchronized (passado) {
+                    if (passado.size() < 2) return false;
+                    int i = Math.max(0, passado.size() - 1 - segundos * 2);
+                    alvo = passado.get(i);
+                    while (passado.size() > i + 1) passado.remove(passado.size() - 1);
+                }
+                return restaurarEstado(alvo);
+            }
+            public boolean capturar() { return tirarFoto(); }
+        };
+        if (voltarDisponivel) {
+            fioDoPassado = new android.os.HandlerThread("vortex-passado");
+            fioDoPassado.start();
+            maoDoPassado = new android.os.Handler(fioDoPassado.getLooper());
+            maoDoPassado.postDelayed(new Runnable() { public void run() {
+                if (maoDoPassado == null) return;
+                if (!ocupadoComEstado && !isFinishing()) {
+                    byte[] b = serializarEstado();
+                    if (b != null && b.length > 0) synchronized (passado) { passado.add(b); while (passado.size() > PASSADO_MAX) passado.remove(0); }
+                }
+                maoDoPassado.postDelayed(this, 500);
+            } }, 4000);
+        }
+    }
+
+    /** Foto da tela do jogo, guardada em Imagens › Vortex (Android 10 ou mais novo) ou na pasta do app. */
+    private boolean tirarFoto() {
+        try {
+            if (android.os.Build.VERSION.SDK_INT < 26) return false;
+            final View v = (View) retro;
+            if (v.getWidth() <= 0 || v.getHeight() <= 0) return false;
+            final android.graphics.Bitmap bm = android.graphics.Bitmap.createBitmap(v.getWidth(), v.getHeight(), android.graphics.Bitmap.Config.ARGB_8888);
+            android.view.PixelCopy.request((android.view.SurfaceView) v, bm, new android.view.PixelCopy.OnPixelCopyFinishedListener() {
+                public void onPixelCopyFinished(int resultado) {
+                    boolean ok = false;
+                    if (resultado == android.view.PixelCopy.SUCCESS) ok = guardarFoto(bm);
+                    final String msg = ok ? "Foto guardada em Imagens › Vortex." : "Não consegui guardar a foto.";
+                    runOnUiThread(new Runnable() { public void run() { Toast.makeText(JogoActivity.this, msg, Toast.LENGTH_SHORT).show(); } });
+                }
+            }, new android.os.Handler(android.os.Looper.getMainLooper()));
+            return true;
+        } catch (Throwable e) { return false; }
+    }
+
+    private boolean guardarFoto(android.graphics.Bitmap bm) {
+        try {
+            String nome = "Vortex-" + new java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.US).format(new java.util.Date()) + ".png";
+            if (android.os.Build.VERSION.SDK_INT >= 29) {
+                android.content.ContentValues cv = new android.content.ContentValues();
+                cv.put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, nome);
+                cv.put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/png");
+                cv.put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Vortex");
+                android.net.Uri uri = getContentResolver().insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cv);
+                if (uri == null) return false;
+                try (java.io.OutputStream o = getContentResolver().openOutputStream(uri)) { return bm.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, o); }
+            }
+            File pasta = getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES);
+            if (pasta == null) return false;
+            pasta.mkdirs();
+            try (FileOutputStream o = new FileOutputStream(new File(pasta, nome))) { return bm.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, o); }
+        } catch (Throwable e) { return false; }
+    }
+
+    private int filtroDaImagem() { return getSharedPreferences("vortex_visual", MODE_PRIVATE).getInt("filtro", 0); }
+
+    /** 0 padrão do núcleo (não mexe), 1 nítido, 2 suave, 3 TV de tubo, 4 LCD. Se o motor não oferecer o filtro, avisa e fica como estava. */
+    private void aplicarFiltroAoVivo(int f, boolean mostrar) {
+        if (retro == null) return;
+        String[] nomes = {"Default", "Sharp", "Default", "CRT", "LCD"};
+        try {
+            Class<?> k = Class.forName("com.swordfish.libretrodroid.ShaderConfig$" + nomes[Math.max(0, Math.min(4, f))]);
+            Object cfg;
+            try { cfg = k.getField("INSTANCE").get(null); } catch (Throwable semInstancia) { cfg = k.getDeclaredConstructor().newInstance(); }
+            boolean achou = false;
+            for (java.lang.reflect.Method m : retro.getClass().getMethods()) if (m.getName().equals("setShader") && m.getParameterTypes().length == 1) { m.invoke(retro, cfg); achou = true; break; }
+            if (!achou && mostrar) Toast.makeText(this, "Este jogo não aceitou trocar o filtro.", Toast.LENGTH_SHORT).show();
+        } catch (Throwable e) { if (mostrar) Toast.makeText(this, "Este motor não tem esse filtro.", Toast.LENGTH_SHORT).show(); }
     }
 
     private String nucleoAtual = "";
@@ -385,6 +529,7 @@ public class JogoActivity extends AppCompatActivity {
     protected void onDestroy() {
         try { ((InputManager) getSystemService(Context.INPUT_SERVICE)).unregisterInputDeviceListener(ouvinte); } catch (Throwable ignora) { }
         if (gameBar != null) gameBar.parar();
+        if (fioDoPassado != null) { maoDoPassado = null; fioDoPassado.quitSafely(); }
         super.onDestroy();
     }
 
@@ -416,6 +561,7 @@ public class JogoActivity extends AppCompatActivity {
 
     @Override
     protected void onPause() {
+        ocupadoComEstado = true;
         guardarSave();
         super.onPause();
     }
@@ -423,6 +569,7 @@ public class JogoActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        ocupadoComEstado = false;
         atualizarControles();
         if (gameBar != null) gameBar.recarregar();
     }

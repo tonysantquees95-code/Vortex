@@ -18,7 +18,7 @@ function Imagem({ src, desfocar }: { src: string | null; desfocar: boolean }) {
 
 /** Fundo do app: degradê na cor do tema + modelo futurista, foto da pessoa, capa de jogo ou a capa do console em foco. O vórtice 3D só aparece na abertura. */
 export function FundoDaTela({ tema, imagem }: { tema: Tema; imagem?: string | null }) {
-  const src = tema.fundo === "console" ? imagem ?? null : tema.fundo === "foto" ? tema.foto : tema.fundo === "capa" ? tema.capaFundo : null;
+  const src = tema.fundo === "console" || tema.fundo === "vidro" ? imagem ?? null : tema.fundo === "foto" ? tema.foto : tema.fundo === "capa" ? tema.capaFundo : null;
   return (
     <div className="fundo-tela" data-modelo={tema.fundo}>
       <div className="tinta" />

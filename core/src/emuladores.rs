@@ -103,7 +103,13 @@ pub struct Configuracao {
     pub preferidos: BTreeMap<String, Preferido>,
     /// desliga o shader automático do RetroArch
     pub sem_shader: bool,
+    /// filtro de imagem escolhido: "" (automático, por tipo de console), "crt", "lcd", "suave" ou "nenhum"
+    pub filtro: String,
+    /// desliga o "retroceder" (voltar alguns segundos) nos consoles leves
+    pub sem_retroceder: bool,
 }
+
+pub const FILTROS: [&str; 5] = ["", "crt", "lcd", "suave", "nenhum"];
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -296,11 +302,20 @@ const SHADERS_CRT: &[&str] = &["crt/crt-geom.slangp", "crt/crt-easymode.slangp",
 const SHADERS_LCD: &[&str] = &["handheld/lcd-grid-v2.slangp", "handheld/lcd3x.slangp", "handheld/gameboy.slangp"];
 
 /// Shader por tipo: TVs de tubo para consoles de 8/16 bits, grade de LCD para portáteis, nenhum para 3D e computadores.
-fn shader_para(pl: &Plataforma, retroarch: &Path) -> Option<PathBuf> {
-    let candidatos: &[&str] = match pl.tipo {
+fn shader_para(pl: &Plataforma, retroarch: &Path, filtro: &str) -> Option<PathBuf> {
+    // escolha da pessoa: vale para qualquer console (menos "automático")
+    let escolhido: Option<&[&str]> = match filtro {
+        "crt" => Some(SHADERS_CRT),
+        "lcd" => Some(SHADERS_LCD),
+        _ => None,
+    };
+    let candidatos: &[&str] = match escolhido.unwrap_or(match pl.tipo {
         Tipo::Console | Tipo::Arcade if !matches!(pl.id, "n64" | "gamecube" | "wii" | "ps1" | "ps2" | "ps3" | "saturn" | "dreamcast" | "switch" | "3do" | "jaguar") => SHADERS_CRT,
         Tipo::Portatil if !matches!(pl.id, "nds" | "3ds" | "psp") => SHADERS_LCD,
-        _ => return None,
+        _ => &[],
+    }) {
+        [] => return None,
+        c => c,
     };
     let base = retroarch.parent()?.join("shaders").join("shaders_slang");
     candidatos.iter().map(|c| base.join(c)).find(|p| p.is_file())
@@ -313,7 +328,7 @@ pub fn configuracao_retroarch(pl: &Plataforma, retroarch: &Path, cfg: &Configura
         "video_fullscreen = \"true\"".into(),
         "video_windowed_fullscreen = \"true\"".into(),
         "video_vsync = \"true\"".into(),
-        "video_smooth = \"false\"".into(),
+        format!("video_smooth = \"{}\"", if cfg.filtro == "suave" { "true" } else { "false" }),
         "input_autodetect_enable = \"true\"".into(),
         "input_player1_analog_dpad_mode = \"1\"".into(),
         // Start+Select abre o menu do RetroArch; segurar o atalho de saída fecha o jogo e volta ao Vortex
@@ -326,11 +341,36 @@ pub fn configuracao_retroarch(pl: &Plataforma, retroarch: &Path, cfg: &Configura
         "notification_show_autoconfig = \"false\"".into(),
         "menu_driver = \"ozone\"".into(),
     ];
-    if !cfg.sem_shader {
-        if let Some(s) = shader_para(pl, retroarch) {
+    if !cfg.sem_shader && cfg.filtro != "nenhum" && cfg.filtro != "suave" {
+        if let Some(s) = shader_para(pl, retroarch, &cfg.filtro) {
             l.push("video_shader_enable = \"true\"".into());
             l.push(format!("video_shader = \"{}\"", s.to_string_lossy().replace('\\', "/")));
         }
+    }
+    l.push(String::new());
+    l.join("\n")
+}
+
+/// Consoles leves o bastante para guardar os últimos segundos na memória (retroceder). Os pesados (3D, disco) ficam de fora.
+pub fn aceita_retroceder(pl: &Plataforma) -> bool {
+    matches!(pl.id, "nes" | "snes" | "gb" | "gbc" | "gba" | "mastersystem" | "genesis" | "megadrive" | "gamegear" | "pcengine" | "atari2600" | "atari7800" | "neogeo" | "arcade" | "fba" | "mame")
+}
+
+/// Linhas que ligam as funções do jogo (retroceder, avanço rápido, estados salvos com miniatura, capturas) sem mexer na configuração da pessoa.
+/// Atalhos do teclado são os padrões do RetroArch: F2 salva, F4 carrega, F6/F7 trocam o espaço, R (segurar) retrocede, Espaço (segurar) acelera, F8 captura.
+pub fn extras_retroarch(pl: &Plataforma, cfg: &Configuracao, capturas: Option<&Path>) -> String {
+    let mut l: Vec<String> = vec![
+        "savestate_thumbnail_enable = \"true\"".into(),
+        "fastforward_ratio = \"4.0\"".into(),
+        "savestate_auto_index = \"false\"".into(),
+    ];
+    if !cfg.sem_retroceder && aceita_retroceder(pl) {
+        l.push("rewind_enable = \"true\"".into());
+        l.push("rewind_granularity = \"2\"".into());
+        l.push("rewind_buffer_size = \"20\"".into());
+    }
+    if let Some(p) = capturas {
+        l.push(format!("screenshot_directory = \"{}\"", p.to_string_lossy().replace('\\', "/")));
     }
     l.push(String::new());
     l.join("\n")
@@ -391,6 +431,9 @@ pub fn planejar(rom: &Path, plataforma_id: &str, instalados: &[Instalado], cfg: 
         if ra.programa.parent() == Some(motor.as_path()) {
             texto_cfg.push_str(&format!("savefile_directory = \"{}\"\nsavestate_directory = \"{}\"\n", motor.join("saves").to_string_lossy().replace('\\', "/"), motor.join("states").to_string_lossy().replace('\\', "/")));
         }
+        let capturas = pasta_dados.join("capturas");
+        let _ = fs::create_dir_all(&capturas);
+        texto_cfg.push_str(&extras_retroarch(pl, cfg, Some(&capturas)));
         fs::write(&arq_cfg, texto_cfg).map_err(|e| format!("Não consegui gravar a configuração do RetroArch: {e}"))?;
         Ok(Lancamento {
             emulador: "retroarch".into(),
@@ -513,6 +556,36 @@ mod testes {
         let n = ids.len();
         ids.dedup();
         assert_eq!(n, ids.len());
+    }
+
+    #[test]
+    fn extras_ligam_retroceder_so_nos_consoles_leves_e_a_pasta_de_capturas() {
+        let c = Configuracao::default();
+        let leve = extras_retroarch(por_id("snes").unwrap(), &c, Some(Path::new("C:\\Vortex\\capturas")));
+        assert!(leve.contains("rewind_enable = \"true\""));
+        assert!(leve.contains("fastforward_ratio"));
+        assert!(leve.contains("savestate_thumbnail_enable = \"true\""));
+        assert!(leve.contains("screenshot_directory = \"C:/Vortex/capturas\""));
+        let pesado = extras_retroarch(por_id("ps2").unwrap(), &c, None);
+        assert!(!pesado.contains("rewind_enable"));
+        assert!(!pesado.contains("screenshot_directory"));
+        let desligado = extras_retroarch(por_id("snes").unwrap(), &Configuracao { sem_retroceder: true, ..Default::default() }, None);
+        assert!(!desligado.contains("rewind_enable"));
+    }
+
+    #[test]
+    fn filtro_escolhido_vale_para_qualquer_console_e_nenhum_desliga() {
+        let t = tempfile::tempdir().unwrap();
+        arq(&t.path().join("programas/RetroArch/shaders/shaders_slang/crt/crt-geom.slangp"));
+        arq(&t.path().join("programas/RetroArch/shaders/shaders_slang/handheld/lcd3x.slangp"));
+        let ra = t.path().join("programas/RetroArch/retroarch.exe");
+        // automático: 3D não ganha filtro; tubo escolhido ganha mesmo no 3D
+        assert!(!configuracao_retroarch(por_id("n64").unwrap(), &ra, &Configuracao::default()).contains("video_shader"));
+        assert!(configuracao_retroarch(por_id("n64").unwrap(), &ra, &Configuracao { filtro: "crt".into(), ..Default::default() }).contains("crt-geom.slangp"));
+        assert!(configuracao_retroarch(por_id("snes").unwrap(), &ra, &Configuracao { filtro: "lcd".into(), ..Default::default() }).contains("lcd3x.slangp"));
+        assert!(!configuracao_retroarch(por_id("snes").unwrap(), &ra, &Configuracao { filtro: "nenhum".into(), ..Default::default() }).contains("video_shader"));
+        let suave = configuracao_retroarch(por_id("snes").unwrap(), &ra, &Configuracao { filtro: "suave".into(), ..Default::default() });
+        assert!(!suave.contains("video_shader") && suave.contains("video_smooth = \"true\""));
     }
 
     #[test]

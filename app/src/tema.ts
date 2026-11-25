@@ -14,8 +14,8 @@ export const CORES: Predefinida[] = [
 ];
 
 /** console = o fundo acompanha a capa do console/jogo em foco; foto = imagem da própria pessoa; capa = capa de um jogo escolhida; o resto são modelos futuristas. */
-export type Fundo = "console" | "aurora" | "grade" | "circuito" | "pontos" | "liso" | "foto" | "capa";
-export const FUNDOS_VALIDOS: Fundo[] = ["console", "aurora", "grade", "circuito", "pontos", "liso", "foto", "capa"];
+export type Fundo = "console" | "aurora" | "grade" | "circuito" | "pontos" | "liso" | "foto" | "capa" | "crt" | "vidro" | "preto";
+export const FUNDOS_VALIDOS: Fundo[] = ["console", "aurora", "grade", "circuito", "pontos", "liso", "foto", "capa", "crt", "vidro", "preto"];
 export type Formato = "futurista" | "redondo";
 export type TamanhoCartas = "pequeno" | "medio" | "grande";
 /** Espessura do traço de todos os ícones do Vortex. */
@@ -131,4 +131,32 @@ export function aplicarTema(t: Tema, raiz: HTMLElement = document.documentElemen
   raiz.dataset.fundo = t.fundo;
   raiz.dataset.formato = t.formato;
   raiz.dataset.animacoes = t.animacoes ? "1" : "0";
+}
+
+/** Temas prontos: um toque troca cor, fundo, formato, tamanho das cartas, ícones e luz do logo. Inspirados nos estilos mais queridos dos
+ *  frontends de jogos (sala de estar, minimalista, cinema, tubo de TV, portátil); só mexem na aparência, nunca nos botões do jogo, foto ou capa escolhidas. */
+export interface TemaPronto { id: string; nome: string; descricao: string; ajustes: Partial<Pick<Tema, "cor" | "fundo" | "formato" | "cartas" | "icones" | "brilho" | "luz" | "luzCor" | "animacoes">> }
+
+export const TEMAS_PRONTOS: TemaPronto[] = [
+  { id: "arcade", nome: "Arcade neon", descricao: "O visual clássico do Vortex: vermelho, neon e cantos cortados.", ajustes: { cor: "vermelho", fundo: "console", formato: "futurista", cartas: "medio", icones: "medio", brilho: 70, luz: "padrao", animacoes: true } },
+  { id: "sala", nome: "Console de sala", descricao: "Cartas grandes e cantos redondos, para jogar do sofá.", ajustes: { cor: "azul", fundo: "console", formato: "redondo", cartas: "grande", icones: "medio", brilho: 45, luz: "branca", animacoes: true } },
+  { id: "cinema", nome: "Cinema", descricao: "A arte do jogo ocupa a tela; luz suave e discreta.", ajustes: { cor: "roxo", fundo: "console", formato: "redondo", cartas: "grande", icones: "fino", brilho: 30, luz: "branca", animacoes: true } },
+  { id: "minimo", nome: "Minimalista", descricao: "Limpo e rápido: fundo liso, ícones finos, sem enfeite.", ajustes: { cor: "ciano", fundo: "liso", formato: "redondo", cartas: "pequeno", icones: "fino", brilho: 15, luz: "branca", animacoes: false } },
+  { id: "preto", nome: "Preto total", descricao: "Preto de verdade (bom para tela OLED) com um toque de cor.", ajustes: { cor: "verde", fundo: "preto", formato: "redondo", cartas: "medio", icones: "medio", brilho: 35, luz: "padrao", animacoes: true } },
+  { id: "tubo", nome: "TV de tubo", descricao: "Linhas de TV antiga e brilho quente, como nos anos 90.", ajustes: { cor: "dourado", fundo: "crt", formato: "futurista", cartas: "medio", icones: "grosso", brilho: 60, luz: "padrao", animacoes: true } },
+  { id: "portatil", nome: "Portátil", descricao: "Grade de pixels e verde de tela de Game Boy moderno.", ajustes: { cor: "verde", fundo: "grade", formato: "futurista", cartas: "pequeno", icones: "grosso", brilho: 55, luz: "padrao", animacoes: true } },
+  { id: "vidro", nome: "Vidro", descricao: "Painéis de vidro fosco sobre a capa do jogo.", ajustes: { cor: "rosa", fundo: "vidro", formato: "redondo", cartas: "medio", icones: "fino", brilho: 50, luz: "rgb", animacoes: true } },
+  { id: "retro80", nome: "Retrô 80", descricao: "Circuitos, rosa e luz RGB: fita VHS e fliperama.", ajustes: { cor: "rosa", fundo: "circuito", formato: "futurista", cartas: "medio", icones: "medio", brilho: 80, luz: "rgb", animacoes: true } },
+];
+
+/** Aplica um tema pronto por cima do atual (foto, capa, botões do jogo e controles ficam como a pessoa deixou). */
+export function aplicarPronto(t: Tema, id: string): Tema {
+  const p = TEMAS_PRONTOS.find((x) => x.id === id);
+  return p ? limparTema({ ...t, ...p.ajustes }) : t;
+}
+
+/** Qual tema pronto é igual ao atual (ou null se a pessoa mexeu em algo). */
+export function prontoAtual(t: Tema): string | null {
+  const a = TEMAS_PRONTOS.find((p) => (Object.keys(p.ajustes) as (keyof TemaPronto["ajustes"])[]).every((k) => t[k] === p.ajustes[k]));
+  return a ? a.id : null;
 }

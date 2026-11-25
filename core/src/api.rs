@@ -496,6 +496,15 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
             if let Some(v) = args.get("sem_shader").and_then(|x| x.as_bool()) {
                 c.sem_shader = v;
             }
+            if let Some(f) = args.get("filtro").and_then(|x| x.as_str()) {
+                if !emuladores::FILTROS.contains(&f) {
+                    return Err(format!("Filtro de imagem desconhecido: {f}."));
+                }
+                c.filtro = f.to_string();
+            }
+            if let Some(v) = args.get("retroceder").and_then(|x| x.as_bool()) {
+                c.sem_retroceder = !v;
+            }
             if let Some(pl) = args.get("plataforma").and_then(|x| x.as_str()) {
                 match args.get("emulador").and_then(|x| x.as_str()).filter(|s| !s.is_empty()) {
                     Some(e) => {

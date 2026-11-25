@@ -94,6 +94,11 @@ export interface Oferta {
 
 export interface VisualControles { cor: string; cor2: string; modelo: string; tamanho: string; opacidade: number; disposicoes?: Record<string, string> }
 
+/** Jogo aberto pelo RetroArch (Windows): filtro de imagem e "retroceder". Atalhos do teclado são os do RetroArch. */
+export type FiltroDeImagem = "" | "crt" | "lcd" | "suave" | "nenhum";
+export const FILTROS_DE_IMAGEM: FiltroDeImagem[] = ["", "crt", "lcd", "suave", "nenhum"];
+export interface AjustesDeJogo { filtro: FiltroDeImagem; retroceder: boolean }
+
 export interface Motor {
   plataforma: "windows" | "android" | "demo";
   /** Só no Android: nomes de capas que existem na Libretro para um sistema (para achar a capa mesmo com o nome do arquivo diferente). */
@@ -110,6 +115,8 @@ export interface Motor {
   abrirUrl(url: string): Promise<void>;
   /** Só no Android: aparência dos botões virtuais da tela do jogo (cor do sistema, modelo, tamanho). */
   visualControles?(v: VisualControles): Promise<void>;
+  /** Windows: ajustes que o Vortex grava para o RetroArch a cada jogo aberto. */
+  ajustesDeJogo?: { ler(): Promise<AjustesDeJogo>; gravar(parte: Partial<AjustesDeJogo>): Promise<AjustesDeJogo> };
   /** Só no Android: Game Bar. */
   gameBar?(definir?: Partial<ConfigGameBar>): Promise<ConfigGameBar>;
   /** Só no Android: controle para jogos que não têm suporte. */

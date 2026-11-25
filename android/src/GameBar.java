@@ -95,6 +95,20 @@ public final class GameBar {
     public AoTrocarTamanho aoTrocarTamanho;
     public int tamanhoAtual = 100;
 
+    /** Estados salvos, voltar no tempo e foto da tela: quem faz de verdade é a tela do jogo. */
+    public interface AcoesDoJogo {
+        boolean salvar(int espaco);
+        boolean carregar(int espaco);
+        boolean existe(int espaco);
+        boolean voltar(int segundos);
+        boolean podeVoltar();
+        boolean capturar();
+    }
+    public AcoesDoJogo acoes;
+    /** Filtro de imagem do núcleo (0 = padrão do núcleo, 1 = nítido, 2 = suave, 3 = TV de tubo, 4 = LCD). */
+    public AoTrocar aoTrocarFiltro;
+    public int filtroAtual = 0;
+
     public GameBar(Activity a, FrameLayout raiz) { this.act = a; this.raiz = raiz; }
 
     private int dp(float v) { return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, act.getResources().getDisplayMetrics()); }
@@ -162,6 +176,43 @@ public final class GameBar {
                 vel.setOrientation(LinearLayout.HORIZONTAL);
                 for (int x = 1; x <= 4; x++) vel.addView(botaoVelocidade(x));
                 barra.addView(vel);
+            }
+            if (acoes != null) {
+                barra.addView(titulo("ESTADOS SALVOS"));
+                for (int e = 1; e <= 3; e++) {
+                    LinearLayout linha = new LinearLayout(act);
+                    linha.setOrientation(LinearLayout.HORIZONTAL);
+                    linha.addView(botaoAcao("Salvar " + e, true, 0, e));
+                    linha.addView(botaoAcao("Carregar " + e, acoes.existe(e), 1, e));
+                    barra.addView(linha);
+                }
+                barra.addView(titulo("VOLTAR NO TEMPO"));
+                LinearLayout voltar = new LinearLayout(act);
+                voltar.setOrientation(LinearLayout.HORIZONTAL);
+                boolean pode = acoes.podeVoltar();
+                voltar.addView(botaoAcao("Voltar 3 s", pode, 2, 3));
+                voltar.addView(botaoAcao("Voltar 6 s", pode, 2, 6));
+                barra.addView(voltar);
+                if (!pode) barra.addView(dica("Disponível nos consoles leves (NES, Super Nintendo, Game Boy, Mega Drive e parecidos)."));
+                barra.addView(titulo("FOTO DA TELA"));
+                LinearLayout foto = new LinearLayout(act);
+                foto.setOrientation(LinearLayout.HORIZONTAL);
+                foto.addView(botaoAcao("Tirar foto", true, 3, 0));
+                barra.addView(foto);
+            }
+            if (aoTrocarFiltro != null) {
+                barra.addView(titulo("FILTRO DA IMAGEM"));
+                LinearLayout ft = new LinearLayout(act);
+                ft.setOrientation(LinearLayout.HORIZONTAL);
+                ft.addView(botaoOpcao("Padrão", filtroAtual == 0, 0, 3));
+                ft.addView(botaoOpcao("Nítido", filtroAtual == 1, 1, 3));
+                ft.addView(botaoOpcao("Suave", filtroAtual == 2, 2, 3));
+                barra.addView(ft);
+                LinearLayout ft2 = new LinearLayout(act);
+                ft2.setOrientation(LinearLayout.HORIZONTAL);
+                ft2.addView(botaoOpcao("TV de tubo", filtroAtual == 3, 3, 3));
+                ft2.addView(botaoOpcao("LCD", filtroAtual == 4, 4, 3));
+                barra.addView(ft2);
             }
             if (aoTrocarFormato != null) {
                 barra.addView(titulo("FORMATO DA TELA"));
@@ -275,9 +326,39 @@ public final class GameBar {
         t.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
             if (tipo == 0) { formatoAtual = valor; if (aoTrocarFormato != null) aoTrocarFormato.definir(valor); }
             else if (tipo == 1) { qualidadeAtual = valor; if (aoTrocarQualidade != null) aoTrocarQualidade.definir(valor); }
+            else if (tipo == 3) { filtroAtual = valor; if (aoTrocarFiltro != null) aoTrocarFiltro.definir(valor); }
             else { correcaoAtual = valor; if (aoTrocarCorrecao != null) aoTrocarCorrecao.definir(valor); }
             desenhar();
         } });
+        return t;
+    }
+
+    /** Botão de ação do jogo: tipo 0 salva, 1 carrega, 2 volta no tempo, 3 tira foto. Sem permissão de usar, fica apagado e avisa. */
+    private TextView botaoAcao(String rotulo, final boolean ativa, final int tipo, final int valor) {
+        TextView t = botaoModo(rotulo, "");
+        GradientDrawable g = new GradientDrawable();
+        g.setCornerRadius(dp(8));
+        g.setColor(ativa ? Color.argb(120, 25, 227, 255) : Color.argb(40, 255, 255, 255));
+        t.setBackground(g);
+        t.setTextColor(ativa ? Color.WHITE : Color.argb(120, 255, 255, 255));
+        t.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
+            if (acoes == null) return;
+            boolean ok;
+            if (tipo == 0) { ok = acoes.salvar(valor); aviso(ok ? "Estado " + valor + " salvo." : "Não consegui salvar agora."); }
+            else if (tipo == 1) { ok = ativa && acoes.carregar(valor); aviso(ok ? "Estado " + valor + " carregado." : (ativa ? "Não consegui carregar este estado." : "O espaço " + valor + " está vazio.")); }
+            else if (tipo == 2) { ok = ativa && acoes.voltar(valor); aviso(ok ? "Voltou " + valor + " segundos." : (ativa ? "Ainda não há o que voltar. Jogue mais alguns segundos." : "Este console não tem voltar no tempo.")); }
+            else { ok = acoes.capturar(); if (!ok) aviso("Não consegui tirar a foto."); }
+            desenhar();
+        } });
+        return t;
+    }
+
+    private void aviso(String msg) { android.widget.Toast.makeText(act, msg, android.widget.Toast.LENGTH_SHORT).show(); }
+
+    private TextView dica(String texto) {
+        TextView t = new TextView(act);
+        t.setText(texto); t.setTextSize(10); t.setTextColor(Color.argb(170, 255, 255, 255));
+        t.setPadding(dp(2), dp(2), dp(2), dp(2));
         return t;
     }
 

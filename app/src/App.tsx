@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { conquistasDe, guardarVistas, lerVistas, novasConquistas } from "./conquistas.ts";
 import { FeedbackDoApp } from "./telas/FeedbackDoApp";
 import { useMotor } from "./estado";
 import { focar, primeiroSemCampo, useNavegacao } from "./foco";
@@ -222,6 +223,15 @@ export function App() {
   const jogarRef = useRef<(j: Jogo) => Promise<void>>(async () => {});
   const recarregarRef = useRef<() => void>(() => {});
   useEffect(() => { jogosRef.current = jogos; }, [jogos]);
+  // conquista nova: avisa uma vez (na primeira vez só anota o que a pessoa já tinha)
+  useEffect(() => {
+    if (!carregado || !jogos.length) return;
+    const lista = conquistasDe(jogos);
+    const vistas = lerVistas();
+    const novas = novasConquistas(lista, vistas);
+    guardarVistas(lista.filter((c) => c.feita).map((c) => c.id));
+    if (novas.length) avisar(novas.length === 1 ? `Conquista nova: ${novas[0].nome}` : `${novas.length} conquistas novas. Veja em Ajustes › Conquistas.`);
+  }, [carregado, jogos, avisar]);
   useEffect(() => {
     const conta = motor.conta;
     if (!conta || !aceitou) return;

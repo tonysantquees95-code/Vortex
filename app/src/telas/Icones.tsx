@@ -25,6 +25,7 @@ const DESENHOS: Record<string, ReactNode> = {
   wifi: <><path d="M3.5 9.5a12 12 0 0 1 17 0M6.5 12.8a8 8 0 0 1 11 0M9.4 16a4 4 0 0 1 5.2 0" /><circle cx="12" cy="19" r=".6" /></>,
   semrede: <><path d="M3.5 9.5a12 12 0 0 1 17 0M6.5 12.8a8 8 0 0 1 11 0" opacity=".45" /><path d="m5 5 14 14" /></>,
   nuvem: <path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 9.5a4 4 0 0 1-.5 8.5H7Z" />,
+  conquistas: <><path d="M8 4h8v5a4 4 0 0 1-8 0V4Z" /><path d="M8 6H5a2 2 0 0 0 2 4M16 6h3a2 2 0 0 1-2 4" /><path d="M12 13v4M8.5 20h7M10 17h4" /></>,
 };
 
 export function Icone({ nome, className = "size-6" }: { nome: string; className?: string }) {

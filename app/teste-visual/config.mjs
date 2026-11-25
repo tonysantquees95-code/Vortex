@@ -17,6 +17,9 @@ export default {
     ["o-que-ha-de-novo", "atualizou", async (p) => { await p.getByText("O que há de novo").first().waitFor(); }],
     ...ABAS.map((a) => [`aba-${a.toLowerCase().normalize("NFD").replace(/[^a-z]/g, "")}`, "normal", async (p, ajuda) => { await ajuda.aba(p, a); }]),
     ["feedback", "normal", async (p, ajuda) => { await ajuda.aba(p, "Ajustes"); await p.getByRole("navigation", { name: "Seções dos ajustes" }).getByRole("button", { name: "Sobre", exact: true }).click(); await p.getByRole("button", { name: "Enviar feedback" }).evaluate((e) => e.click()); await p.getByText(/^FEEDBACK/).waitFor(); await p.waitForTimeout(300); }],
+    ["ajustes-temas-prontos", "normal", async (p, ajuda) => { await ajuda.aba(p, "Ajustes"); await p.getByRole("navigation", { name: "Seções dos ajustes" }).getByRole("button", { name: "Visual", exact: true }).click(); await p.getByText("Temas prontos").first().waitFor(); await p.locator(".pronto", { hasText: "TV de tubo" }).evaluate((e) => e.click()); await p.waitForTimeout(500); }],
+    ["ajustes-conquistas", "normal", async (p, ajuda) => { await ajuda.aba(p, "Ajustes"); await p.getByRole("navigation", { name: "Seções dos ajustes" }).getByRole("button", { name: "Conquistas", exact: true }).click(); await p.getByText(/conquistas$/).first().waitFor(); await p.waitForTimeout(300); }],
+    ["ajustes-dentro-do-jogo", "normal", async (p, ajuda) => { await ajuda.aba(p, "Ajustes"); await p.getByRole("navigation", { name: "Seções dos ajustes" }).getByRole("button", { name: "Emuladores", exact: true }).click(); await p.getByText("Dentro do jogo").first().waitFor(); await p.getByRole("button", { name: "TV de tubo", exact: true }).first().evaluate((e) => e.click()); await p.waitForTimeout(300); }],
     ["biblioteca-por-console", "normal", async (p, ajuda) => {
       await ajuda.aba(p, "Biblioteca");
       const c = p.locator(".chip").nth(1); if (await c.count()) await c.click();
