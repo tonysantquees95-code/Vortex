@@ -667,7 +667,7 @@ export function Ajustes({ motor, aoAbrirArquivos, aoMudarBiblioteca, avisar, atu
     ...(motor.conta && motor.drive ? [{ id: "drive" as const, icone: "drive", nome: "Drive", titulo: "Vetorial Drive", detalhe: "Seu espaço na nuvem para documentos e ROMs, disponível em todos os apps da Vetorial." }] : []),
     { id: "jogos", icone: "jogos", nome: "Jogos", titulo: "Jogos e busca", detalhe: "Buscar jogos no aparelho, pastas, organização por console e faxina de repetidos." },
     { id: "aparencia", icone: "aparencia", nome: "Visual", titulo: "Personalização", detalhe: "Cor, brilho neon, fundo (foto, capa ou modelos), formato, botões do jogo e abertura." },
-    { id: "conquistas", icone: "conquistas", nome: "Conquistas", titulo: "Conquistas", detalhe: "Marcos do seu jeito de jogar. Ficam só neste aparelho." },
+    { id: "conquistas", icone: "conquistas", nome: "Conquistas", titulo: "Conquistas", detalhe: "Marcos do seu jeito de jogar. Se você tem perfil no Voxix, as conquistas feitas aparecem lá." },
     { id: "permissoes", icone: "permissoes", nome: "Permissões", titulo: "Permissões", detalhe: "O que o Vortex precisa liberar no aparelho e por quê." },
     { id: "modo", icone: "modo", nome: "Modo Jogo", titulo: "Modo Jogo", detalhe: "Desempenho máximo enquanto você joga." },
     ...(motor.gameBar ? [{ id: "gamebar" as const, icone: "controles", nome: "Game Bar", titulo: "Game Bar", detalhe: "Barra com FPS, CPU, GPU e temperatura por cima do jogo, e modos Turbo, Normal e Econômico." }] : []),

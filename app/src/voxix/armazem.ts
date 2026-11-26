@@ -57,9 +57,26 @@ export const tentando = (a: Armazem, apelido: string, id: string): Armazem => tr
 export const temMensagem = (a: Armazem, id: string): boolean => Object.values(a.conversas).some((c) => c.mensagens.some((m) => m.id === id));
 
 export interface ItemHist { id: string; minha: boolean; apelido: string; nome: string; corpo: string; criado: number }
+/** Alguém trocou o @: as mensagens antigas (mesmo id) estão numa conversa com o @ velho e as novas chegam no @ novo. Junta tudo na conversa do @ novo. */
+export function reagrupar(a: Armazem, itens: { id: string; apelido: string; nome: string }[]): Armazem {
+  let r = a;
+  for (const i of itens) {
+    const novo = chave(i.apelido);
+    const velho = Object.keys(r.conversas).find((k) => k !== novo && r.conversas[k].mensagens.some((m) => m.id === i.id));
+    if (!velho) continue;
+    const v = r.conversas[velho];
+    const n = r.conversas[novo] ?? { apelido: novo, nome: i.nome || v.nome, mensagens: [], naoLidas: 0, ultima: 0 };
+    const vistos = new Set(n.mensagens.map((m) => m.id));
+    const mensagens = [...n.mensagens, ...v.mensagens.filter((m) => !vistos.has(m.id))].sort((x, y) => x.criado - y.criado).slice(-MAX_POR_CONVERSA);
+    const { [velho]: _fora, ...resto } = r.conversas;
+    r = { conversas: { ...resto, [novo]: { ...n, nome: i.nome || n.nome, mensagens, naoLidas: n.naoLidas + v.naoLidas, ultima: Math.max(n.ultima, v.ultima) } } };
+  }
+  return r;
+}
+
 /** Junta o histórico que veio do servidor com o que já está aqui (sem repetir). `contarNaoLidas`: o que veio de outras pessoas conta como não lido. */
 export function mesclarHistorico(a: Armazem, itens: ItemHist[], contarNaoLidas: boolean): Armazem {
-  let r = a;
+  let r = reagrupar(a, itens);
   for (const i of itens) r = comMsg(r, i.apelido, i.nome, { id: i.id, minha: i.minha, corpo: i.corpo, criado: i.criado, estado: "enviada" }, contarNaoLidas && !i.minha);
   return r;
 }

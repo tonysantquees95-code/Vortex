@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { conquistasDe, guardarVistas, lerVistas, novasConquistas } from "./conquistas.ts";
+import { enviarConquistasAoVoxix } from "./voxix/conquistasDoVortex.ts";
 import { FeedbackDoApp } from "./telas/FeedbackDoApp";
 import { useMotor } from "./estado";
 import { focar, primeiroSemCampo, useNavegacao } from "./foco";
@@ -43,6 +44,8 @@ export function App() {
   useNavegacao();
   const [aba, setAba] = useState<Aba>("inicio");
   const [jogos, setJogos] = useState<Jogo[]>([]);
+  // as conquistas feitas aparecem no perfil do Voxix (só se a pessoa tem conta e perfil lá; nada sai sem isso)
+  useEffect(() => { if (jogos.length) enviarConquistasAoVoxix(conquistasDe(jogos).filter((c) => c.feita).map((c) => ({ id: c.id, nome: c.nome }))); }, [jogos]);
   const [continuar, setContinuar] = useState<Jogo[]>([]);
   const [plats, setPlats] = useState<ResumoPlataforma[]>([]);
   const [stats, setStats] = useState<Estatisticas | null>(null);

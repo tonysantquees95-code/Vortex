@@ -26,6 +26,7 @@ interface Valor {
   sair: () => Promise<void>;
   criarPerfil: (apelido: string, nome: string) => Promise<void>;
   mudarAvatar: (avatar: string | null) => Promise<void>;
+  mudarApelido: (apelido: string) => Promise<number | null>;
   abrir: (apelido: string | null) => void;
   novaConversa: (apelido: string) => Promise<Pessoa>;
   enviar: (apelido: string, texto: string) => Promise<void>;
@@ -157,6 +158,13 @@ export function ProvedorDoVoxix({ children }: { children: ReactNode }) {
     definirAvatarLocal(perfil.apelido, r.avatar);
     setPerfil((p) => (p ? { ...p, avatar: r.avatar } : p));
   }, [sessao, perfil]);
+  /** Troca o @ (o servidor deixa 1 vez a cada 30 dias). Devolve quando poderá trocar de novo. */
+  const mudarApelido = useCallback(async (apelido: string) => {
+    if (!sessao || !perfil) return null;
+    const r = await api.trocarApelido(sessao.token, apelido);
+    setPerfil((p) => (p ? { ...p, apelido: r.apelido } : p));
+    return r.proximaTroca;
+  }, [sessao, perfil]);
   const abrir = useCallback((apelido: string | null) => {
     const k = apelido ? apelido.toLowerCase() : null;
     abertaRef.current = k;
@@ -204,6 +212,6 @@ export function ProvedorDoVoxix({ children }: { children: ReactNode }) {
     document.title = n > 0 ? `(${n}) Voxix` : "Voxix";
   }, [armazem]);
 
-  const valor = useMemo<Valor>(() => ({ sessao, perfil, armazem, conexao, aberta, entrar, sair, criarPerfil, mudarAvatar, abrir, novaConversa, enviar, reenviar, apagar }), [sessao, perfil, armazem, conexao, aberta, entrar, sair, criarPerfil, mudarAvatar, abrir, novaConversa, enviar, reenviar, apagar]);
+  const valor = useMemo<Valor>(() => ({ sessao, perfil, armazem, conexao, aberta, entrar, sair, criarPerfil, mudarAvatar, mudarApelido, abrir, novaConversa, enviar, reenviar, apagar }), [sessao, perfil, armazem, conexao, aberta, entrar, sair, criarPerfil, mudarAvatar, mudarApelido, abrir, novaConversa, enviar, reenviar, apagar]);
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

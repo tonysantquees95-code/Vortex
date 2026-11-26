@@ -28,7 +28,9 @@ export async function chamar<T>(metodo: string, caminho: string, corpo?: unknown
   return d as T;
 }
 
-export interface Perfil { apelido: string | null; nome?: string; nomeSugerido?: string; avatar?: string | null }
+export type Presenca = "amigos" | "todos" | "invisivel";
+export interface Perfil { apelido: string | null; nome?: string; nomeSugerido?: string; avatar?: string | null; presenca?: Presenca; proximaTroca?: number | null }
+export interface PerfilPublico { apelido: string; nome: string; avatar?: string | null; conquistas: { id: string; nome: string }[]; maisJogados: { jogo: string; horas: number }[]; jogandoAgora: { jogo: string; plataforma: string; desde: number } | null }
 export interface Pessoa { apelido: string; nome: string; avatar?: string | null }
 export interface ItemDoHistorico { id: string; minha: boolean; apelido: string; nome: string; corpo: string; tipo: string; criado: number }
 export interface MensagemDoServidor { id: string; de: string; deNome: string; conversa: string; corpo: string; tipo: string; criado: number }
@@ -64,6 +66,9 @@ export const api = {
   pontuar: (t: string, texto: string) => chamar<{ texto: string; ajustado: boolean }>("POST", "/voxix/pontuar", { texto }, t),
   definirAvatar: (t: string, avatar: string | null) => chamar<{ avatar: string | null }>("PUT", "/voxix/perfil/avatar", { avatar }, t),
   avatares: (t: string, apelidos: string[]) => chamar<{ avatares: Record<string, string | null> }>("GET", `/voxix/avatares?apelidos=${encodeURIComponent(apelidos.join(","))}`, undefined, t),
+  trocarApelido: (t: string, apelido: string) => chamar<{ apelido: string; proximaTroca: number | null }>("PUT", "/voxix/perfil/apelido", { apelido }, t),
+  definirPresenca: (t: string, presenca: Presenca) => chamar<{ presenca: Presenca }>("PUT", "/voxix/privacidade", { presenca }, t),
+  pessoa: (t: string, apelido: string) => chamar<PerfilPublico>("GET", `/voxix/pessoas/${encodeURIComponent(apelido)}`, undefined, t),
   bloqueios: (t: string) => chamar<{ bloqueios: Pessoa[] }>("GET", "/voxix/bloqueios", undefined, t),
   bloquear: (t: string, apelido: string) => chamar("POST", "/voxix/bloqueios", { apelido }, t),
   desbloquear: (t: string, apelido: string) => chamar("DELETE", `/voxix/bloqueios/${encodeURIComponent(apelido)}`, undefined, t),

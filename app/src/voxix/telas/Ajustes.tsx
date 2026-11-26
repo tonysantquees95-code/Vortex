@@ -13,6 +13,7 @@ import { Novidades } from "./Novidades";
 import { FeedbackDoApp } from "./FeedbackDoApp";
 import { Termos, Tour } from "./Apresentacao";
 import { EscolherAvatar } from "./EscolherAvatar";
+import { MeuPerfil } from "./PerfilEPrivacidade";
 
 export function Ajustes({ fechar }: { fechar: () => void }) {
   const { sessao, perfil, sair } = useVoxix();
@@ -21,6 +22,7 @@ export function Ajustes({ fechar }: { fechar: () => void }) {
   const [novaVersao, setNovaVersao] = useState(false);
   const [ver, setVer] = useState<"tour" | "termos" | "novidades" | "feedback" | null>(null);
   const [personalizando, setPersonalizando] = useState(false);
+  const [meuPerfil, setMeuPerfil] = useState(false);
   const [avisos, setAvisos] = useState(avisosLigados());
   const [permissao, setPermissao] = useState<PermissaoAvisos>("default");
   useEffect(() => { void permissaoDeAvisos().then(setPermissao); }, []);
@@ -57,7 +59,9 @@ export function Ajustes({ fechar }: { fechar: () => void }) {
       <div onClick={(e) => e.stopPropagation()} className="rolagem max-h-[calc(100vh-2rem)] w-full max-w-sm space-y-4 overflow-y-auto rounded-2xl border border-borda bg-painel p-5">
         <div className="flex items-center justify-between"><h2 className="text-lg font-extrabold">Ajustes</h2><button onClick={fechar} aria-label="Fechar" className="grid min-h-10 min-w-10 place-items-center text-xl text-suave"><Icone nome="fechar" tam={22} /></button></div>
         <EscolherAvatar />
-        <section><h3 className="text-sm font-bold text-suave">Conta</h3><p className="mt-1">@{perfil?.apelido} · {perfil?.nome}</p><p className="text-xs text-suave">{sessao?.email}</p></section>
+        <section><h3 className="text-sm font-bold text-suave">Conta</h3><p className="mt-1">@{perfil?.apelido} · {perfil?.nome}</p><p className="text-xs text-suave">{sessao?.email}</p>
+          <button onClick={() => setMeuPerfil(true)} className="mt-2 flex w-full items-center gap-3 rounded-xl border border-borda px-4 py-3 text-left"><span className="min-w-0 flex-1"><b className="block">Meu perfil, @ e privacidade</b><span className="block text-xs text-suave">Jogos mais jogados, conquistas, trocar o @ e escolher quem vê o que você está jogando.</span></span><span className="text-suave"><Icone nome="seta" tam={18} /></span></button>
+        </section>
         <section>
           <h3 className="text-sm font-bold text-suave">Personalizar</h3>
           <button onClick={() => setPersonalizando(true)} className="mt-2 flex w-full items-center gap-3 rounded-xl border border-borda px-4 py-3 text-left">
@@ -112,6 +116,7 @@ export function Ajustes({ fechar }: { fechar: () => void }) {
         <p className="text-xs text-suave">As conversas ficam guardadas na sua conta e aparecem em todos os aparelhos em que você entrar. Apagar uma conversa a remove só para você.</p>
         <button onClick={() => void sair()} className="w-full rounded-xl border border-erro py-2.5 font-bold text-erro">Sair da conta</button>
       </div>
+      {meuPerfil && <MeuPerfil fechar={() => setMeuPerfil(false)} />}
       {personalizando && <Personalizar fechar={() => setPersonalizando(false)} irParaInicio={fechar} />}
       {ver === "tour" && <div className="fixed inset-0 z-50 flex flex-col bg-fundo p-5" onClick={(e) => e.stopPropagation()}><div className="mx-auto flex min-h-0 w-full max-w-lg flex-1 flex-col"><Tour rotuloFinal="Fechar" aoTerminar={() => setVer(null)} aoFechar={() => setVer(null)} /></div></div>}
       {ver === "termos" && <Termos aoFechar={() => setVer(null)} />}

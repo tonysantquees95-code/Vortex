@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { vazio, receber, enviando, confirmar, falhou, marcarLida, lista, totalNaoLidas, ler, apagarConversa, MAX_POR_CONVERSA } from "../../src/voxix/armazem.ts";
+import { vazio, receber, enviando, confirmar, falhou, marcarLida, lista, totalNaoLidas, ler, apagarConversa, MAX_POR_CONVERSA, mesclarHistorico } from "../../src/voxix/armazem.ts";
 
 test("mensagem recebida cria a conversa, conta como não lida e não duplica", () => {
   let a = receber(vazio(), "Beto", "Beto Silva", "id1", "oi", 100);
@@ -47,14 +47,26 @@ test("leitura ignora lixo e o que estava 'enviando' vira 'falhou' (o app fechou 
 
 test("histórico do servidor entra sem repetir e confirmar não duplica", async () => {
   const A = await import("../../src/voxix/armazem.ts");
-  let a = A.vazio();
+  let a = vazio();
   a = A.enviando(a, "beto", "Beto", "local1", "oi", 100);
   // o histórico traz a mesma mensagem com o id do servidor, antes da confirmação
-  a = A.mesclarHistorico(a, [{ id: "srv1", minha: true, apelido: "beto", nome: "Beto", corpo: "oi", criado: 100 }, { id: "srv2", minha: false, apelido: "beto", nome: "Beto", corpo: "e aí", criado: 200 }], true);
+  a = mesclarHistorico(a, [{ id: "srv1", minha: true, apelido: "beto", nome: "Beto", corpo: "oi", criado: 100 }, { id: "srv2", minha: false, apelido: "beto", nome: "Beto", corpo: "e aí", criado: 200 }], true);
   a = A.confirmar(a, "beto", "local1", "srv1", 100);
   assert.deepEqual(a.conversas.beto.mensagens.map((m) => m.id), ["srv1", "srv2"]);
   assert.equal(a.conversas.beto.naoLidas, 1); // só a que veio do outro conta como não lida
   assert.equal(A.temMensagem(a, "srv2"), true);
-  const b = A.mesclarHistorico(A.vazio(), [{ id: "x", minha: false, apelido: "ana", nome: "Ana", corpo: "oi", criado: 1 }], false);
+  const b = mesclarHistorico(vazio(), [{ id: "x", minha: false, apelido: "ana", nome: "Ana", corpo: "oi", criado: 1 }], false);
   assert.equal(b.conversas.ana.naoLidas, 0); // primeira carga num aparelho novo: nada de "não lido" antigo
+});
+
+test("trocou o @: a conversa velha é juntada à nova pelo id das mensagens", () => {
+  let a = vazio();
+  a = mesclarHistorico(a, [{ id: "m1", minha: false, apelido: "ana_velha", nome: "Ana", corpo: "oi", criado: 1 }], false);
+  assert.deepEqual(Object.keys(a.conversas), ["ana_velha"]);
+  a = mesclarHistorico(a, [
+    { id: "m1", minha: false, apelido: "ana_nova", nome: "Ana", corpo: "oi", criado: 1 },
+    { id: "m2", minha: false, apelido: "ana_nova", nome: "Ana", corpo: "tudo bem?", criado: 2 },
+  ], false);
+  assert.deepEqual(Object.keys(a.conversas), ["ana_nova"]);
+  assert.equal(a.conversas.ana_nova.mensagens.length, 2);
 });
