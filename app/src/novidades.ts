@@ -26,7 +26,7 @@ export const NOVIDADES: Novidade[] = [
   { id: 19, data: "2026-11-25", tipo: "novo", titulo: "Filtros de imagem (Android)", texto: "Ainda na Game Bar, escolha o filtro da imagem: Padrão, Nítido, Suave, TV de tubo ou LCD. O Vortex lembra a sua escolha." },
   { id: 20, data: "2026-11-25", tipo: "novo", titulo: "Dentro do jogo (Windows)", texto: "Em Ajustes › Emuladores, escolha o filtro de imagem de todos os jogos e ligue o retroceder. No jogo: F2 salva, F4 carrega, segure R para voltar no tempo, segure Espaço para acelerar e F8 tira uma foto da tela. Com controle, aperte Start e Select juntos para abrir o menu do RetroArch." },
   { id: 21, data: "2026-11-25", tipo: "novo", titulo: "Vortex grátis, sem login", texto: "O Vortex agora é 100% grátis: abra e jogue sem criar conta e sem pagar nada. O Vetorial ID ficou opcional, só para quem quer os saves na nuvem. Os termos foram atualizados para dizer isso." },
-  { id: 22, data: "2026-11-26", tipo: "correcao", titulo: "Aviso do Vetorial ID mais claro", texto: "A tela de configuração do primeiro acesso agora diz que o Vortex abre sem conta; o Vetorial ID é só para guardar saves na nuvem e ligar com a Vênus." },
+  { id: 22, data: "2026-11-26", tipo: "melhoria", titulo: "Entrar com o Vetorial ID", texto: "O Vortex continua grátis, mas agora abre com o Vetorial ID (conta grátis, a mesma da Vênus). Entre uma vez e depois ele abre até sem internet. Seus jogos e saves continuam como estavam." },
 ];
 
 export const ROTULO: Record<TipoNovidade, string> = { novo: "Novo", melhoria: "Melhorou", correcao: "Corrigido" };
