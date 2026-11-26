@@ -14,7 +14,7 @@ export function Configuracao({ motor, tema, aoMudarTema, avisar, aoMudarBibliote
     { id: "permissoes", titulo: "Permissões", texto: "Para funcionar direito o Vortex precisa de algumas liberações do aparelho. Toque em Liberar, ative na tela que abrir e volte." },
     { id: "jogos", titulo: "Buscar seus jogos", texto: "O Vortex procura as ROMs que você já tem e organiza por console. Se elas estiverem em outra pasta, adicione-a." },
     { id: "aparencia", titulo: "Deixe com a sua cara", texto: "Escolha a cor e o estilo. Dá para mudar depois em Ajustes › Personalização." },
-    ...(motor.conta ? [{ id: "conta", titulo: "Conta Vetorial ID", texto: "Opcional agora: entre para liberar o Vortex e guardar os saves na nuvem." }] : []),
+    ...(motor.conta ? [{ id: "conta", titulo: "Conta Vetorial ID", texto: "Opcional: o Vortex já é grátis e abre sem conta. Entre só se quiser guardar os saves na nuvem e ligar com a Vênus." }] : []),
     { id: "pronto", titulo: "Tudo pronto", texto: "Seu Vortex está configurado. Boa jogatina!" },
   ];
   const [i, setI] = useState(0);
