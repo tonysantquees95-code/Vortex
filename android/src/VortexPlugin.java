@@ -34,6 +34,24 @@ public class VortexPlugin extends Plugin {
     /** Jogo aberto agora; quando o Vortex volta para a frente, a sessão fecha e o tempo é somado. */
     private static String jogoAberto = null;
     private static long abertoEm = 0;
+    private static volatile String jogandoTitulo = null;
+
+    /** Enquanto o jogo está aberto, avisa o Voxix a cada 60 s (os amigos veem "jogando agora"). Para sozinho quando o jogo fecha. */
+    private void comecarPresenca(final String titulo, final String plataforma, final String id) {
+        jogandoTitulo = id;
+        final File dados = new File(getContext().getFilesDir(), "vortex");
+        new Thread(new Runnable() {
+            public void run() {
+                Nuvem.Rede rede = new Nuvem.RedeReal();
+                while (id.equals(jogandoTitulo) && id.equals(jogoAberto)) {
+                    Nuvem.avisarJogando(rede, dados, titulo, plataforma);
+                    try { Thread.sleep(60000); } catch (InterruptedException e) { return; }
+                }
+                if (id.equals(jogandoTitulo)) jogandoTitulo = null;
+                Nuvem.avisarJogando(rede, dados, "", plataforma);
+            }
+        }, "voxix-presenca").start();
+    }
 
     // id, nome, pacotes, plataformas (vazio = só via RetroArch), método ("retroarch", "view"), atividade
     private static final String[][] EMULADORES = {
@@ -55,6 +73,19 @@ public class VortexPlugin extends Plugin {
             try { pm.getPackageInfo(pacote, 0); return pacote; } catch (PackageManager.NameNotFoundException ignora) { }
         }
         return null;
+    }
+
+    /** Abre o Voxix numa tela à parte (outra tarefa, com cartão próprio nos recentes); o Vortex continua rodando. Em tela dividida abre ao lado. */
+    @PluginMethod
+    public void abrirVoxix(PluginCall call) {
+        try {
+            Intent i = new Intent(getContext(), VoxixActivity.class);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
+            getContext().startActivity(i);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Não consegui abrir o Voxix: " + e.getMessage());
+        }
     }
 
     @PluginMethod
@@ -347,6 +378,7 @@ public class VortexPlugin extends Plugin {
             motor.executar("sessao_iniciar", new JSONObject().put("biblioteca", a.getString("biblioteca")).put("id", j.getString("id")));
             jogoAberto = j.getString("id");
             abertoEm = System.currentTimeMillis();
+            comecarPresenca(j.optString("titulo", ""), "android", jogoAberto);
             return new JSONObject().put("pid", 0).put("emulador", "Vortex").put("nucleo", p.nucleos[0]).put("modo_jogo", false);
         }
         String[] escolhido = null;
@@ -385,6 +417,7 @@ public class VortexPlugin extends Plugin {
         motor.executar("sessao_iniciar", ini);
         jogoAberto = j.getString("id");
         abertoEm = System.currentTimeMillis();
+        comecarPresenca(j.optString("titulo", ""), "android", jogoAberto);
         return new JSONObject().put("pid", 0).put("emulador", escolhido[1]).put("nucleo", escolhido[4].equals("retroarch") ? p.nucleos[0] : JSONObject.NULL).put("modo_jogo", false);
     }
 

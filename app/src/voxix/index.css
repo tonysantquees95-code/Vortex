@@ -1,0 +1,110 @@
+@import "tailwindcss";
+@theme {
+  --color-fundo: #05070d;
+  --color-painel: #0f0a1c;
+  --color-borda: #2a1a45;
+  --color-texto: #f1eafc;
+  --color-suave: #a597c2;
+  --color-neon: #ef2b3d;
+  --color-magenta: #8b3cf0;
+  --color-ok: #34d399;
+  --color-aviso: #fbbf24;
+  --color-erro: #fb7185;
+}
+html, body, #raiz { height: 100%; }
+body { margin: 0; background: var(--color-fundo); color: var(--color-texto); font-family: system-ui, "Segoe UI", sans-serif; overscroll-behavior: none; }
+button { cursor: pointer; }
+.rolagem { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--color-neon) 35%, transparent) transparent; }
+.balao-meu { background: linear-gradient(135deg, color-mix(in srgb, var(--color-neon) 80%, #000), color-mix(in srgb, var(--color-magenta) 70%, #000)); color: #fff; }
+@keyframes pulsa { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .55; transform: scale(1.12); } }
+.gravando { animation: pulsa 1s ease-in-out infinite; }
+
+/* Luz que corre em volta do contorno do logo (o RGB muda de cor enquanto corre). */
+@keyframes luz-corre { to { stroke-dashoffset: -100; } }
+@keyframes luz-matiz { 0%, 100% { stroke: #ff2a2a; } 33% { stroke: #2aff5a; } 66% { stroke: #2a6bff; } }
+/* O logo animado fica na própria camada, para não repintar (e embaçar) o resto da tela. */
+.logo-isolado { transform: translateZ(0); contain: paint; }
+/* As luzes sempre correm, também no Windows e no navegador (o "reduzir movimento" do sistema não desliga o visual do Voxix). */
+.luz-faixa { animation: luz-corre 4.2s linear infinite; }
+.luz-faixa.luz-rgb { animation: luz-corre 4.2s linear infinite, luz-matiz 5s linear infinite; }
+
+/* Ícone sobre fundo na cor do app fica sempre branco (senão, com "ícones na cor do app", sumia no botão). */
+.bg-neon svg, .tecla-enviar svg, .balao-meu svg, .avatar svg { color: #fff !important; }
+
+/* ---- formato dos ícones, avatares, balões e botões (Ajustes › Personalizar › Formato) ---- */
+:root { --r-balao: 1.1rem; --r-avatar: 9999px; --r-botao: 9999px; --r-tecla: .8rem; }
+:root { --corte-avatar: none; --corte-balao: none; --corte-tecla: none; }
+[data-formato="redondo"] { --r-balao: 1.1rem; --r-avatar: 9999px; --r-botao: 9999px; --corte-avatar: none; --corte-balao: none; }
+[data-formato="quadrado"] { --r-balao: .3rem; --r-avatar: .4rem; --r-botao: .4rem; --corte-avatar: none; --corte-balao: none; }
+[data-formato="futurista"] { --r-balao: .3rem; --r-avatar: .3rem; --r-botao: .3rem; --corte-avatar: polygon(25% 4%, 75% 4%, 100% 50%, 75% 96%, 25% 96%, 0 50%); --corte-balao: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px)); }
+[data-forma="redonda"] { --r-tecla: .8rem; --corte-tecla: none; }
+[data-forma="quadrada"] { --r-tecla: .25rem; --corte-tecla: none; }
+[data-forma="futurista"] { --r-tecla: .3rem; --corte-tecla: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 7px 100%, 0 calc(100% - 7px)); }
+.avatar { border-radius: var(--r-avatar); clip-path: var(--corte-avatar); }
+.botao-redondo { border-radius: var(--r-botao); }
+.balao { border-radius: var(--r-balao); clip-path: var(--corte-balao); }
+
+/* ---- papel de parede (início e conversa) ---- */
+.papel { position: absolute; inset: 0; pointer-events: none; z-index: 0; background-size: cover; background-position: center; }
+.papel-aurora { background: radial-gradient(60% 45% at 15% 10%, color-mix(in srgb, var(--color-neon) 38%, transparent), transparent 70%), radial-gradient(55% 45% at 90% 85%, color-mix(in srgb, var(--color-magenta) 40%, transparent), transparent 70%); }
+.papel-grade { background-image: linear-gradient(color-mix(in srgb, var(--color-neon) 16%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--color-neon) 16%, transparent) 1px, transparent 1px); background-size: 28px 28px; }
+.papel-circuito { background-image: repeating-linear-gradient(45deg, color-mix(in srgb, var(--color-neon) 14%, transparent) 0 1px, transparent 1px 22px), repeating-linear-gradient(-45deg, color-mix(in srgb, var(--color-magenta) 14%, transparent) 0 1px, transparent 1px 22px), radial-gradient(circle, color-mix(in srgb, var(--color-neon) 40%, transparent) 1.5px, transparent 2px); background-size: auto, auto, 44px 44px; }
+.papel-pontos { background-image: radial-gradient(circle, color-mix(in srgb, var(--color-neon) 35%, transparent) 1.5px, transparent 2px); background-size: 20px 20px; }
+.papel-tempestade { background: radial-gradient(50% 35% at 50% 0%, color-mix(in srgb, var(--color-neon) 45%, transparent), transparent 75%), radial-gradient(40% 30% at 85% 100%, color-mix(in srgb, var(--color-magenta) 45%, transparent), transparent 75%), repeating-linear-gradient(100deg, transparent 0 40px, color-mix(in srgb, var(--color-neon) 8%, transparent) 40px 42px); }
+.papel-sombra { position: absolute; inset: 0; pointer-events: none; z-index: 0; background: #000; }
+
+/* ---- teclado do Voxix ---- */
+.teclado { padding: 5px 3px calc(16px + env(safe-area-inset-bottom)); background: color-mix(in srgb, var(--color-painel) 94%, var(--color-neon)); border-top: 1px solid var(--color-borda); user-select: none; -webkit-user-select: none; touch-action: manipulation; position: relative; }
+.linha-tecla { display: flex; gap: 5px; margin-bottom: 6px; position: relative; }
+.tecla { --led: var(--color-neon); position: relative; height: var(--alt-tecla, 54px); min-width: 0; display: grid; place-items: center; font-size: 1.2rem; font-weight: 600; color: var(--color-texto); background: color-mix(in srgb, var(--color-painel) 70%, #fff 8%); border: 1px solid var(--color-borda); border-radius: var(--r-tecla); clip-path: var(--corte-tecla); -webkit-tap-highlight-color: transparent; touch-action: none; }
+.tecla-num { height: calc(var(--alt-tecla, 54px) * .74); font-size: 1.05rem; }
+.tecla-espaco { font-size: 1rem; color: var(--color-suave); }
+.dica { position: absolute; top: 2px; right: 5px; font-size: .62rem; font-weight: 500; line-height: 1; opacity: .55; pointer-events: none; }
+/* o toque também vale no espaço entre as teclas (sem "zona morta"): cada tecla estica a área de toque até a metade do vão */
+.tecla::before { content: ""; position: absolute; inset: -3px; }
+.linha-tecla > button.tecla:first-of-type::before { left: -8px; }
+.linha-tecla > button.tecla:last-of-type::before { right: -8px; }
+/* sem luz nem mudança de cor ao tocar: o teclado só escreve (a resposta rápida vale mais que o efeito) */
+.tecla-fn { background: color-mix(in srgb, var(--color-painel) 85%, var(--color-magenta) 15%); font-size: 1rem; }
+.tecla[data-ativa="sim"] { border-color: var(--color-neon); color: var(--color-neon); }
+.tecla-enviar { background: var(--color-neon); border-color: var(--color-neon); color: #fff; font-size: 1.15rem; }
+/* luzes que correm pelas quatro bordas do teclado, no sentido do relógio (só deslizam: nada de máscara nem camada grande) */
+.borda-luz { position: absolute; overflow: hidden; pointer-events: none; background: color-mix(in srgb, var(--color-neon) 10%, transparent); }
+.borda-luz i { position: absolute; will-change: transform; }
+.borda-luz.t { left: 0; right: 0; top: 0; height: 2px; } .borda-luz.b { left: 0; right: 0; bottom: 0; height: 2px; }
+.borda-luz.d { top: 0; bottom: 0; right: 0; width: 2px; } .borda-luz.e { top: 0; bottom: 0; left: 0; width: 2px; }
+.borda-luz.t i, .borda-luz.b i { top: 0; bottom: 0; width: 28%; }
+.borda-luz.d i, .borda-luz.e i { left: 0; right: 0; height: 28%; }
+.borda-luz.t i { animation: faixa-ida 3s linear infinite; } .borda-luz.b i { animation: faixa-volta 3s linear infinite; }
+.borda-luz.d i { animation: faixa-desce 3s linear infinite; } .borda-luz.e i { animation: faixa-sobe 3s linear infinite; }
+@keyframes faixa-desce { from { transform: translateY(-100%); } to { transform: translateY(360%); } }
+@keyframes faixa-sobe { from { transform: translateY(360%); } to { transform: translateY(-100%); } }
+/* luzes que correm no vão embaixo de cada fileira, cada uma para um lado */
+.faixa-luz { position: absolute; left: 0; right: 0; top: calc(100% + 2px); height: 2px; overflow: hidden; pointer-events: none; border-radius: 2px; background: color-mix(in srgb, var(--color-neon) 10%, transparent); }
+.faixa-luz i { position: absolute; left: 0; top: 0; bottom: 0; width: 28%; animation: faixa-ida 2.8s linear infinite; will-change: transform; }
+.faixa-luz i.volta { animation-name: faixa-volta; }
+@keyframes faixa-ida { from { transform: translateX(-100%); } to { transform: translateX(360%); } }
+@keyframes faixa-volta { from { transform: translateX(360%); } to { transform: translateX(-100%); } }
+.popup-acento { position: absolute; left: 6px; right: 6px; top: -52px; display: flex; gap: 4px; padding: 6px; background: var(--color-painel); border: 1px solid var(--color-neon); border-radius: var(--r-balao); z-index: 5; }
+.popup-acento button { flex: 1; height: 38px; font-size: 1.15rem; border-radius: var(--r-tecla); background: color-mix(in srgb, var(--color-neon) 20%, transparent); color: var(--color-texto); }
+.pacote { flex: none; width: 38px; height: 34px; font-size: 1.2rem; border-radius: var(--r-tecla); border: 1px solid transparent; }
+.pacote-ativo { border-color: var(--color-neon); background: color-mix(in srgb, var(--color-neon) 18%, transparent); }
+.grade-emoji { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; overflow-y: auto; margin-bottom: 5px; }
+.emoji { height: 40px; font-size: 1.5rem; border-radius: var(--r-tecla); }
+.emoji:active { background: color-mix(in srgb, var(--color-neon) 25%, transparent); }
+
+/* ---- faixa de sugestões do corretor (em cima das teclas; no computador, flutuando em cima do campo) ---- */
+.barra-sug { display: flex; gap: 5px; height: 42px; padding: 5px 6px 0; background: color-mix(in srgb, var(--color-painel) 94%, var(--color-neon)); border-top: 1px solid var(--color-borda); }
+.barra-sug + .teclado { border-top: 0; padding-top: 5px; }
+.sug { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 8px; font-size: 1.05rem; font-weight: 600; color: var(--color-texto); background: color-mix(in srgb, var(--color-painel) 70%, #fff 8%); border: 1px solid var(--color-borda); border-radius: var(--r-tecla); clip-path: var(--corte-tecla); -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+.sug:active { background: color-mix(in srgb, var(--color-neon) 25%, var(--color-painel)); }
+.sug-melhor { border-color: var(--color-neon); color: var(--color-neon); }
+.sug-literal { font-style: italic; color: var(--color-suave); }
+.barra-sug-flutuante { position: absolute; left: .625rem; right: .625rem; bottom: 100%; z-index: 5; height: 38px; padding: 0 0 5px; background: transparent; border-top: 0; }
+.barra-sug-flutuante { justify-content: flex-start; }
+.barra-sug-flutuante .sug { flex: 0 1 auto; min-width: 7rem; background: var(--color-painel); }
+
+/* barrinha de carregando enquanto o microfone prepara */
+.carregando-mic { height: 3px; border-radius: 99px; overflow: hidden; background: color-mix(in srgb, var(--color-neon) 18%, transparent); position: relative; }
+.carregando-mic::after { content: ""; position: absolute; inset: 0 auto 0 0; width: 40%; border-radius: 99px; background: linear-gradient(90deg, var(--color-neon), var(--color-magenta)); animation: carrega-mic 1s ease-in-out infinite; }
+@keyframes carrega-mic { from { transform: translateX(-100%); } to { transform: translateX(250%); } }

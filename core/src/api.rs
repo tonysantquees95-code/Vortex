@@ -522,10 +522,12 @@ pub fn executar(comando: &str, args: &Value) -> Result<Value, String> {
         "lancar" => {
             let id = texto(args, "id")?.to_string();
             let plano = plano_do_jogo(&b, &id, &arquivo)?;
+            let titulo_do_jogo = b.jogos.get(&id).map(|j| j.titulo.clone()).unwrap_or_default();
             drop(_g);
             let modo = modo_jogo::Configuracao::carregar(&arquivo_do_modo_jogo(&arquivo));
             let modo_ligado = modo.ligado;
             let pid = lancar_com_modo(&plano, arquivo.clone(), id, agora_real, Some(modo))?;
+            presenca_do_jogo(pasta_de_dados(&arquivo), titulo_do_jogo, pid);
             return Ok(json!({ "pid": pid, "emulador": plano.emulador, "nucleo": plano.nucleo, "modo_jogo": modo_ligado }));
         }
         "modo_jogo_config" => {
@@ -925,4 +927,28 @@ mod testes_url {
         assert!(!url_segura("https://x.com/\"&calc"));
         assert!(!url_segura("file:///c:/x"));
     }
+}
+
+
+/// "Jogando agora" do Voxix: enquanto o emulador estiver aberto, avisa o servidor a cada 60 s (e avisa que parou ao fechar).
+/// Sem conta ou sem perfil no Voxix não acontece nada (o servidor responde 409 e a pessoa nem percebe).
+fn presenca_do_jogo(dados: PathBuf, titulo: String, pid: u32) {
+    if titulo.is_empty() || pid == 0 { return; }
+    std::thread::spawn(move || {
+        let rede = nuvem::RedeReal;
+        let avisar = |jogo: &str| {
+            if let Some(c) = nuvem::conta_salva(&dados) {
+                let corpo = json!({ "jogo": jogo, "plataforma": "windows" }).to_string();
+                let _ = nuvem::Rede::pedir(&rede, "PUT", "/voxix/jogando", Some(&c.token), Some(corpo.as_bytes()), None);
+            }
+        };
+        let mut s = sysinfo::System::new();
+        loop {
+            avisar(&titulo);
+            std::thread::sleep(std::time::Duration::from_secs(60));
+            s.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[sysinfo::Pid::from_u32(pid)]), true);
+            if s.process(sysinfo::Pid::from_u32(pid)).is_none() { break; }
+        }
+        avisar("");
+    });
 }

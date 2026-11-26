@@ -125,6 +125,8 @@ export interface Motor {
   pc?: { importar(): Promise<{ steam: number; epic: number; novos: number }>; adicionar(): Promise<boolean> };
   /** Só no Windows: abre/instala um jogo da Steam pelo aplicativo da Steam. */
   abrirSteam?(appid: number, acao: "jogar" | "instalar"): Promise<void>;
+  /** Windows e Android: abre o Voxix (chat) numa janela/tela à parte, sem fechar o Vortex. */
+  abrirVoxix?(): Promise<void>;
   /** Windows e Android: entrar com o Vetorial ID e sincronizar saves. */
   conta?: ContaVetorial;
   /** Android: Vetorial Drive. */

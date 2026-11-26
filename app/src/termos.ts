@@ -1,5 +1,5 @@
 /** Termos de uso do Vortex. Mudou o texto: suba a VERSAO e a pessoa aceita de novo. */
-export const VERSAO_DOS_TERMOS = 3;
+export const VERSAO_DOS_TERMOS = 4;
 const CHAVE = "vortex.termos";
 
 export const TERMOS: { titulo: string; texto: string }[] = [
@@ -9,9 +9,10 @@ export const TERMOS: { titulo: string; texto: string }[] = [
   { titulo: "4. Aparelhos", texto: "Cada conta pode ter até 3 aparelhos vinculados e usar até 2 ao mesmo tempo. Para vincular um quarto aparelho, remova um dos anteriores." },
   { titulo: "5. Saves na nuvem", texto: "Se você entrar com o Vetorial ID, os saves dos seus jogos são enviados para a nuvem da Vetorial Tech e ficam ligados à sua conta, para você continuar de onde parou em outro aparelho. Cada conta tem 256 MB. Quando o save mudou em dois aparelhos, o Vortex pergunta qual manter e guarda uma cópia do que for trocado. Você pode sair da conta quando quiser; os saves continuam no seu aparelho." },
   { titulo: "6. Controle e outros apps", texto: "No Android, o serviço opcional “Vortex Controle” usa a acessibilidade apenas para tocar na tela quando você aperta um botão do controle, em jogos que você escolheu. Ele não lê o conteúdo da tela. Para a ponte com a Vênus (“Vênus, abra o jogo X”), o Vortex precisa estar aberto e com a sua conta." },
-  { titulo: "7. Downloads e internet", texto: "Na primeira vez de cada console o Vortex baixa o motor de emulação, de fontes oficiais, e na loja baixa os jogos conferindo a integridade do arquivo. Isso usa a sua internet. Os motores de emulação são software livre de terceiros e seguem as licenças deles." },
-  { titulo: "8. Garantias", texto: "O Vortex é oferecido como está. O desempenho depende do seu aparelho, e alguns consoles pesados podem rodar mal em aparelhos fracos. A Vetorial Tech não se responsabiliza por perda de saves, por jogos de terceiros nem por uso em desacordo com a lei." },
-  { titulo: "9. Mudanças", texto: "Estes termos podem mudar. Quando mudarem, o Vortex pede que você aceite de novo antes de continuar." },
+  { titulo: "7. Voxix, o chat do Vortex", texto: "O Vortex traz o Voxix, o chat para quem joga. Se você criar um perfil no Voxix, o Vortex avisa o servidor da Vetorial Tech qual jogo você está jogando (só o nome do jogo e o aparelho), e isso aparece como “jogando agora” no seu perfil apenas para quem você permitir: amigos (padrão), todos ou ninguém (invisível), em Voxix › Privacidade. Também guardamos o tempo jogado por jogo, para mostrar os seus três mais jogados, e as suas conquistas. Sem perfil no Voxix, nada disso é enviado." },
+  { titulo: "8. Downloads e internet", texto: "Na primeira vez de cada console o Vortex baixa o motor de emulação, de fontes oficiais, e na loja baixa os jogos conferindo a integridade do arquivo. Isso usa a sua internet. Os motores de emulação são software livre de terceiros e seguem as licenças deles." },
+  { titulo: "9. Garantias", texto: "O Vortex é oferecido como está. O desempenho depende do seu aparelho, e alguns consoles pesados podem rodar mal em aparelhos fracos. A Vetorial Tech não se responsabiliza por perda de saves, por jogos de terceiros nem por uso em desacordo com a lei." },
+  { titulo: "10. Mudanças", texto: "Estes termos podem mudar. Quando mudarem, o Vortex pede que você aceite de novo antes de continuar." },
 ];
 
 export function termosAceitos(): boolean {

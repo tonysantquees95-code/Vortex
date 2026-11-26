@@ -182,6 +182,23 @@ fn instalar_atualizacao_baixada() -> Result<(), String> {
     Ok(())
 }
 
+/// Abre o Voxix numa janela própria, ao lado do Vortex (o Vortex continua rodando). Se já está aberta, só traz para a frente.
+#[tauri::command]
+fn abrir_voxix(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(j) = app.get_webview_window("voxix") {
+        let _ = j.unminimize();
+        let _ = j.show();
+        return j.set_focus().map_err(|e| e.to_string());
+    }
+    tauri::WebviewWindowBuilder::new(&app, "voxix", tauri::WebviewUrl::App("voxix.html".into()))
+        .title("Voxix · Gaming Chat")
+        .inner_size(1000.0, 720.0)
+        .min_inner_size(380.0, 560.0)
+        .build()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
@@ -198,7 +215,15 @@ fn main() {
             Ok(())
         })
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![motor, instalar_atualizacao, baixar_atualizacao, progresso_atualizacao, instalar_atualizacao_baixada])
+        .invoke_handler(tauri::generate_handler![motor, instalar_atualizacao, baixar_atualizacao, progresso_atualizacao, instalar_atualizacao_baixada, abrir_voxix])
+        .on_window_event(|janela, evento| {
+            // fechar o Vortex fecha o Voxix junto; fechar só o Voxix não mexe no Vortex
+            if janela.label() == "main" {
+                if let tauri::WindowEvent::CloseRequested { .. } = evento {
+                    if let Some(v) = janela.app_handle().get_webview_window("voxix") { let _ = v.close(); }
+                }
+            }
+        })
         .run(tauri::generate_context!())
         .expect("não foi possível iniciar o Vortex");
 }

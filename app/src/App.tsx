@@ -376,9 +376,10 @@ export function App() {
           <Dock rotulo="Seções" foco={false} ativo={aba}
             itens={[
               ...ABAS.map(([id, nome, icone]) => ({ id, nome, icone })),
+              ...(motor.abrirVoxix ? [{ id: "voxix", nome: "Voxix", icone: "", acao: true, logoVoxix: true }] : []),
               ...(aba === "inicio" || aba === "biblioteca" || aba === "loja" ? [{ id: "atualizar", nome: atualizandoBib ? "Atualizando…" : "Atualizar biblioteca", icone: "atualizar", acao: true, girando: atualizandoBib, desligado: atualizandoBib }] : []),
             ]}
-            aoEscolher={(id) => { if (id === "atualizar") void atualizarBiblioteca(true); else setAba(id as Aba); }} />
+            aoEscolher={(id) => { if (id === "atualizar") void atualizarBiblioteca(true); else if (id === "voxix") { motor.abrirVoxix?.().catch(() => avisar("Não consegui abrir o Voxix.")); } else setAba(id as Aba); }} />
           {!controle && ehWindows(navigator.userAgent)
             ? <div className="dicas max-md:hidden" aria-hidden>{DICAS_TECLADO.map((d) => <span key={d.texto}>{d.teclas.map((t) => <b key={t}>{t}</b>)} {d.texto}</span>)}</div>
             : <div className="dicas max-md:hidden" aria-hidden><span><b>A</b> Abrir</span><span><b>B</b> Voltar</span><span><b>LB</b>/<b>RB</b> Abas</span><span><b>X</b> Atualizar biblioteca</span><span><b>Start</b> Atualização</span></div>}

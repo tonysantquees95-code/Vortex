@@ -7,12 +7,14 @@
     "dev": "vite --port 5178",
     "build": "tsc -p tsconfig.json && vite build",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --test teste/*.test.mjs",
+    "test": "node --test teste/*.test.mjs teste/voxix/*.test.mjs",
     "test:visual": "node teste-visual/telas.mjs"
   },
   "dependencies": {
+    "@capacitor-community/speech-recognition": "^7.0.0",
     "@capacitor/android": "^7.4.0",
     "@capacitor/core": "^7.4.0",
+    "@capacitor/local-notifications": "^7.0.7",
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-dialog": "^2.0.0",
     "react": "^19.0.0",

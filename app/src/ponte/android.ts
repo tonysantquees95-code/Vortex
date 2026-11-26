@@ -11,6 +11,7 @@ interface PluginVortex {
   baixarAtualizacao(opcoes: { url: string; sha256: string; tamanho: number }): Promise<void>;
   progressoAtualizacao(): Promise<{ estado: "parada" | "baixando" | "pronta" | "erro"; feitos: number; total: number; erro: string }>;
   instalarBaixada(): Promise<void>;
+  abrirVoxix(): Promise<void>;
   driveEscolher(): Promise<{ uri: string | null; nome?: string; bytes?: number }>;
   driveEnviar(opcoes: { uri: string; pasta: string; nome: string }): Promise<{ bytes: number }>;
   driveBaixar(opcoes: { pasta: string; nome: string }): Promise<{ caminho: string; pasta: string }>;
@@ -63,6 +64,7 @@ export function motorAndroid(): Motor {
     baixarAtualizacao: async (url, sha256, tamanho) => { await Vortex.baixarAtualizacao({ url, sha256, tamanho }); },
     progressoAtualizacao: () => Vortex.progressoAtualizacao(),
     instalarBaixada: async () => { await Vortex.instalarBaixada(); },
+    abrirVoxix: async () => { await Vortex.abrirVoxix(); },
     pastas: () => c<string[]>("pastas"),
     escolherPasta: async () => (await Vortex.escolherPasta()).pasta,
     adicionarPasta: (pasta) => c<string[]>("adicionar_pasta", { pasta }),

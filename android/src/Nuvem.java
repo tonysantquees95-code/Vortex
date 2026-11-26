@@ -170,6 +170,16 @@ public final class Nuvem {
         return j;
     }
 
+    /** Avisa o Voxix do que a pessoa está jogando (vazio = parou). Sem perfil no Voxix o servidor responde 409 e fica tudo quieto. */
+    public static void avisarJogando(Rede rede, File dados, String jogo, String plataforma) {
+        try {
+            JSONObject conta = lerConta(dados);
+            if (conta == null) return;
+            byte[] corpo = new JSONObject().put("jogo", jogo == null ? "" : jogo).put("plataforma", plataforma).toString().getBytes(StandardCharsets.UTF_8);
+            rede.pedir("PUT", "/voxix/jogando", conta.getString("token"), corpo, null);
+        } catch (Throwable ignora) { }
+    }
+
     /** Resumo da varredura do aparelho para a IA do servidor (DeepSeek/Groq). */
     public static JSONObject iaVarredura(Rede rede, File dados, JSONObject pedido) throws Exception { return iaEm(rede, dados, "/vortex/ia/varredura", pedido); }
 

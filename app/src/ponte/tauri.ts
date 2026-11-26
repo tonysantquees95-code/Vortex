@@ -29,6 +29,7 @@ export async function motorTauri(): Promise<Motor> {
     baixarAtualizacao: async (url, sha256, tamanho) => { await invoke("baixar_atualizacao", { url, sha256, tamanho }); },
     progressoAtualizacao: () => invoke("progresso_atualizacao"),
     instalarBaixada: async () => { await invoke("instalar_atualizacao_baixada"); },
+    abrirVoxix: async () => { await invoke("abrir_voxix"); },
     pastas: () => c<string[]>("pastas"),
     escolherPasta: async () => {
       const r = await open({ directory: true, multiple: false });
