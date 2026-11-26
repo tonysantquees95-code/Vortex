@@ -1,0 +1,3 @@
+[
+  { "regra": "permissao", "arquivo": "app.yml", "trecho": "QUERY_ALL_PACKAGES", "motivo": "O Vortex lista os jogos de Android instalados na biblioteca; sem a permissão eles não aparecem" }
+]
