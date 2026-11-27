@@ -39,3 +39,8 @@
 - `app/teste/seguranca.test.mjs` roda junto com os outros testes e na publicação: se falhar, a publicação para. Confere o repositório inteiro: segredo escrito no código (chaves, tokens, senhas), arquivo que nunca pode ser versionado (.env, chaves de assinatura), CSP do Tauri sem `unsafe-eval`/curinga, manifesto do Android (debug, tráfego http, componente exposto sem permissão, `QUERY_ALL_PACKAGES`), `eval`, HTML montado com texto (`innerHTML`), endereço `http://` fora da máquina local, segredo no log, HTTPS desligado e WebView com acesso perigoso.
 - Exceção justificada = uma linha em `seguranca.permitidos.json` (regra, arquivo, trecho e MOTIVO de verdade); sem motivo, não vale. Texto digitado pela pessoa ou vindo de site/servidor nunca entra em HTML sem escapar (`textContent` ou `esc()`).
 - O arquivo é o mesmo em todos os apps: mudou uma regra? Mude em todos. Achou uma brecha nova? Escreva primeiro um teste que a reproduz.
+
+
+## Manual do app (aparece no botão "Manual" do Painel Dev)
+- `MANUAL.md` na raiz explica o app: pastas, onde fica cada coisa, como voltar atrás. É público: só diz ONDE ficam as chaves, nunca os valores.
+- Mudança importante (função nova, pasta nova, arquivo que passa a mandar em algo, regra nova, decisão): acrescente uma linha NO TOPO da tabela "Movimentações importantes" do `MANUAL.md` (data, o que mudou, onde) e ajuste o trecho que ficou velho. Os últimos commits o Painel Dev já mostra sozinho; o manual guarda o que vale lembrar.
