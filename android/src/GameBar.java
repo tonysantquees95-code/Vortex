@@ -250,9 +250,9 @@ public final class GameBar {
             barra.addView(titulo("MODO DE JOGO"));
             modos = new LinearLayout(act);
             modos.setOrientation(LinearLayout.HORIZONTAL);
-            modos.addView(botaoModo("⚡ Turbo", "turbo"));
+            modos.addView(botaoModo("Turbo", "turbo"));
             modos.addView(botaoModo("● Normal", "normal"));
-            modos.addView(botaoModo("🍃 Econômico", "economico"));
+            modos.addView(botaoModo("Econômico", "economico"));
             barra.addView(modos);
         }
         int grav; int mx = 0, my = 0;

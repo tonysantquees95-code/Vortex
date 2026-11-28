@@ -1,3 +1,4 @@
+import { Icone } from "./Icones";
 import { useEffect, useState } from "react";
 import type { ContaVetorial, ResumoPlataforma } from "../ponte";
 import type { Jogo } from "../ponte";
@@ -18,7 +19,7 @@ export function JogosDaConta({ conta, jogos, plats, aoProcurar }: { conta?: Cont
   return (
     <section className="vidro mb-6 p-5" aria-label="Jogos da sua conta em outro aparelho">
       <button data-foco className="flex w-full items-center justify-between text-left" onClick={() => setAberto(!aberto)}>
-        <span className="text-lg font-black">☁ Na sua conta, em outro aparelho <span className="text-base font-semibold text-slate-400">{lista.length}</span></span>
+        <span className="text-lg font-black"><Icone nome="nuvem" className="mr-1.5 inline size-5 align-[-0.25em]" />Na sua conta, em outro aparelho <span className="text-base font-semibold text-slate-400">{lista.length}</span></span>
         <span className="text-slate-400">{aberto ? "Fechar" : "Ver"}</span>
       </button>
       {aberto && (

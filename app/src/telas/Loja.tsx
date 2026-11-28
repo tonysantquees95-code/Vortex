@@ -1,3 +1,4 @@
+import { Icone } from "./Icones";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Jogo, Motor, Oferta } from "../ponte";
 import { focar } from "../foco";
@@ -97,7 +98,7 @@ export function Loja({ motor, aoInstalar, aoJogar, avisar }: { motor: Motor; aoI
                 {atual.instalado && atual.jogo_id ? (
                   <button data-foco className="botao primario" onClick={() => { setAberta(null); aoJogar(atual.jogo_id as string); }}>▶ Jogar</button>
                 ) : (
-                  <button data-foco className="botao primario" disabled={!!baixando[atual.id]} onClick={() => baixar(atual)}>{baixando[atual.id] ? "Baixando…" : "⬇ Baixar"}</button>
+                  <button data-foco className="botao primario" disabled={!!baixando[atual.id]} onClick={() => baixar(atual)}>{baixando[atual.id] ? "Baixando…" : <><Icone nome="baixar" className="mr-1.5 inline size-5 align-[-0.25em]" />Baixar</>}</button>
                 )}
                 <button data-foco className="botao" onClick={() => setAberta(null)}>Voltar</button>
               </div>

@@ -1,3 +1,4 @@
+import { Icone } from "./Icones";
 import { useState } from "react";
 import { marcarTourVisto, TOUR } from "../tour";
 
@@ -12,7 +13,7 @@ export function Tour({ aoTerminar, rotuloFinal = "Continuar" }: { aoTerminar: ()
       <div className="vidro flex max-h-[calc(100dvh-1rem)] w-full max-w-xl flex-col gap-4 p-5 text-center sm:p-8">
         {/* o texto rola quando a tela é baixa (celular deitado); os botões ficam sempre à vista */}
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain pr-1" style={{ touchAction: "pan-y", WebkitOverflowScrolling: "touch" }} tabIndex={0}>
-        <div className="text-5xl" aria-hidden>{p.icone}</div>
+        <div className="flex shrink-0 justify-center text-cyan-300" aria-hidden><Icone nome={p.icone} className="size-14" /></div>
         <h2 className="text-2xl font-bold">{p.titulo}</h2>
         <p className="text-slate-300">{p.texto}</p>
         {p.como && <ul className="space-y-2 rounded-xl bg-white/5 p-4 text-left text-sm text-slate-300">{p.como.map((c) => <li key={c}>› {c}</li>)}</ul>}

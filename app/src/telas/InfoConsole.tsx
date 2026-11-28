@@ -1,3 +1,4 @@
+import { Icone } from "./Icones";
 import { useEffect, useState } from "react";
 import { tempoJogado } from "../navegacao";
 import { focar } from "../foco";
@@ -45,8 +46,8 @@ export function InfoConsole({ c, aoEsconder, aoTirar, aoFechar }: { c: Colecao; 
           </div>
         ) : (
           <div className="flex flex-wrap gap-3">
-            <button data-foco className="botao" onClick={() => setConfirmar("esconder")}>🙈 Esconder do Início</button>
-            <button data-foco className="botao" onClick={() => setConfirmar("fora")}>🗑 Tirar da biblioteca</button>
+            <button data-foco className="botao" onClick={() => setConfirmar("esconder")}><Icone nome="esconder" className="mr-1.5 inline size-5 align-[-0.25em]" />Esconder do Início</button>
+            <button data-foco className="botao" onClick={() => setConfirmar("fora")}><Icone nome="lixo" className="mr-1.5 inline size-5 align-[-0.25em]" />Tirar da biblioteca</button>
             <button data-foco className="botao" onClick={aoFechar}>Voltar</button>
           </div>
         )}

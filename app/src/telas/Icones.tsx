@@ -5,6 +5,18 @@ import { matizDoTexto } from "../navegacao";
 const tracos = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" } as const;
 
 const DESENHOS: Record<string, ReactNode> = {
+  ia: <><rect x="5" y="8" width="14" height="11" rx="3" /><path d="M12 8V4.500M9 13h.01M15 13h.01M9.500 16.500h5M2.500 12.500v2M21.500 12.500v2" /></>,
+  chat: <><path d="M5 4.5h14a2 2 0 0 1 2 2V15a2 2 0 0 1-2 2h-8l-5 3.5V17H5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z" /><path d="M8 10.8h.01M12 10.8h.01M16 10.8h.01" /></>,
+  bateria: <><rect x="3.5" y="8" width="15" height="8.5" rx="2" /><path d="M21 11v2.5M7 11v2.5" /></>,
+  balanca: <><path d="M12 4v16M8 20h8M4 8h16" /><path d="m4 8-2 5h4zM20 8l-2 5h4z" /></>,
+  folha: <><path d="M5 19C5 9 11 5 20 4.5 20 14 15 19 5 19z" /><path d="M5 19c3-5 6-8 10-10" /></>,
+  buscar: <><circle cx="10.5" cy="10.5" r="6" /><path d="m15 15 5.5 5.5" /></>,
+  limpar: <><path d="m14 4 6 6M16.5 6.5 10 13" /><path d="M7 11.5 12.5 17 9 20.500 3.500 15z" /></>,
+  camera: <><path d="M4.500 8h3l1.600-2.500h5.800L16.500 8h3A1.500 1.500 0 0 1 21 9.500v8a1.500 1.500 0 0 1-1.500 1.500h-15A1.500 1.500 0 0 1 3 17.500v-8A1.500 1.500 0 0 1 4.500 8z" /><circle cx="12" cy="13" r="3.200" /></>,
+  imagem: <><rect x="3.500" y="4.500" width="17" height="15" rx="2.500" /><circle cx="9" cy="10" r="1.600" /><path d="m4.500 17.500 4.500-4.500 3.500 3.500 3-3 4 4" /></>,
+  esconder: <><path d="M3 12s3.200-6 9-6 9 6 9 6-3.200 6-9 6-9-6-9-6z" /><path d="M4 20 20 4" /></>,
+  lixo: <path d="M5 7h14M9.500 7V4.500h5V7M7 7l.8 12.500h8.400L17 7" />,
+  baixar: <path d="M12 4v11M7.500 11l4.500 4.500 4.500-4.500M5 20h14" />,
   inicio: <><path d="M3 11.5 12 4l9 7.5" /><path d="M5.5 10v9.5h13V10" /><path d="M10 19.5v-5h4v5" /></>,
   biblioteca: <><rect x="3.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="3.5" y="13.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="13.5" width="7" height="7" rx="1.5" /></>,
   loja: <><path d="M5 8h14l-1 12H6L5 8Z" /><path d="M9 8V6.5a3 3 0 0 1 6 0V8" /></>,

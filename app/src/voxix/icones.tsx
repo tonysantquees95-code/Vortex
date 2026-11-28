@@ -4,7 +4,7 @@ import { useVisual } from "./useVisual";
 export type NomeIcone =
   | "config" | "fechar" | "voltar" | "mais" | "adicionar" | "enviar" | "microfone" | "parar" | "inicio" | "teclado" | "cores" | "formato" | "fundo"
   | "emoji" | "apagar" | "enter" | "shift" | "shiftTrava" | "estrela" | "seta"
-  | "grupo" | "jogo" | "raio" | "coracao" | "escudo" | "chama" | "planeta" | "link" | "copiar" | "cadeado" | "hash" | "globo" | "buscar" | "sair";
+  | "grupo" | "jogo" | "conversa" | "arroba" | "foguete" | "raio" | "coracao" | "escudo" | "chama" | "planeta" | "link" | "copiar" | "cadeado" | "hash" | "globo" | "buscar" | "sair";
 
 /** Engrenagem de 8 dentes, gerada em código (centro 12,12). */
 function engrenagem(): string {
@@ -23,6 +23,9 @@ const ENGRENAGEM = engrenagem();
 
 /** Desenhos em 24x24. `area` = parte fechada que pode receber o preenchimento suave; `linhas` = só traço. */
 const DESENHOS: Record<NomeIcone, { area?: string; linhas?: string; pontos?: [number, number][] }> = {
+  arroba: { linhas: "M15.500 12a3.500 3.500 0 1 1-7 0 3.500 3.500 0 0 1 7 0zM15.500 12v1.500a2.500 2.500 0 0 0 5 0V12a8.500 8.500 0 1 0-3.500 6.900" },
+  conversa: { area: "M5 4.5h14a2 2 0 012 2V15a2 2 0 01-2 2h-8l-5 3.5V17H5a2 2 0 01-2-2V6.500a2 2 0 012-2z", linhas: "M8 10.8h.01M12 10.8h.01M16 10.8h.01" },
+  foguete: { area: "M12 3c3.5 2.5 5 6 4 11H8c-1-5 .5-8.5 4-11z", linhas: "M8 11l-3 3v3l3.500-1.500M16 11l3 3v3l-3.500-1.500M10.500 17.500L12 21l1.500-3.500M12 8.500h.01" },
   config: { area: ENGRENAGEM, linhas: "M15 12a3 3 0 11-6 0 3 3 0 016 0z" },
   fechar: { linhas: "M6 6l12 12M18 6L6 18" },
   voltar: { linhas: "M15 5l-7 7 7 7" },

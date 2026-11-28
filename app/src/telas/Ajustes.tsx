@@ -48,7 +48,7 @@ export function ContaVetorial({ motor, avisar }: { motor: Motor; avisar: (t: str
     <div className="vidro grid gap-3 p-4">
       <p><span className="font-semibold">{estado.email}</span>{estado.offline && <span className="text-sm text-slate-400"> · sem internet agora</span>}</p>
       <div className="flex flex-wrap gap-3">
-        <button data-foco className="botao primario" disabled={ocupado || !estado.vortex} onClick={() => sincronizar()}>{ocupado ? "Sincronizando…" : "☁ Sincronizar saves agora"}</button>
+        <button data-foco className="botao primario" disabled={ocupado || !estado.vortex} onClick={() => sincronizar()}>{ocupado ? "Sincronizando…" : <><Icone nome="nuvem" className="mr-1.5 inline size-5 align-[-0.25em]" />Sincronizar saves agora</>}</button>
         <button data-foco className="botao" disabled={ocupado} onClick={() => tente(async () => { await conta.sair(); setEstado({ logado: false, vortex: false }); })}>Sair da conta</button>
       </div>
       {conflitos.length > 0 && (
@@ -94,7 +94,7 @@ export function TelaModoJogo({ motor, avisar }: { motor: Motor; avisar: Avisar }
 }
 
 const POSICOES: [PosicaoGameBar, string][] = [["oculta", "Escondida"], ["topo", "Em cima"], ["base", "Embaixo"], ["esquerda", "Esquerda"], ["direita", "Direita"]];
-const MODOS: [ModoDesempenho, string, string][] = [["economico", "🔋 Econômico", "Tela em 60 Hz e brilho menor: dura mais."], ["normal", "⚖ Normal", "Do jeito que o aparelho já faz."], ["turbo", "⚡ Turbo", "Taxa de atualização máxima e prioridade alta."]];
+const MODOS: [ModoDesempenho, string, string][] = [["economico", "Econômico", "Tela em 60 Hz e brilho menor: dura mais."], ["normal", "Normal", "Do jeito que o aparelho já faz."], ["turbo", "Turbo", "Taxa de atualização máxima e prioridade alta."]];
 const ITENS_GB: [keyof ConfigGameBar, string, string][] = [
   ["fps", "FPS", "Quadros por segundo reais do jogo (e o da tela entre parênteses)."],
   ["cpu", "CPU", "Uso de processador só do Vortex."],
@@ -327,7 +327,7 @@ export function TelaJogos({ motor, avisar, aoMudarBiblioteca, plats = [], oculto
         <h3 className="text-lg font-bold text-cyan-100/90">Buscar jogos</h3>
         <Interruptor ligado={auto} rotulo="Achar e organizar jogos sozinho" detalhe="Ao abrir, o Vortex procura jogos retrô soltos (Download, Roms, Games, pastas com nome de console), descompacta (ZIP, 7z e RAR) e guarda cada um na pasta do console." aoMudar={(v) => { setAuto(v); definirOrganizarAutomatico(v); }} />
         <div className="flex flex-wrap gap-3">
-          <button data-foco className="botao primario" disabled={ocupado} onClick={organizarAgora}>{ocupado ? "Procurando…" : "⚡ Buscar e organizar agora"}</button>
+          <button data-foco className="botao primario" disabled={ocupado} onClick={organizarAgora}>{ocupado ? "Procurando…" : <><Icone nome="modo" className="mr-1.5 inline size-5 align-[-0.25em]" />Buscar e organizar agora</>}</button>
           <button data-foco className="botao" disabled={ocupado} onClick={desfazer}>↶ Desfazer a organização</button>
         </div>
         {resultado && <div className="vidro grid gap-1 p-4 text-sm text-slate-200">{resultado.map((l, i) => <p key={i}>{l}</p>)}</div>}
@@ -336,7 +336,7 @@ export function TelaJogos({ motor, avisar, aoMudarBiblioteca, plats = [], oculto
         <section className="grid gap-3">
           <h3 className="text-lg font-bold text-cyan-100/90">Varredura completa do computador</h3>
           <p className="text-sm text-slate-400">Olha todos os discos (inclusive o C:), acha as pastas com jogos e usa a IA para entender as que não têm o nome do console. Nada é movido nem apagado.</p>
-          <div className="flex flex-wrap gap-3"><button data-foco className={`botao ${pastas.length ? "" : "primario"}`} disabled={ocupado} onClick={varrerSistema}>{ocupado ? "Varrendo…" : "🔎 Varrer o computador inteiro"}</button></div>
+          <div className="flex flex-wrap gap-3"><button data-foco className={`botao ${pastas.length ? "" : "primario"}`} disabled={ocupado} onClick={varrerSistema}>{ocupado ? "Varrendo…" : <><Icone nome="buscar" className="mr-1.5 inline size-5 align-[-0.25em]" />Varrer o computador inteiro</>}</button></div>
           {nota && <p className="text-sm text-slate-300">{nota}</p>}
           {achadas && achadas.length > 0 && (
             <div className="vidro grid gap-2 p-4 text-sm text-slate-200">
@@ -354,7 +354,7 @@ export function TelaJogos({ motor, avisar, aoMudarBiblioteca, plats = [], oculto
       <section className="grid gap-3">
         <h3 className="text-lg font-bold text-cyan-100/90">Jogos repetidos e arquivos quebrados</h3>
         <Interruptor ligado={limpezaAuto} rotulo="Deixar um jogo só por título" detalhe="Depois de buscar, fica a melhor versão de cada jogo (Brasil, EUA, sem beta). As cópias vão para a pasta Duplicados e os arquivos quebrados para a pasta Corrompidos, dentro da sua pasta de jogos. Nada é apagado." aoMudar={(v) => { setLimpezaAuto(v); definirLimparSozinho(v); }} />
-        <div className="flex flex-wrap gap-3"><button data-foco className="botao" disabled={ocupado} onClick={verFaxina}>🧹 Ver o que dá para limpar</button>{motor.faxinaIA && <button data-foco className="botao" disabled={ocupado} onClick={revisarComIA}>🤖 Revisar com IA</button>}</div>
+        <div className="flex flex-wrap gap-3"><button data-foco className="botao" disabled={ocupado} onClick={verFaxina}><Icone nome="limpar" className="mr-1.5 inline size-5 align-[-0.25em]" />Ver o que dá para limpar</button>{motor.faxinaIA && <button data-foco className="botao" disabled={ocupado} onClick={revisarComIA}><Icone nome="ia" className="mr-1.5 inline size-5 align-[-0.25em]" />Revisar com IA</button>}</div>
         {revIA && (
           <div className="vidro grid gap-2 p-4 text-sm text-slate-200">
             <p>A IA sugere separar estes arquivos (você decide; nada é apagado):</p>
@@ -588,10 +588,10 @@ export function TelaAparencia({ tema, aoMudar, jogos = [], avisar, botoesVirtuai
         <h3 className="text-lg font-bold text-cyan-100/90">Fundo</h3>
         <div className="flex flex-wrap gap-2">
           {FUNDOS.map(([id, nome]) => <button key={id} data-foco className="chip" data-ativa={tema.fundo === id} onClick={() => m({ fundo: id })}>{nome}</button>)}
-          <label className="chip cursor-pointer" data-ativa={tema.fundo === "foto"} data-foco tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.click(); }}>📷 Minha foto
+          <label className="chip cursor-pointer" data-ativa={tema.fundo === "foto"} data-foco tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") (e.currentTarget.querySelector("input") as HTMLInputElement | null)?.click(); }}><Icone nome="camera" className="mr-1.5 inline size-5 align-[-0.25em]" />Minha foto
             <input type="file" accept="image/*" className="hidden" onChange={(e) => { void escolherFoto(e.target.files?.[0]); e.target.value = ""; }} />
           </label>
-          <button data-foco className="chip" data-ativa={tema.fundo === "capa"} onClick={() => setEscolhendoCapa((v) => !v)}>🖼 Capa de um jogo</button>
+          <button data-foco className="chip" data-ativa={tema.fundo === "capa"} onClick={() => setEscolhendoCapa((v) => !v)}><Icone nome="imagem" className="mr-1.5 inline size-5 align-[-0.25em]" />Capa de um jogo</button>
         </div>
         <p className="text-sm text-slate-400">{FUNDOS.find(([id]) => id === tema.fundo)?.[2] ?? (tema.fundo === "foto" ? "Sua foto de fundo." : "A capa de jogo que você escolheu.")}</p>
         {escolhendoCapa && (capas.length ? (

@@ -229,7 +229,7 @@ function AbaEmojis() {
   const v = useVisual();
   return (
     <div className="space-y-3">
-      <p className="text-sm text-suave">Pacotes prontos, sempre disponíveis no teclado do Voxix: toque no 😀 ao lado do espaço. Os que você mais usa ficam em “Recentes”.</p>
+      <p className="text-sm text-suave">Pacotes prontos, sempre disponíveis no teclado do Voxix: toque no botão de emoji ao lado do espaço. Os que você mais usa ficam em “Recentes”.</p>
       {PACOTES.map((p) => (
         <section key={p.id} className="rounded-xl border border-borda p-3">
           <div className="flex items-center justify-between"><b className="text-sm">{p.icone} {p.nome}</b><span className="text-xs text-suave">{p.itens.length} emojis</span></div>

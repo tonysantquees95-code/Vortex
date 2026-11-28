@@ -31,8 +31,8 @@ export function Tour({ aoTerminar, rotuloFinal = "Continuar", aoFechar }: { aoTe
   return (
     <div className="flex min-h-0 flex-1 flex-col" onTouchStart={(e) => { inicio.current = e.touches[0]!.clientX; }} onTouchEnd={(e) => { if (inicio.current === null) return; const dx = e.changedTouches[0]!.clientX - inicio.current; inicio.current = null; if (Math.abs(dx) > 60) ir(dx < 0 ? 1 : -1); }}>
       <div className="flex items-center justify-between"><Logo tam={32} />{aoFechar ? <button onClick={aoFechar} aria-label="Fechar" className="grid min-h-10 min-w-10 place-items-center text-suave"><Icone nome="fechar" tam={24} /></button> : <button onClick={aoTerminar} className="min-h-10 px-3 text-sm text-suave underline">Pular</button>}</div>
-      <div className="rolagem flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto text-center">
-        <div className="grid h-24 w-24 place-items-center rounded-3xl border border-borda bg-painel text-5xl shadow-[0_0_40px_-10px_var(--color-neon)]" aria-hidden>{p.icone}</div>
+      <div className="rolagem flex min-h-0 flex-1 flex-col items-center [justify-content:safe_center] gap-4 overflow-y-auto text-center">
+        <div className="shrink-0 grid h-24 w-24 place-items-center rounded-3xl border border-borda bg-painel text-neon shadow-[0_0_40px_-10px_var(--color-neon)]" aria-hidden><Icone nome={p.icone} tam={48} /></div>
         <h1 className="text-2xl font-extrabold">{p.titulo}</h1>
         <p className="text-suave">{p.texto}</p>
         {p.como && <ul className="w-full space-y-2 rounded-2xl border border-borda bg-painel p-4 text-left text-sm">{p.como.map((c) => <li key={c} className="flex gap-2"><span className="text-neon">›</span><span>{c}</span></li>)}</ul>}
@@ -54,11 +54,11 @@ function Permissoes({ aoVoltar, aoContinuar }: { aoVoltar: () => void; aoContinu
       <div><h1 className="text-2xl font-extrabold">Permissões</h1><p className="mt-1 text-sm text-suave">O Voxix pede o mínimo. Veja o que é usado e por quê:</p></div>
       <ul className="rolagem min-h-0 flex-1 space-y-3 overflow-y-auto">
         <li className="rounded-2xl border border-borda bg-painel p-4">
-          <div className="flex items-center justify-between gap-2"><b>🌐 Internet</b><span className="text-xs text-ok">liberada</span></div>
+          <div className="flex items-center justify-between gap-2"><b><Icone nome="globo" tam={18} className="mr-2 inline-block align-[-0.2em] text-neon" />Internet</b><span className="text-xs text-ok">liberada</span></div>
           <p className="mt-1 text-sm text-suave">Para enviar e receber mensagens em tempo real. O Android libera sozinho, não precisa fazer nada.</p>
         </li>
         <li className="rounded-2xl border border-borda bg-painel p-4">
-          <div className="flex items-center justify-between gap-2"><b>🎤 Microfone <span className="ml-1 rounded-full bg-neon/15 px-2 py-0.5 text-[10px] uppercase tracking-wider text-neon">opcional</span></b><span className={`text-xs ${mic === "liberado" ? "text-ok" : mic === "negado" ? "text-erro" : "text-aviso"}`}>{mic === "liberado" ? "liberado" : mic === "negado" ? "não liberado" : "pendente"}</span></div>
+          <div className="flex items-center justify-between gap-2"><b><Icone nome="microfone" tam={18} className="mr-2 inline-block align-[-0.2em] text-neon" />Microfone <span className="ml-1 rounded-full bg-neon/15 px-2 py-0.5 text-[10px] uppercase tracking-wider text-neon">opcional</span></b><span className={`text-xs ${mic === "liberado" ? "text-ok" : mic === "negado" ? "text-erro" : "text-aviso"}`}>{mic === "liberado" ? "liberado" : mic === "negado" ? "não liberado" : "pendente"}</span></div>
           <p className="mt-1 text-sm text-suave">Só para o ditado: ele liga quando você toca no botão do microfone e desliga quando você para. O Voxix não grava conversas nem escuta em segundo plano.</p>
           {mic !== "liberado" && <button onClick={() => void liberar()} className="mt-3 rounded-xl border border-neon px-4 py-2 text-sm font-bold text-neon">Liberar o microfone agora</button>}
           {mic === "negado" && <p className="mt-2 text-xs text-aviso">Sem problema: você pode liberar depois nas configurações do aparelho, ou só digitar.</p>}

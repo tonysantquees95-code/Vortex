@@ -1,3 +1,4 @@
+import { Icone } from "./Icones";
 import { useEffect, useRef, useState } from "react";
 import type { Jogo, Motor, PerfilJogo } from "../ponte";
 import { tempoJogado } from "../navegacao";
@@ -82,7 +83,7 @@ export function Detalhe({ motor, jogo, aoJogar, aoFavoritar, aoFechar, aoAbrirUr
           <div className="mt-auto flex flex-wrap gap-3 pt-6">
             <button data-foco className="botao primario" disabled={!jogo.disponivel} onClick={() => aoJogar(jogo)}>▶ Jogar</button>
             <button data-foco className="botao" onClick={() => aoFavoritar(jogo)}>{jogo.favorito ? "★ Nos favoritos" : "☆ Favoritar"}</button>
-            <button data-foco className="botao" onClick={() => setTrocandoCapa(true)}>🖼 Trocar capa</button>
+            <button data-foco className="botao" onClick={() => setTrocandoCapa(true)}><Icone nome="imagem" className="mr-1.5 inline size-5 align-[-0.25em]" />Trocar capa</button>
             <button data-foco className="botao" onClick={aoFechar}>Voltar</button>
           </div>
           <div className="pt-4">
@@ -93,8 +94,8 @@ export function Detalhe({ motor, jogo, aoJogar, aoFavoritar, aoFechar, aoAbrirUr
               </div>
             ) : (
               <div className="flex flex-wrap gap-2">
-                <button data-foco className="chip" onClick={() => setConfirmar("esconder")}>🙈 Esconder</button>
-                <button data-foco className="chip" onClick={() => setConfirmar("fora")}>🗑 Tirar da biblioteca</button>
+                <button data-foco className="chip" onClick={() => setConfirmar("esconder")}><Icone nome="esconder" className="mr-1.5 inline size-5 align-[-0.25em]" />Esconder</button>
+                <button data-foco className="chip" onClick={() => setConfirmar("fora")}><Icone nome="lixo" className="mr-1.5 inline size-5 align-[-0.25em]" />Tirar da biblioteca</button>
               </div>
             )}
           </div>
